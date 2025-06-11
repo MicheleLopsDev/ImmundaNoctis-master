@@ -1,68 +1,56 @@
-# Immunda Noctis
+# Immunda Noctis - Motore di Gioco per GDR in Solitaria
 
 ![Licenza MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 
-Un'applicazione GDR per Android ambientata in un mondo oscuro e spietato, dove un'intelligenza artificiale agisce come Master, narrando storie mature e avventure gotiche.
+**Immunda Noctis** non è un semplice gioco, ma un motore di avventure testuali per giochi di ruolo in solitaria, interamente guidato da intelligenza artificiale eseguita in locale sul tuo dispositivo Android.
 
-## 📖 Descrizione
+## 📜 Visione del Progetto
 
-**Immunda Noctis** è un progetto sperimentale che mira a creare un'esperienza di gioco di ruolo (GDR) solitaria, profonda e immersiva. L'applicazione ti getterà in un'ambientazione dark fantasy, dove ogni ombra nasconde un pericolo e ogni scelta ha un peso.
+Ricordi i vecchi **libri-gioco**, dove ogni scelta apriva un nuovo paragrafo e una nuova diramazione della storia? Immunda Noctis nasce da quello stesso spirito, ma lo porta a un livello successivo. Invece di seguire percorsi predefiniti, l'avventura viene creata, narrata e adattata in tempo reale da un'intelligenza artificiale che funge da Dungeon Master personale.
 
-Il cuore del gioco è un'IA che funge da Master: descrive le ambientazioni cupe, interpreta i personaggi tormentati che le popolano e reagisce alle azioni del giocatore, tessendo una narrazione unica e personale. L'obiettivo è creare un'avventura che si senta viva, imprevedibile e spietata.
+L'obiettivo è creare un'esperienza di gioco di ruolo profonda, rigiocabile e completamente offline, dove ogni partita è un racconto unico e irripetibile.
 
-## ✨ Funzionalità
+## ✨ Architettura e Funzionalità Chiave
 
-### Attuali
-* [x] Interfaccia di chat di base per interagire con il Master, costruita con Jetpack Compose.
-* [x] Gestione dello stato della conversazione tramite ViewModel.
+Questo progetto è costruito con un'architettura moderna e modulare per garantire flessibilità e manutenibilità.
 
-### Pianificate
-* [ ] Integrazione di un modello di linguaggio (LLM) per generare le risposte del Master con uno stile narrativo oscuro e gotico.
-* [ ] Implementazione di Text-to-Speech (TTS) per dare una voce inquietante al Master e ai PNG.
-* [ ] Implementazione di Speech-to-Text (STT) per un'immersione totale.
-* [ ] Generazione procedurale di dungeon, cripte e rovine maledette tramite IA.
-* [ ] Motore IA per la gestione di regole di gioco brutali (combattimento, sanità mentale, etc.).
+* **Architettura a Moduli**: Il progetto è diviso in due moduli principali:
+    * `:app`: Contiene tutta l'interfaccia utente (scritta in Jetpack Compose) e la logica di gioco.
+    * `:llama`: Una libreria Android autonoma che incapsula la complessità di `llama.cpp`, fornendo un'API Kotlin pulita per interagire con i modelli di linguaggio.
 
-## 🛠️ Stack Tecnologico
+* **Motore IA Locale**: L'inferenza viene eseguita al 100% sul dispositivo grazie a `llama.cpp`, garantendo un'esperienza offline e la massima privacy.
 
-* **Linguaggio:** [Kotlin](https://kotlinlang.org/)
-* **UI:** [Jetpack Compose](https://developer.android.com/jetpack/compose)
-* **Architettura:** MVVM (Model-View-ViewModel)
-* **Librerie Principali:**
-    * Kotlin Coroutines & Flow
-    * AndroidX Lifecycle & ViewModel
+* **Galleria di Motori Dinamica**: L'applicazione permette agli utenti di scaricare e gestire diversi modelli IA (in formato GGUF) tramite un'interfaccia dedicata (`ModelActivity`), rendendo il gioco completamente personalizzabile.
+
+* **Sistema a Doppio Motore (Pianificato)**: L'architettura è pensata per supportare due modelli contemporaneamente: uno per il Master (narrazione e regole) e uno per i Personaggi Non Giocanti (dialoghi e personalità).
+
+* **Navigazione Multi-Activity**: L'app è strutturata con un menu principale che indirizza al tavolo da gioco (`AdventureActivity`) o alla gestione dei motori (`ModelActivity`).
 
 ## 🚀 Come Iniziare
 
-Per compilare e testare il progetto in locale:
+Per compilare ed eseguire il progetto, segui questi passaggi:
 
-1.  **Clona il repository:**
-    ```bash
-    git clone [https://github.com/](https://github.com/)MicheleLopsDev/ImmundaNoctis.git
-    ```
+1.  Assicurati di avere Android Studio e l'NDK configurati correttamente.
+2.  Clona questo repository.
+3.  Apri il progetto con Android Studio.
+4.  Esegui una prima sincronizzazione con Gradle.
+5.  Avvia l'app su un emulatore o un dispositivo fisico.
 
-2.  **Apri con Android Studio:**
-    * Apri Android Studio (versione Giraffe o successiva consigliata).
-    * Seleziona "Open an existing project" e scegli la cartella `ImmundaNoctis`.
+## 🙏 Un Tributo Speciale
 
-3.  **Esegui l'applicazione:**
-    * Attendi la sincronizzazione delle dipendenze Gradle.
-    * Seleziona un emulatore o un dispositivo fisico e premi "Run".
+> Questo progetto, e la mia passione per la programmazione e i giochi di ruolo, non sarebbero mai nati senza il meraviglioso **JD**. Le sue avventure e la sua creatività sono state la scintilla che ha acceso tutto. Questo codice è, a modo suo, un tributo a quella ispirazione.
 
-## 🤝 Come Contribuire
+## ✒️ Autore e Contatti
 
-Questo è un progetto open-source nato dalla passione per le storie oscure. Ogni aiuto è prezioso. Se vuoi contribuire a plasmare questo mondo:
-
-* Apri una [Issue](https://github.com/MicheleLopsDev/ImmundaNoctis/issues) per segnalare bug o proporre nuove idee.
-* Crea una [Pull Request](https://github.com/MicheleLopsDev/ImmundaNoctis/pulls) per aggiungere le tue terrificanti creazioni al codice.
+* **Michele Lops**
+* Email: [sentieroluminoso@gmail.com](mailto:sentieroluminoso@gmail.com)
 
 ## 📄 Licenza
 
-Questo progetto è rilasciato sotto la **Licenza MIT**.
+Questo progetto è rilasciato sotto la **Licenza MIT**. Vedi il file `LICENSE` per maggiori dettagli.
 
 ---
-
-**Copyright (c) 2024 Michele Lops**
+**Copyright (c) 2025 Michele Lops**
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
