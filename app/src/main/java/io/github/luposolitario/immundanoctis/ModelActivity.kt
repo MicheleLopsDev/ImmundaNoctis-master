@@ -1,17 +1,18 @@
 package io.github.luposolitario.immundanoctis
 
+import android.app.Activity
 import android.app.ActivityManager
 import android.app.DownloadManager
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.net.Uri
 import android.os.Bundle
+import android.os.Environment
 import android.os.StrictMode
 import android.os.StrictMode.VmPolicy
 import android.text.format.Formatter
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -21,8 +22,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -30,9 +35,13 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.getSystemService
@@ -71,9 +80,9 @@ class ModelActivity(
         val total = Formatter.formatFileSize(this, availableMemory().totalMem)
 
         viewModel.log("Current memory: $free / $total")
-        viewModel.log("Downloads directory: ${getExternalFilesDir(null)}")
+        viewModel.log("Downloads directory: ${getDownloadDirectory()}")
 
-        val extFilesDir = getExternalFilesDir(null)
+        val extFilesDir = getDownloadDirectory()
 
         val models = listOf(
             Downloadable(
@@ -98,6 +107,16 @@ class ModelActivity(
             }
         }
     }
+
+    private fun getDownloadDirectory(): File {
+        val appSpecificDir = applicationContext.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+        val immundaDir = File(appSpecificDir, "immunda")
+
+        if (!immundaDir.exists()) {
+            immundaDir.mkdirs()
+        }
+        return immundaDir
+    }
 }
 
 @Composable
@@ -106,16 +125,16 @@ fun MainCompose(
     dm: DownloadManager,
     models: List<Downloadable>
 ) {
-    // Stato per controllare la visibilità del popup
     val showUrlDialog = remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
-    // Se showUrlDialog è true, mostra il nostro popup
+    // Variabile "trigger" per forzare la ricomposizione della UI
+    var recompositionTrigger by remember { mutableStateOf(0) }
+
     if (showUrlDialog.value) {
         AddUrlDialog(
             onDismiss = { showUrlDialog.value = false },
             onConfirm = { url ->
-                // Qui andrà la logica per aggiungere il nuovo modello.
-                // Per ora, chiudiamo solo il dialogo.
                 viewModel.log("Nuovo URL aggiunto: $url")
                 showUrlDialog.value = false
             }
@@ -124,7 +143,6 @@ fun MainCompose(
 
     Column(modifier = Modifier.fillMaxSize()) {
         // --- SEZIONE LOG MESSAGES ---
-        // Assegniamo un peso 1, occuperà metà dello spazio verticale
         Box(modifier = Modifier.weight(1f)) {
             val scrollState = rememberLazyListState()
             LazyColumn(state = scrollState, modifier = Modifier.fillMaxSize()) {
@@ -139,11 +157,41 @@ fun MainCompose(
         }
 
         // --- SEZIONE DOWNLOADS ---
-        // Assegniamo un peso 1 anche a questa, occuperà l'altra metà dello spazio
         LazyColumn(modifier = Modifier.weight(1f).padding(top = 8.dp)) {
-            items(models) { model ->
-                Row(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
-                    Downloadable.Button(viewModel, dm, model)
+            items(models, key = { it.name + recompositionTrigger }) { model ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    // Passiamo la callback al pulsante per sapere quando il download è finito
+                    Downloadable.Button(
+                        viewModel = viewModel,
+                        dm = dm,
+                        item = model,
+                        onDownloadComplete = {
+                            // Quando il download finisce, incrementiamo il trigger
+                            // per forzare l'aggiornamento della UI
+                            recompositionTrigger++
+                        }
+                    )
+
+                    // Il controllo viene eseguito di nuovo dopo la ricomposizione
+                    if (model.destination.exists()) {
+                        IconButton(onClick = {
+                            if (model.destination.delete()) {
+                                (context as? Activity)?.recreate()
+                            }
+                        }) {
+                            Icon(
+                                imageVector = Icons.Filled.Delete,
+                                contentDescription = "Cancella modello",
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -165,14 +213,11 @@ fun AddUrlDialog(
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit
 ) {
-    // Stato per memorizzare l'URL inserito dall'utente nel campo di testo
     val urlText = remember { mutableStateOf("") }
-
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Aggiungi Nuovo Modello") },
         text = {
-            // Campo di testo per inserire l'URL
             OutlinedTextField(
                 value = urlText.value,
                 onValueChange = { urlText.value = it },
@@ -201,11 +246,9 @@ fun AddUrlDialog(
     )
 }
 
-
 @Preview(showBackground = true, name = "Schermata Principale")
 @Composable
 fun MainComposePreview() {
-    // Dati di esempio per l'anteprima
     val messaggiDiEsempio = listOf(
         "Log: Avvio dell'applicazione...",
         "Memoria disponibile: 4 GB / 8 GB",
@@ -221,7 +264,6 @@ fun MainComposePreview() {
     ImmundaNoctisTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
             Column(modifier = Modifier.fillMaxSize()) {
-                // Sezione log
                 Box(modifier = Modifier.weight(1f)) {
                     LazyColumn(modifier = Modifier.fillMaxSize()) {
                         items(messaggiDiEsempio) { messaggio ->
@@ -230,7 +272,6 @@ fun MainComposePreview() {
                     }
                 }
 
-                // Sezione download scrollabile
                 LazyColumn(modifier = Modifier.weight(1f).padding(top = 8.dp)) {
                     items(modelliDiEsempio) { modello ->
                         Button(
@@ -244,7 +285,6 @@ fun MainComposePreview() {
                     }
                 }
 
-                // Pulsante Aggiungi
                 Button(
                     onClick = { },
                     modifier = Modifier

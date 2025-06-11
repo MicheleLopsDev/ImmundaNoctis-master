@@ -32,7 +32,12 @@ data class Downloadable(val name: String, val source: Uri, val destination: File
 
         @JvmStatic
         @Composable
-        fun Button(viewModel: MainViewModel, dm: DownloadManager, item: Downloadable) {
+        fun Button(
+            viewModel: MainViewModel,
+            dm: DownloadManager,
+            item: Downloadable,
+            onDownloadComplete: () -> Unit // <-- 1. AGGIUNGI QUESTO PARAMETRO
+        ) {
             var status: State by remember {
                 mutableStateOf(
                     if (item.destination.exists()) Downloaded(item)
@@ -64,7 +69,9 @@ data class Downloadable(val name: String, val source: Uri, val destination: File
                     val total = cursor.getLongOrNull(tix) ?: 1
                     cursor.close()
 
-                    if (sofar == total) {
+                    if (sofar > 0 && sofar == total) {
+                        // <-- 2. CHIAMA LA FUNZIONE DI CALLBACK QUI
+                        onDownloadComplete()
                         return Downloaded(item)
                     }
 
