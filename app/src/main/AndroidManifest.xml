@@ -14,18 +14,29 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.ImmundaNoctis"
         tools:targetApi="35">
-        <activity
 
+        <activity
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.ImmundaNoctis">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-    </application>
 
+        <activity
+            android:name=".AdventureActivity"
+            android:exported="false"
+            android:label="Tavolo da Gioco"
+            android:theme="@style/Theme.ImmundaNoctis" />
+
+        <activity
+            android:name=".ModelActivity"
+            android:exported="false"
+            android:label="Gestione Motori"
+            android:theme="@style/Theme.ImmundaNoctis" />
+
+    </application>
 </manifest>

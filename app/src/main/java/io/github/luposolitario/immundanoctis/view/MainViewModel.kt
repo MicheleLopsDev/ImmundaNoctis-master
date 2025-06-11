@@ -1,4 +1,4 @@
-package com.example.llama
+package io.github.luposolitario.immundanoctis.view
 
 import android.llama.cpp.LLamaAndroid
 import android.util.Log

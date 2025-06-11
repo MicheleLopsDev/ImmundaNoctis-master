@@ -1,4 +1,4 @@
-package com.example.llama
+package io.github.luposolitario.immundanoctis.util
 
 import android.app.DownloadManager
 import android.net.Uri
@@ -14,6 +14,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.core.database.getLongOrNull
 import androidx.core.net.toUri
+import io.github.luposolitario.immundanoctis.view.MainViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
