@@ -1,10 +1,14 @@
 package io.github.luposolitario.immundanoctis.view
 
-import android.llama.cpp.LLamaAndroid
+import android.app.Application
 import android.util.Log
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.luposolitario.immundanoctis.data.ChatMessage
+import io.github.luposolitario.immundanoctis.data.CharacterID
+import io.github.luposolitario.immundanoctis.engine.GemmaEngine
+import io.github.luposolitario.immundanoctis.engine.InferenceEngine
+import io.github.luposolitario.immundanoctis.engine.LlamaCppEngine
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,77 +17,102 @@ import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-object CharacterID {
-    const val HERO = "hero"
-    const val DM = "dm"
-}
-
-class MainViewModel(private val llamaAndroid: LLamaAndroid = LLamaAndroid.instance()) : ViewModel() {
+class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val tag: String? = this::class.simpleName
 
-    // --- PROPRIETÀ PER LA CHAT ---
+    private val dmEngine: InferenceEngine = GemmaEngine(application.applicationContext)
+    private val playerEngine: InferenceEngine = LlamaCppEngine()
+
     private val _chatMessages = MutableStateFlow<List<ChatMessage>>(emptyList())
-    val chatMessages: StateFlow<List<ChatMessage>> = _chatMessages.asStateFlow() // <-- QUESTA È LA PROPRIETÀ CHIAVE
+    val chatMessages: StateFlow<List<ChatMessage>> = _chatMessages.asStateFlow()
 
     private val _streamingText = MutableStateFlow("")
     val streamingText: StateFlow<String> = _streamingText.asStateFlow()
 
     private val _isGenerating = MutableStateFlow(false)
     val isGenerating: StateFlow<Boolean> = _isGenerating.asStateFlow()
-    // ---
 
-    private val _logMessages = MutableStateFlow<List<String>>(listOf("Initializing..."))
+    private val _respondingCharacterId = MutableStateFlow<String?>(null)
+    val respondingCharacterId: StateFlow<String?> = _respondingCharacterId.asStateFlow()
+
+    private val _logMessages = MutableStateFlow<List<String>>(listOf("ViewModel Inizializzato."))
     val logMessages: StateFlow<List<String>> = _logMessages.asStateFlow()
+
+    // Stato per il personaggio BERSAGLIO della conversazione
+    private val _conversationTargetId = MutableStateFlow(CharacterID.DM)
+    val conversationTargetId: StateFlow<String> = _conversationTargetId.asStateFlow()
+
+    // NOTA: 'currentPlayerId' è stato rinominato in 'conversationTargetId' per chiarezza.
 
     override fun onCleared() {
         super.onCleared()
         viewModelScope.launch {
-            try {
-                llamaAndroid.unload()
-            } catch (exc: IllegalStateException) {
-                log(exc.message ?: "Error on unload")
-            }
+            log("Rilascio risorse motori...")
+            dmEngine.unload()
+            playerEngine.unload()
+            log("Motori rilasciati.")
         }
     }
 
+    /**
+     * Imposta il personaggio a cui l'utente sta parlando.
+     */
+    fun setConversationTarget(characterId: String) {
+        _conversationTargetId.value = characterId
+        log("Ora stai parlando con: $characterId")
+    }
+
+    fun loadEngines(dmModelPath: String?, playerModelPath: String?) {
+        viewModelScope.launch {
+            dmModelPath?.let {
+                log("Caricamento modello DM (Gemma)...")
+                dmEngine.load(it)
+            } ?: log("Nessun percorso per il modello DM.")
+
+            playerModelPath?.let {
+                log("Caricamento modello PG (GGUF)...")
+                playerEngine.load(it)
+            } ?: log("Nessun percorso per il modello PG.")
+        }
+    }
+
+    /**
+     * Invia un messaggio DALL'EROE al personaggio BERSAGLIO e genera la sua risposta.
+     */
     fun sendMessage(text: String) {
         if (_isGenerating.value) return
 
         val userMessage = ChatMessage(authorId = CharacterID.HERO, text = text)
         _chatMessages.update { it + userMessage }
 
+        val targetId = _conversationTargetId.value
+        val engineToUse = if (targetId == CharacterID.DM) dmEngine else playerEngine
+
+        log("Invio prompt al motore di '$targetId'...")
+
         viewModelScope.launch {
             _isGenerating.value = true
             _streamingText.value = ""
+            _respondingCharacterId.value = targetId
 
-            llamaAndroid.send(text)
+            engineToUse.sendMessage(text)
                 .catch { error ->
-                    Log.e(tag, "send() failed", error)
-                    log(error.message ?: "Unknown error during send")
+                    Log.e(tag, "sendMessage() failed", error)
+                    log(error.message ?: "Errore sconosciuto.")
                 }
                 .onCompletion {
                     if (_streamingText.value.isNotBlank()) {
-                        val finalMessage = ChatMessage(authorId = CharacterID.DM, text = _streamingText.value)
+                        val finalMessage = ChatMessage(authorId = targetId, text = _streamingText.value)
                         _chatMessages.update { it + finalMessage }
                     }
                     _streamingText.value = ""
                     _isGenerating.value = false
+                    _respondingCharacterId.value = null
+                    log("Risposta generata da '$targetId'.")
                 }
                 .collect { token ->
                     _streamingText.update { it + token }
                 }
-        }
-    }
-
-    fun load(pathToModel: String) {
-        viewModelScope.launch {
-            try {
-                llamaAndroid.load(pathToModel)
-                log("Loaded $pathToModel")
-            } catch (exc: IllegalStateException) {
-                Log.e(tag, "load() failed", exc)
-                log(exc.message ?: "Failed to load model")
-            }
         }
     }
 

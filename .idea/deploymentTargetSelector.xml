@@ -4,7 +4,7 @@
     <selectionStates>
       <SelectionState runConfigName="ImmundaNoctis.app">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2025-06-12T09:13:13.389036400Z">
+        <DropdownSelection timestamp="2025-06-12T13:32:12.698345200Z">
           <Target type="DEFAULT_BOOT">
             <handle>
               <DeviceId pluginId="PhysicalDevice" identifier="serial=ZY22LCXWTM" />

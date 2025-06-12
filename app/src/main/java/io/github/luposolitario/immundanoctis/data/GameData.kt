@@ -2,6 +2,11 @@ package io.github.luposolitario.immundanoctis.data
 
 import androidx.annotation.DrawableRes
 
+object CharacterID {
+    const val HERO = "hero"
+    const val DM = "dm"
+}
+
 /**
  * Contiene le statistiche di combattimento e le caratteristiche base
  * di un personaggio in stile D&D.
