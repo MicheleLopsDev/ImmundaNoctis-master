@@ -18,11 +18,9 @@ Questo progetto è costruito con un'architettura moderna e modulare per garantir
     * `:app`: Contiene tutta l'interfaccia utente (scritta in Jetpack Compose) e la logica di gioco.
     * `:llama`: Una libreria Android autonoma che incapsula la complessità di `llama.cpp`, fornendo un'API Kotlin pulita per interagire con i modelli di linguaggio.
 
-* **Motore IA Locale**: L'inferenza viene eseguita al 100% sul dispositivo grazie a `llama.cpp`, garantendo un'esperienza offline e la massima privacy.
+* **Motore IA Locale**: L'inferenza viene eseguita al 100% sul dispositivo grazie a `llama.cpp` e in futuro a MediaPipe, garantendo un'esperienza offline e la massima privacy.
 
-* **Galleria di Motori Dinamica**: L'applicazione permette agli utenti di scaricare e gestire diversi modelli IA (in formato GGUF) tramite un'interfaccia dedicata (`ModelActivity`), rendendo il gioco completamente personalizzabile.
-
-* **Sistema a Doppio Motore (Pianificato)**: L'architettura è pensata per supportare due modelli contemporaneamente: uno per il Master (narrazione e regole) e uno per i Personaggi Non Giocanti (dialoghi e personalità).
+* **Gestione a Doppio Motore**: L'applicazione permette agli utenti di scaricare e gestire due modelli IA separati (es. Gemma per il DM, GGUF per i PG) tramite un'interfaccia dedicata (`ModelActivity`), rendendo il gioco completamente personalizzabile.
 
 * **Navigazione Multi-Activity**: L'app è strutturata con un menu principale che indirizza al tavolo da gioco (`AdventureActivity`) o alla gestione dei motori (`ModelActivity`).
 
@@ -38,7 +36,11 @@ Per compilare ed eseguire il progetto, segui questi passaggi:
 
 ## 🙏 Un Tributo Speciale
 
-> Questo progetto, e la mia passione per la programmazione e i giochi di ruolo, non sarebbero mai nati senza il meraviglioso **JD**. Le sue avventure e la sua creatività sono state la scintilla che ha acceso tutto. Questo codice è, a modo suo, un tributo a quella ispirazione.
+> Questo progetto, e la passione per la programmazione e i giochi di ruolo, non sarebbero mai nati senza il meraviglioso **JD**, Joe Dever.
+>
+> Le sue avventure e la sua creatività sono state la scintilla che ha acceso tutto, ispirando non solo questo codice, ma un'intera generazione di sviluppatori e narratori.
+>
+> Un saluto a dovunque lui sia, da un suo Fan.
 
 ## ✒️ Autore e Contatti
 
