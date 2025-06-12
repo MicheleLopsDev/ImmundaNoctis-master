@@ -12,6 +12,7 @@ import android.text.format.Formatter
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -49,6 +50,7 @@ import androidx.core.content.getSystemService
 import io.github.luposolitario.immundanoctis.ui.theme.ImmundaNoctisTheme
 import io.github.luposolitario.immundanoctis.util.Downloadable
 import io.github.luposolitario.immundanoctis.util.ModelPreferences
+import io.github.luposolitario.immundanoctis.util.ThemePreferences
 import io.github.luposolitario.immundanoctis.view.MainViewModel
 import java.io.File
 
@@ -64,6 +66,7 @@ class ModelActivity(
     private val viewModel: MainViewModel by viewModels()
 
     private val modelPreferences by lazy { ModelPreferences(applicationContext) }
+    private val themePreferences by lazy { ThemePreferences(applicationContext) }
 
     private fun availableMemory(): ActivityManager.MemoryInfo {
         return ActivityManager.MemoryInfo().also { memoryInfo ->
@@ -97,7 +100,9 @@ class ModelActivity(
         )
 
         setContent {
-            ImmundaNoctisTheme {
+            // Applica la stessa logica di lettura del tema della MainActivity
+            val useDarkTheme = themePreferences.useDarkTheme(isSystemInDarkTheme())
+            ImmundaNoctisTheme(darkTheme = useDarkTheme) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
@@ -135,7 +140,6 @@ fun MainCompose(
     val context = LocalContext.current
     var recompositionTrigger by remember { mutableStateOf(0) }
 
-    // Raccogliamo lo stato corretto 'logMessages' dal ViewModel.
     val logMessages by viewModel.logMessages.collectAsState()
 
     if (showUrlDialog.value) {
@@ -149,11 +153,9 @@ fun MainCompose(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        // --- SEZIONE LOG MESSAGES ---
         Box(modifier = Modifier.weight(1f)) {
             val scrollState = rememberLazyListState()
             LazyColumn(state = scrollState, modifier = Modifier.fillMaxSize()) {
-                // Usiamo la variabile corretta 'logMessages'
                 items(logMessages) { message ->
                     Text(
                         message,
@@ -164,7 +166,6 @@ fun MainCompose(
             }
         }
 
-        // --- SEZIONE DOWNLOADS ---
         LazyColumn(modifier = Modifier.weight(1f).padding(top = 8.dp)) {
             items(models, key = { it.name + recompositionTrigger }) { model ->
                 Row(
@@ -203,7 +204,6 @@ fun MainCompose(
             }
         }
 
-        // --- PULSANTE AGGIUNGI ---
         Button(
             onClick = { showUrlDialog.value = true },
             modifier = Modifier
