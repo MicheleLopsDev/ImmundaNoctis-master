@@ -2,80 +2,76 @@ package io.github.luposolitario.immundanoctis.view
 
 import android.llama.cpp.LLamaAndroid
 import android.util.Log
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import io.github.luposolitario.immundanoctis.data.ChatMessage
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.onCompletion
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-class MainViewModel(private val llamaAndroid: LLamaAndroid = LLamaAndroid.instance()): ViewModel() {
-    companion object {
-        @JvmStatic
-        private val NanosPerSecond = 1_000_000_000.0
-    }
+object CharacterID {
+    const val HERO = "hero"
+    const val DM = "dm"
+}
 
+class MainViewModel(private val llamaAndroid: LLamaAndroid = LLamaAndroid.instance()) : ViewModel() {
     private val tag: String? = this::class.simpleName
 
-    var messages by mutableStateOf(listOf("Initializing..."))
-        private set
+    // --- PROPRIETÀ PER LA CHAT ---
+    private val _chatMessages = MutableStateFlow<List<ChatMessage>>(emptyList())
+    val chatMessages: StateFlow<List<ChatMessage>> = _chatMessages.asStateFlow() // <-- QUESTA È LA PROPRIETÀ CHIAVE
 
-    var message by mutableStateOf("")
-        private set
+    private val _streamingText = MutableStateFlow("")
+    val streamingText: StateFlow<String> = _streamingText.asStateFlow()
+
+    private val _isGenerating = MutableStateFlow(false)
+    val isGenerating: StateFlow<Boolean> = _isGenerating.asStateFlow()
+    // ---
+
+    private val _logMessages = MutableStateFlow<List<String>>(listOf("Initializing..."))
+    val logMessages: StateFlow<List<String>> = _logMessages.asStateFlow()
 
     override fun onCleared() {
         super.onCleared()
-
         viewModelScope.launch {
             try {
                 llamaAndroid.unload()
             } catch (exc: IllegalStateException) {
-                messages += exc.message!!
+                log(exc.message ?: "Error on unload")
             }
         }
     }
 
-    fun send() {
-        val text = message
-        message = ""
+    fun sendMessage(text: String) {
+        if (_isGenerating.value) return
 
-        // Add to messages console.
-        messages += text
-        messages += ""
+        val userMessage = ChatMessage(authorId = CharacterID.HERO, text = text)
+        _chatMessages.update { it + userMessage }
 
         viewModelScope.launch {
+            _isGenerating.value = true
+            _streamingText.value = ""
+
             llamaAndroid.send(text)
-                .catch {
-                    Log.e(tag, "send() failed", it)
-                    messages += it.message!!
+                .catch { error ->
+                    Log.e(tag, "send() failed", error)
+                    log(error.message ?: "Unknown error during send")
                 }
-                .collect { messages = messages.dropLast(1) + (messages.last() + it) }
-        }
-    }
-
-    fun bench(pp: Int, tg: Int, pl: Int, nr: Int = 1) {
-        viewModelScope.launch {
-            try {
-                val start = System.nanoTime()
-                val warmupResult = llamaAndroid.bench(pp, tg, pl, nr)
-                val end = System.nanoTime()
-
-                messages += warmupResult
-
-                val warmup = (end - start).toDouble() / NanosPerSecond
-                messages += "Warm up time: $warmup seconds, please wait..."
-
-                if (warmup > 5.0) {
-                    messages += "Warm up took too long, aborting benchmark"
-                    return@launch
+                .onCompletion {
+                    if (_streamingText.value.isNotBlank()) {
+                        val finalMessage = ChatMessage(authorId = CharacterID.DM, text = _streamingText.value)
+                        _chatMessages.update { it + finalMessage }
+                    }
+                    _streamingText.value = ""
+                    _isGenerating.value = false
                 }
-
-                messages += llamaAndroid.bench(512, 128, 1, 3)
-            } catch (exc: IllegalStateException) {
-                Log.e(tag, "bench() failed", exc)
-                messages += exc.message!!
-            }
+                .collect { token ->
+                    _streamingText.update { it + token }
+                }
         }
     }
 
@@ -83,23 +79,15 @@ class MainViewModel(private val llamaAndroid: LLamaAndroid = LLamaAndroid.instan
         viewModelScope.launch {
             try {
                 llamaAndroid.load(pathToModel)
-                messages += "Loaded $pathToModel"
+                log("Loaded $pathToModel")
             } catch (exc: IllegalStateException) {
                 Log.e(tag, "load() failed", exc)
-                messages += exc.message!!
+                log(exc.message ?: "Failed to load model")
             }
         }
     }
 
-    fun updateMessage(newMessage: String) {
-        message = newMessage
-    }
-
-    fun clear() {
-        messages = listOf()
-    }
-
     fun log(message: String) {
-        messages += message
+        _logMessages.update { it + message }
     }
 }

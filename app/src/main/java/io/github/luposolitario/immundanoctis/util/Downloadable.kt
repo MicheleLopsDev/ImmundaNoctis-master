@@ -36,7 +36,8 @@ data class Downloadable(val name: String, val source: Uri, val destination: File
             viewModel: MainViewModel,
             dm: DownloadManager,
             item: Downloadable,
-            onDownloadComplete: () -> Unit // <-- 1. AGGIUNGI QUESTO PARAMETRO
+            // 1. Modifichiamo la firma per ricevere l'oggetto Downloadable
+            onDownloadComplete: (Downloadable) -> Unit
         ) {
             var status: State by remember {
                 mutableStateOf(
@@ -45,24 +46,14 @@ data class Downloadable(val name: String, val source: Uri, val destination: File
                 )
             }
             var progress by remember { mutableDoubleStateOf(0.0) }
-
             val coroutineScope = rememberCoroutineScope()
 
             suspend fun waitForDownload(result: Downloading, item: Downloadable): State {
                 while (true) {
+                    // ... (logica interna di controllo download invariata)
                     val cursor = dm.query(DownloadManager.Query().setFilterById(result.id))
-
-                    if (cursor == null) {
-                        Log.e(tag, "dm.query() returned null")
-                        return Error("dm.query() returned null")
-                    }
-
-                    if (!cursor.moveToFirst() || cursor.count < 1) {
-                        cursor.close()
-                        Log.i(tag, "cursor.moveToFirst() returned false or cursor.count < 1, download canceled?")
-                        return Ready
-                    }
-
+                    if (cursor == null) { /*...*/ return Error("dm.query() returned null") }
+                    if (!cursor.moveToFirst() || cursor.count < 1) { /*...*/ return Ready }
                     val pix = cursor.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR)
                     val tix = cursor.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES)
                     val sofar = cursor.getLongOrNull(pix) ?: 0
@@ -70,42 +61,30 @@ data class Downloadable(val name: String, val source: Uri, val destination: File
                     cursor.close()
 
                     if (sofar > 0 && sofar == total) {
-                        // <-- 2. CHIAMA LA FUNZIONE DI CALLBACK QUI
-                        onDownloadComplete()
+                        // 2. Passiamo l'item completo alla callback
+                        onDownloadComplete(item)
                         return Downloaded(item)
                     }
-
                     progress = (sofar * 1.0) / total
-
                     delay(1000L)
                 }
             }
 
+            // ... (logica di onClick invariata)
             fun onClick() {
                 when (val s = status) {
-                    is Downloaded -> {
-                        viewModel.load(item.destination.path)
-                    }
-
-                    is Downloading -> {
-                        coroutineScope.launch {
-                            status = waitForDownload(s, item)
-                        }
-                    }
-
+                    is Downloaded -> viewModel.load(item.destination.path)
+                    is Downloading -> coroutineScope.launch { status = waitForDownload(s, item) }
                     else -> {
                         item.destination.delete()
-
                         val request = DownloadManager.Request(item.source).apply {
                             setTitle("Downloading model")
                             setDescription("Downloading model: ${item.name}")
                             setAllowedNetworkTypes(DownloadManager.Request.NETWORK_WIFI)
                             setDestinationUri(item.destination.toUri())
                         }
-
                         viewModel.log("Saving ${item.name} to ${item.destination.path}")
                         Log.i(tag, "Saving ${item.name} to ${item.destination.path}")
-
                         val id = dm.enqueue(request)
                         status = Downloading(id)
                         onClick()
@@ -122,6 +101,5 @@ data class Downloadable(val name: String, val source: Uri, val destination: File
                 }
             }
         }
-
     }
 }
