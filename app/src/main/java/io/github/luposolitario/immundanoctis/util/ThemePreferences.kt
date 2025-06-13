@@ -11,6 +11,7 @@ class ThemePreferences(context: Context) {
     companion object {
         private const val PREFS_NAME = "theme_prefs"
         private const val KEY_IS_DARK_THEME = "is_dark_theme"
+        private const val KEY_HF_TOKEN = "hugging_face_token"
     }
 
     private val sharedPrefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -47,5 +48,16 @@ class ThemePreferences(context: Context) {
      */
     fun useDarkTheme(systemIsDark: Boolean): Boolean {
         return getThemeSetting() ?: systemIsDark
+    }
+
+    fun saveToken(token: String?) {
+        with(sharedPrefs.edit()) {
+            putString(KEY_HF_TOKEN, token)
+            apply()
+        }
+    }
+
+    fun getToken(): String? {
+        return sharedPrefs.getString(KEY_HF_TOKEN, null)
     }
 }

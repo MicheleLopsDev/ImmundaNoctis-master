@@ -35,7 +35,12 @@ import io.github.luposolitario.immundanoctis.view.MainViewModel
 import io.github.luposolitario.immundanoctis.worker.DownloadWorker
 import java.io.File
 import java.io.FileOutputStream
-import java.util.UUID
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 
 class ModelActivity : ComponentActivity() {
 
@@ -43,6 +48,7 @@ class ModelActivity : ComponentActivity() {
     private val modelPreferences by lazy { ModelPreferences(applicationContext) }
     private val themePreferences by lazy { ThemePreferences(applicationContext) }
     private val workManager by lazy { WorkManager.getInstance(applicationContext) }
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -59,7 +65,7 @@ class ModelActivity : ComponentActivity() {
             val useDarkTheme = themePreferences.useDarkTheme(isSystemInDarkTheme())
             ImmundaNoctisTheme(darkTheme = useDarkTheme) {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    MainEngineScreen(viewModel, workManager, modelPreferences, dmModel, playerModel, dmDirectory, plDirectory)
+                    MainEngineScreen(viewModel, workManager, modelPreferences, dmModel, playerModel, dmDirectory, plDirectory,themePreferences)
                 }
             }
         }
@@ -76,12 +82,13 @@ class ModelActivity : ComponentActivity() {
 }
 
 @Composable
-fun MainEngineScreen(viewModel: MainViewModel, workManager: WorkManager, modelPrefs: ModelPreferences, initialDmModel: Downloadable, initialPlayerModel: Downloadable, dmDirectory: File, plDirectory: File) {
+fun MainEngineScreen(viewModel: MainViewModel, workManager: WorkManager, modelPrefs: ModelPreferences, initialDmModel: Downloadable, initialPlayerModel: Downloadable, dmDirectory: File, plDirectory: File, themePrefs:ThemePreferences,) {
     var dmModelState by remember { mutableStateOf(initialDmModel) }
     var playerModelState by remember { mutableStateOf(initialPlayerModel) }
     var showUrlDialogFor by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
     var slotToImport by remember { mutableStateOf<String?>(null) }
+    var hfToken by remember { mutableStateOf(themePrefs.getToken() ?: "") }
 
     val filePickerLauncher = rememberLauncherForActivityResult(contract = ActivityResultContracts.GetContent()) { uri: Uri? ->
         if (uri == null || slotToImport == null) return@rememberLauncherForActivityResult
@@ -160,6 +167,7 @@ fun MainEngineScreen(viewModel: MainViewModel, workManager: WorkManager, modelPr
             title = "Motore del Dungeon Master",
             subtitle = "Consigliato: Gemma (formato TASK)",
             model = dmModelState,
+            token = hfToken, // Passiamo il token
             isReadOnly = false, // Ora entrambi sono interattivi
             viewModel = viewModel,
             workManager = workManager,
@@ -178,17 +186,27 @@ fun MainEngineScreen(viewModel: MainViewModel, workManager: WorkManager, modelPr
             title = "Motore dei Personaggi",
             subtitle = "Consigliato: Llama/Mistral (formato GGUF)",
             model = playerModelState,
+            token = hfToken, // Passiamo il token
             isReadOnly = false,
             viewModel = viewModel,
             workManager = workManager,
             onSetUrlClick = { showUrlDialogFor = "PLAYER" },
             onImportFileClick = { launchFilePicker("PLAYER") },
-            onDownloadComplete = { modelPrefs.savePlayerModel(it) },
             onDeleteClick = {
                 workManager.cancelAllWorkByTag(playerModelState.name)
                 playerModelState.destination.delete()
                 modelPrefs.clearPlayerModel()
                 (context as? Activity)?.recreate()
+            },
+            onDownloadComplete = { modelPrefs.savePlayerModel(it) },
+        )
+        // Sezione per l'input del token in fondo
+        TokenInputSection(
+            token = hfToken,
+            onTokenChange = { hfToken = it },
+            onSaveClick = {
+                themePrefs.saveToken(hfToken)
+                viewModel.log("Token Hugging Face salvato.")
             }
         )
     }
@@ -205,7 +223,8 @@ fun ModelSlotView(
     onSetUrlClick: () -> Unit,
     onImportFileClick: () -> Unit,
     onDeleteClick: () -> Unit,
-    onDownloadComplete: (Downloadable) -> Unit
+    onDownloadComplete: (Downloadable) -> Unit,
+    token: String
 ) {
     val workInfoList by workManager.getWorkInfosByTagLiveData(model.name).observeAsState()
     val runningWork = workInfoList?.find { !it.state.isFinished }
@@ -244,7 +263,7 @@ fun ModelSlotView(
                 DownloadWorker.KEY_URL to model.source.toString(),
                 DownloadWorker.KEY_DESTINATION to model.destination.absolutePath,
                 DownloadWorker.KEY_MODEL_NAME to model.destination.name,
-                DownloadWorker.KEY_MODEL_DOWNLOAD_ACCESS_TOKEN to model.accessToken
+                DownloadWorker.KEY_MODEL_DOWNLOAD_ACCESS_TOKEN to token
             )
             val downloadWorkRequest = OneTimeWorkRequestBuilder<DownloadWorker>()
                 .setInputData(downloadData)
@@ -298,6 +317,44 @@ fun ModelSlotView(
         }
     }
 }
+
+// NUOVO COMPOSABLE: Aggiungi questa funzione in fondo al file ModelActivity.kt
+@Composable
+fun TokenInputSection(
+    token: String,
+    onTokenChange: (String) -> Unit,
+    onSaveClick: () -> Unit
+) {
+    var passwordVisible by remember { mutableStateOf(false) }
+
+    Surface(tonalElevation = 4.dp, modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("Hugging Face Access Token", style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = token,
+                onValueChange = onTokenChange,
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Il tuo token con permessi 'read'") },
+                singleLine = true,
+                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                trailingIcon = {
+                    val image = if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
+                    val description = if (passwordVisible) "Nascondi token" else "Mostra token"
+                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                        Icon(imageVector = image, contentDescription = description)
+                    }
+                }
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Button(onClick = onSaveClick, modifier = Modifier.align(Alignment.End)) {
+                Text("Salva Token")
+            }
+        }
+    }
+}
+
 
 @Composable
 fun AddUrlDialog(onDismiss: () -> Unit, onConfirm: (String) -> Unit) {

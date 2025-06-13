@@ -11,9 +11,6 @@ import androidx.compose.ui.platform.LocalContext
 import java.io.File
 
 data class Downloadable(val name: String, val source: Uri, val destination: File) {
-
-    val accessToken: String = ""
-
     companion object {
         sealed interface State {
             data object Ready : State
