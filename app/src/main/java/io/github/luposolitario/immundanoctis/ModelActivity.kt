@@ -233,7 +233,6 @@ fun ModelSlotView(
         derivedStateOf {
             when (runningWork?.state) {
                 WorkInfo.State.RUNNING -> {
-                    // MODIFICA CORRETTA: Leggiamo i byte e li passiamo al costruttore
                     val bytesDownloaded = runningWork.progress.getLong(DownloadWorker.KEY_BYTES_DOWNLOADED, 0L)
                     val totalBytes = runningWork.progress.getLong(DownloadWorker.KEY_TOTAL_BYTES, 0L)
                     Downloadable.Companion.State.Downloading(bytesDownloaded, totalBytes)
@@ -277,7 +276,12 @@ fun ModelSlotView(
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(text = title, style = MaterialTheme.typography.titleLarge)
         Text(text = subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+
+        // MODIFICA: Abbiamo rimosso 'horizontalArrangement = Arrangement.SpaceBetween'
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             if (isReadOnly) {
                 val fileExists = model.destination.exists()
                 val icon = if (fileExists) Icons.Default.CheckCircle else Icons.Default.Error
@@ -293,7 +297,16 @@ fun ModelSlotView(
                     Text(text = text, color = color)
                 }
             } else {
-                Downloadable.Button(status = status, item = model, onClick = onClick)
+                // MODIFICA: Aggiunto Modifier.weight(1f) al pulsante (o al suo contenitore).
+                // Dato che non conosco la struttura di Downloadable.Button, lo avvolgo in un Box
+                // per applicare il peso e garantire che il testo all'interno si tronchi.
+                // Idealmente, il `weight` va applicato direttamente al componente Button/Text.
+                Box(modifier = Modifier.weight(1f)) {
+                    Downloadable.Button(status = status, item = model, onClick = onClick)
+                }
+
+                Spacer(modifier = Modifier.width(8.dp)) // Aggiungiamo uno spazio tra il pulsante e le icone
+
                 Row {
                     if (status is Downloadable.Companion.State.Downloading) {
                         IconButton(onClick = onClick) {
@@ -307,6 +320,7 @@ fun ModelSlotView(
                             Icon(Icons.Default.AddLink, "Imposta URL Modello")
                         }
                     }
+                    // Ora questa icona sarà sempre visibile!
                     if (status is Downloadable.Companion.State.Downloaded) {
                         IconButton(onClick = onDeleteClick) {
                             Icon(Icons.Default.Delete, "Cancella Modello", tint = MaterialTheme.colorScheme.error)
