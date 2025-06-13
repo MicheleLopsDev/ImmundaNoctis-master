@@ -49,7 +49,7 @@ class ModelActivity : ComponentActivity() {
         val dmDirectory = getDownloadDirectory("dm")
         val plDirectory = getDownloadDirectory("pl")
 
-        val dmModelDefault = Downloadable("gemma-2b-it-Q4_K_M.gguf", Uri.parse("https://huggingface.co/jankrepl/gemma-2b-it-GGUF/resolve/main/gemma-2b-it.Q4_K_M.gguf?download=true"), File(dmDirectory, "gemma-2b-it-Q4_K_M.gguf"))
+        val dmModelDefault = Downloadable("gemma-3n-E4B-it-int4.task", Uri.parse("https://huggingface.co/google/gemma-3n-E4B-it-litert-preview/resolve/main/gemma-3n-E4B-it-int4.task?download=true"), File(dmDirectory, "gemma-3n-E4B-it-int4.task"))
         val playerModelDefault = Downloadable("Llama-3.1-8B-Q6_K.gguf", Uri.parse("https://huggingface.co/jott1970/Llama-3.1-8B-Instruct-Fei-v1-Uncensored-Q6_K-GGUF/resolve/main/llama-3.1-8b-instruct-fei-v1-uncensored-q6_k.gguf?download=true"), File(plDirectory, "llama-3.1-8b-instruct-q6_k.gguf"))
 
         val dmModel = modelPreferences.getDmModel() ?: dmModelDefault
@@ -158,7 +158,7 @@ fun MainEngineScreen(viewModel: MainViewModel, workManager: WorkManager, modelPr
     Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
         ModelSlotView(
             title = "Motore del Dungeon Master",
-            subtitle = "Consigliato: Gemma (formato GGUF)",
+            subtitle = "Consigliato: Gemma (formato TASK)",
             model = dmModelState,
             isReadOnly = false, // Ora entrambi sono interattivi
             viewModel = viewModel,
@@ -242,7 +242,9 @@ fun ModelSlotView(
             model.destination.delete()
             val downloadData = workDataOf(
                 DownloadWorker.KEY_URL to model.source.toString(),
-                DownloadWorker.KEY_DESTINATION to model.destination.absolutePath
+                DownloadWorker.KEY_DESTINATION to model.destination.absolutePath,
+                DownloadWorker.KEY_MODEL_NAME to model.destination.name,
+                DownloadWorker.KEY_MODEL_DOWNLOAD_ACCESS_TOKEN to model.accessToken
             )
             val downloadWorkRequest = OneTimeWorkRequestBuilder<DownloadWorker>()
                 .setInputData(downloadData)

@@ -1,66 +1,151 @@
 package io.github.luposolitario.immundanoctis.worker
 
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Context
+import android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+import android.os.Build
+import android.util.Log
+import androidx.core.app.NotificationCompat
 import androidx.work.CoroutineWorker
+import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.*
 import java.io.File
-import java.io.FileOutputStream
+import java.io.RandomAccessFile
+import java.net.HttpURLConnection
 import java.net.URL
+import java.util.concurrent.atomic.AtomicLong
+
 
 class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
     companion object {
         const val KEY_URL = "key_url"
         const val KEY_DESTINATION = "key_destination"
-
-        // MODIFICA: Useremo queste chiavi per passare dati più dettagliati
-        const val KEY_PROGRESS = "key_progress_percent"
+        const val KEY_MODEL_DOWNLOAD_ACCESS_TOKEN = "KEY_MODEL_DOWNLOAD_ACCESS_TOKEN"
+        const val KEY_MODEL_NAME = "KEY_MODEL_NAME"
         const val KEY_BYTES_DOWNLOADED = "key_bytes_downloaded"
         const val KEY_TOTAL_BYTES = "key_total_bytes"
     }
 
-    override suspend fun doWork(): Result {
-        val urlString = inputData.getString(KEY_URL) ?: return Result.failure()
-        val destinationPath = inputData.getString(KEY_DESTINATION) ?: return Result.failure()
 
-        return withContext(Dispatchers.IO) {
-            try {
-                val url = URL(urlString)
-                val connection = url.openConnection()
-                connection.connect()
 
-                val totalBytes = connection.contentLengthLong
-                val destinationFile = File(destinationPath)
-                destinationFile.parentFile?.mkdirs()
-                val outputStream = FileOutputStream(destinationFile)
-                val inputStream = connection.getInputStream()
+    private fun createForegroundInfo(): ForegroundInfo {
+        val channelId = "download_channel"
 
-                val buffer = ByteArray(4 * 1024)
-                var bytesRead: Int
-                var bytesDownloaded = 0L
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                channelId,
+                "Download in corso",
+                NotificationManager.IMPORTANCE_LOW
+            )
+            val notificationManager =
+                applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.createNotificationChannel(channel)
+        }
 
-                while (inputStream.read(buffer).also { bytesRead = it } != -1) {
-                    outputStream.write(buffer, 0, bytesRead)
-                    bytesDownloaded += bytesRead
+        val notification: Notification = NotificationCompat.Builder(applicationContext, channelId)
+            .setContentTitle("Download modello in corso")
+            .setContentText("Scaricamento in background...")
+            .setSmallIcon(android.R.drawable.stat_sys_download)
+            .setOngoing(true)
+            .build()
 
-                    // MODIFICA: Inviamo dati di progresso più ricchi
-                    val progressData = workDataOf(
-                        KEY_BYTES_DOWNLOADED to bytesDownloaded,
-                        KEY_TOTAL_BYTES to totalBytes
-                    )
-                    setProgress(progressData)
-                }
+        // 🔥 Qui sta il punto: aggiungi il tipo
+        return ForegroundInfo(
+            1001,
+            notification,
+            FOREGROUND_SERVICE_TYPE_DATA_SYNC // <--- OBBLIGATORIO su Android 14+
+        )
+    }
 
-                outputStream.close()
-                inputStream.close()
-                Result.success()
-            } catch (e: Exception) {
-                File(destinationPath).delete()
-                Result.failure()
+
+    override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
+        val urlString = inputData.getString(KEY_URL) ?: return@withContext Result.failure()
+        val destinationPath = inputData.getString(KEY_DESTINATION) ?: return@withContext Result.failure()
+        val accessToken = inputData.getString(KEY_MODEL_DOWNLOAD_ACCESS_TOKEN) ?: return@withContext Result.failure()
+        val totalDownloaded = AtomicLong(0L)
+        val url = URL(urlString)
+
+
+        try {
+            setForeground(createForegroundInfo()) // <-- fondamentale
+            val headConnection = (url.openConnection() as HttpURLConnection).apply {
+                setRequestProperty("Authorization", "Bearer $accessToken")
+                setRequestProperty("Accept-Encoding", "identity")
+                requestMethod = "HEAD"
+                connect()
             }
+
+            val responseCode = headConnection.responseCode
+            val totalSize = headConnection.contentLengthLong
+
+            if (responseCode != 200) {
+                Log.e("Downloader", "Errore HTTP $responseCode")
+                return@withContext Result.failure()
+            }
+
+            if (headConnection.getHeaderField("Accept-Ranges") != "bytes") {
+                Log.e("Downloader", "Il server non supporta i byte-range")
+                return@withContext Result.failure()
+            }
+
+            Log.d("Downloader", "Total size: $totalSize")
+
+            // Prepara il file
+            val file = File(destinationPath)
+            file.parentFile?.mkdirs()
+            RandomAccessFile(file, "rw").setLength(totalSize)
+
+            val numParts = 8
+            val partSize = totalSize / numParts
+
+            coroutineScope {
+                (0 until numParts).map { index ->
+                    async {
+                        val start = index * partSize
+                        val end = if (index == numParts - 1) totalSize - 1 else (start + partSize - 1)
+
+                        val partConn = (url.openConnection() as HttpURLConnection).apply {
+                            setRequestProperty("Authorization", "Bearer $accessToken")
+                            setRequestProperty("Range", "bytes=$start-$end")
+                            connect()
+                        }
+
+                        val buffer = ByteArray(1024 * 1024)
+                        val input = partConn.inputStream
+                        val raf = RandomAccessFile(file, "rw").apply { seek(start) }
+
+                        var bytes = input.read(buffer)
+                        while (bytes != -1) {
+                            raf.write(buffer, 0, bytes)
+
+                            val downloaded = totalDownloaded.addAndGet(bytes.toLong())
+
+                            setProgress(
+                                workDataOf(
+                                    KEY_TOTAL_BYTES to totalSize,
+                                    KEY_BYTES_DOWNLOADED to downloaded
+                                )
+                            )
+
+                            bytes = input.read(buffer)
+                        }
+
+                        input.close()
+                        raf.close()
+                    }
+                }.awaitAll()
+            }
+
+            Result.success()
+        } catch (e: Exception) {
+            Log.e("DownloadWorker", "Errore: ${e.message}",e)
+            File(destinationPath).delete()
+            Result.failure()
         }
     }
 }
