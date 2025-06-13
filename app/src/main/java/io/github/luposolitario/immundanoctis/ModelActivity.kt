@@ -56,7 +56,7 @@ class ModelActivity : ComponentActivity() {
         val plDirectory = getDownloadDirectory("pl")
 
         val dmModelDefault = Downloadable("gemma-3n-E4B-it-int4.task", Uri.parse("https://huggingface.co/google/gemma-3n-E4B-it-litert-preview/resolve/main/gemma-3n-E4B-it-int4.task?download=true"), File(dmDirectory, "gemma-3n-E4B-it-int4.task"))
-        val playerModelDefault = Downloadable("Llama-3.1-8B-Q6_K.gguf", Uri.parse("https://huggingface.co/jott1970/Llama-3.1-8B-Instruct-Fei-v1-Uncensored-Q6_K-GGUF/resolve/main/llama-3.1-8b-instruct-fei-v1-uncensored-q6_k.gguf?download=true"), File(plDirectory, "llama-3.1-8b-instruct-q6_k.gguf"))
+        val playerModelDefault = Downloadable("unsloth.Q4_K_M.gguf", Uri.parse("https://huggingface.co/likewendy/Qwen2.5-14B-lora-sex-v2-q4_k_m/resolve/main/unsloth.Q4_K_M.gguf?download=true"), File(plDirectory, "unsloth.Q4_K_M.gguf"))
 
         val dmModel = modelPreferences.getDmModel() ?: dmModelDefault
         val playerModel = modelPreferences.getPlayerModel() ?: playerModelDefault
@@ -87,58 +87,7 @@ fun MainEngineScreen(viewModel: MainViewModel, workManager: WorkManager, modelPr
     var playerModelState by remember { mutableStateOf(initialPlayerModel) }
     var showUrlDialogFor by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
-    var slotToImport by remember { mutableStateOf<String?>(null) }
     var hfToken by remember { mutableStateOf(themePrefs.getToken() ?: "") }
-
-    val filePickerLauncher = rememberLauncherForActivityResult(contract = ActivityResultContracts.GetContent()) { uri: Uri? ->
-        if (uri == null || slotToImport == null) return@rememberLauncherForActivityResult
-        val isDm = slotToImport == "DM"
-        val directory = if (isDm) dmDirectory else plDirectory
-        val currentModel = if (isDm) dmModelState else playerModelState
-        val contentResolver = context.contentResolver
-        val fileName = contentResolver.getFileName(uri) ?: "imported_model"
-        val destinationFile = File(directory, fileName)
-        try {
-            contentResolver.openInputStream(uri)?.use { inputStream ->
-                FileOutputStream(destinationFile).use { outputStream ->
-                    inputStream.copyTo(outputStream)
-                }
-            }
-            viewModel.log("File importato: $fileName")
-            currentModel.destination.delete()
-            val newModel = Downloadable(fileName, uri, destinationFile)
-            if (isDm) {
-                modelPrefs.saveDmModel(newModel)
-                dmModelState = newModel
-            } else {
-                modelPrefs.savePlayerModel(newModel)
-                playerModelState = newModel
-            }
-        } catch (e: Exception) {
-            viewModel.log("Errore importazione: ${e.message}")
-        } finally {
-            slotToImport = null
-        }
-    }
-    val permissionLauncher = rememberLauncherForActivityResult(contract = ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
-        if (isGranted) {
-            filePickerLauncher.launch("*/*")
-        } else {
-            viewModel.log("Permesso negato.")
-        }
-    }
-    val launchFilePicker = { slot: String ->
-        when (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE)) {
-            PackageManager.PERMISSION_GRANTED -> {
-                slotToImport = slot
-                filePickerLauncher.launch("*/*")
-            }
-            else -> {
-                slotToImport = slot
-                permissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
-            }
-        }
-    }
 
     if (showUrlDialogFor != null) {
         AddUrlDialog(
@@ -168,11 +117,9 @@ fun MainEngineScreen(viewModel: MainViewModel, workManager: WorkManager, modelPr
             subtitle = "Consigliato: Gemma (formato TASK)",
             model = dmModelState,
             token = hfToken, // Passiamo il token
-            isReadOnly = false, // Ora entrambi sono interattivi
             viewModel = viewModel,
             workManager = workManager,
             onSetUrlClick = { showUrlDialogFor = "DM" },
-            onImportFileClick = { launchFilePicker("DM") },
             onDownloadComplete = { modelPrefs.saveDmModel(it) },
             onDeleteClick = {
                 workManager.cancelAllWorkByTag(dmModelState.name)
@@ -187,11 +134,9 @@ fun MainEngineScreen(viewModel: MainViewModel, workManager: WorkManager, modelPr
             subtitle = "Consigliato: Llama/Mistral (formato GGUF)",
             model = playerModelState,
             token = hfToken, // Passiamo il token
-            isReadOnly = false,
             viewModel = viewModel,
             workManager = workManager,
             onSetUrlClick = { showUrlDialogFor = "PLAYER" },
-            onImportFileClick = { launchFilePicker("PLAYER") },
             onDeleteClick = {
                 workManager.cancelAllWorkByTag(playerModelState.name)
                 playerModelState.destination.delete()
@@ -217,11 +162,9 @@ fun ModelSlotView(
     title: String,
     subtitle: String,
     model: Downloadable,
-    isReadOnly: Boolean,
     viewModel: MainViewModel,
     workManager: WorkManager,
     onSetUrlClick: () -> Unit,
-    onImportFileClick: () -> Unit,
     onDeleteClick: () -> Unit,
     onDownloadComplete: (Downloadable) -> Unit,
     token: String
@@ -276,31 +219,10 @@ fun ModelSlotView(
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(text = title, style = MaterialTheme.typography.titleLarge)
         Text(text = subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-
-        // MODIFICA: Abbiamo rimosso 'horizontalArrangement = Arrangement.SpaceBetween'
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (isReadOnly) {
-                val fileExists = model.destination.exists()
-                val icon = if (fileExists) Icons.Default.CheckCircle else Icons.Default.Error
-                val text = if (fileExists) "Modello Locale Trovato" else "File non Trovato"
-                val color = if (fileExists) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onImportFileClick) {
-                        Icon(Icons.Default.FileOpen, "Importa File Locale")
-                    }
-                    Icon(imageVector = icon, contentDescription = text, tint = color)
-                    Spacer(Modifier.width(8.dp))
-                    Text(text = text, color = color)
-                }
-            } else {
-                // MODIFICA: Aggiunto Modifier.weight(1f) al pulsante (o al suo contenitore).
-                // Dato che non conosco la struttura di Downloadable.Button, lo avvolgo in un Box
-                // per applicare il peso e garantire che il testo all'interno si tronchi.
-                // Idealmente, il `weight` va applicato direttamente al componente Button/Text.
                 Box(modifier = Modifier.weight(1f)) {
                     Downloadable.Button(status = status, item = model, onClick = onClick)
                 }
@@ -313,9 +235,6 @@ fun ModelSlotView(
                             Icon(Icons.Default.Cancel, "Cancella Download")
                         }
                     } else {
-                        IconButton(onClick = onImportFileClick) {
-                            Icon(Icons.Default.FileOpen, "Importa File Locale")
-                        }
                         IconButton(onClick = onSetUrlClick) {
                             Icon(Icons.Default.AddLink, "Imposta URL Modello")
                         }
@@ -327,7 +246,6 @@ fun ModelSlotView(
                         }
                     }
                 }
-            }
         }
     }
 }
@@ -418,16 +336,14 @@ private fun MainEngineScreenPreview() {
                     title = "Motore del Dungeon Master",
                     subtitle = "Modello Gemma (caricato localmente)",
                     modelName = "gemma-2b-it-Q4_K_M.gguf",
-                    isDownloaded = true,
-                    isReadOnly = true
+                    isDownloaded = true
                 )
                 Divider()
                 ModelSlotViewPreview(
                     title = "Motore dei Personaggi",
                     subtitle = "Consigliato: Llama/Mistral (formato GGUF)",
                     modelName = "Llama-3.1-8B-Q6_K.gguf",
-                    isDownloaded = false,
-                    isReadOnly = false
+                    isDownloaded = false
                 )
             }
         }
@@ -439,8 +355,7 @@ private fun ModelSlotViewPreview(
     title: String,
     subtitle: String,
     modelName: String,
-    isDownloaded: Boolean,
-    isReadOnly: Boolean
+    isDownloaded: Boolean
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(text = title, style = MaterialTheme.typography.titleLarge)
@@ -450,27 +365,16 @@ private fun ModelSlotViewPreview(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            if (isReadOnly) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Modello Locale Trovato", color = MaterialTheme.colorScheme.primary)
-                }
-            } else {
                 Button(onClick = {}, enabled = !isDownloaded) {
                     Text(if (isDownloaded) "Load $modelName" else "Download $modelName")
                 }
-            }
-
-            if (!isReadOnly) {
                 Row {
-                    IconButton(onClick = {}) { Icon(Icons.Default.FileOpen, contentDescription = "Importa") }
                     IconButton(onClick = {}) { Icon(Icons.Default.AddLink, contentDescription = "URL") }
                     if (isDownloaded) {
                         IconButton(onClick = {}) { Icon(Icons.Default.Delete, "Cancella", tint = MaterialTheme.colorScheme.error) }
                     }
                 }
-            }
+
         }
     }
 }
