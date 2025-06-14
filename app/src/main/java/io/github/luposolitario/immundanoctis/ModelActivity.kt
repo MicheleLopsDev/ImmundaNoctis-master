@@ -1,46 +1,77 @@
 package io.github.luposolitario.immundanoctis
 
-import android.Manifest
 import android.app.Activity
-import android.content.pm.PackageManager
 import android.database.Cursor
 import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
 import android.provider.OpenableColumns
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.AddLink
+import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Divider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
-import androidx.work.*
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
+import androidx.work.workDataOf
 import io.github.luposolitario.immundanoctis.ui.theme.ImmundaNoctisTheme
 import io.github.luposolitario.immundanoctis.util.Downloadable
+import io.github.luposolitario.immundanoctis.util.EnginePreferences
 import io.github.luposolitario.immundanoctis.util.ModelPreferences
 import io.github.luposolitario.immundanoctis.util.ThemePreferences
 import io.github.luposolitario.immundanoctis.view.MainViewModel
 import io.github.luposolitario.immundanoctis.worker.DownloadWorker
 import java.io.File
-import java.io.FileOutputStream
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 
 class ModelActivity : ComponentActivity() {
 
@@ -48,15 +79,16 @@ class ModelActivity : ComponentActivity() {
     private val modelPreferences by lazy { ModelPreferences(applicationContext) }
     private val themePreferences by lazy { ThemePreferences(applicationContext) }
     private val workManager by lazy { WorkManager.getInstance(applicationContext) }
-
+    private lateinit var enginePreferences: EnginePreferences
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enginePreferences = EnginePreferences(applicationContext)
         val dmDirectory = getDownloadDirectory("dm")
         val plDirectory = getDownloadDirectory("pl")
 
-        val dmModelDefault = Downloadable("gemma-3n-E4B-it-int4.task", Uri.parse("https://huggingface.co/google/gemma-3n-E4B-it-litert-preview/resolve/main/gemma-3n-E4B-it-int4.task?download=true"), File(dmDirectory, "gemma-3n-E4B-it-int4.task"))
-        val playerModelDefault = Downloadable("unsloth.Q4_K_M.gguf", Uri.parse("https://huggingface.co/likewendy/Qwen2.5-14B-lora-sex-v2-q4_k_m/resolve/main/unsloth.Q4_K_M.gguf?download=true"), File(plDirectory, "unsloth.Q4_K_M.gguf"))
+        val dmModelDefault = Downloadable("gemma-2b-it-quant.bin", Uri.parse(""), File(dmDirectory, "gemma-2b-it-quant.bin"))
+        val playerModelDefault = Downloadable("llama-3-8b-instruct.Q4_K_M.gguf", Uri.parse(""), File(plDirectory, "llama-3-8b-instruct.Q4_K_M.gguf"))
 
         val dmModel = modelPreferences.getDmModel() ?: dmModelDefault
         val playerModel = modelPreferences.getPlayerModel() ?: playerModelDefault
@@ -65,7 +97,17 @@ class ModelActivity : ComponentActivity() {
             val useDarkTheme = themePreferences.useDarkTheme(isSystemInDarkTheme())
             ImmundaNoctisTheme(darkTheme = useDarkTheme) {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    MainEngineScreen(viewModel, workManager, modelPreferences, dmModel, playerModel, dmDirectory, plDirectory,themePreferences)
+                    MainEngineScreen(
+                        viewModel = viewModel,
+                        workManager = workManager,
+                        modelPrefs = modelPreferences,
+                        initialDmModel = dmModel,
+                        initialPlayerModel = playerModel,
+                        dmDirectory = dmDirectory,
+                        plDirectory = plDirectory,
+                        themePrefs = themePreferences,
+                        enginePreferences = enginePreferences
+                    )
                 }
             }
         }
@@ -81,13 +123,31 @@ class ModelActivity : ComponentActivity() {
     }
 }
 
+// Enum per rendere la scelta più chiara e sicura
+private enum class EngineOption { MIXED, GEMMA_ONLY }
+
 @Composable
-fun MainEngineScreen(viewModel: MainViewModel, workManager: WorkManager, modelPrefs: ModelPreferences, initialDmModel: Downloadable, initialPlayerModel: Downloadable, dmDirectory: File, plDirectory: File, themePrefs:ThemePreferences,) {
+fun MainEngineScreen(
+    viewModel: MainViewModel,
+    workManager: WorkManager,
+    modelPrefs: ModelPreferences,
+    initialDmModel: Downloadable,
+    initialPlayerModel: Downloadable,
+    dmDirectory: File,
+    plDirectory: File,
+    themePrefs: ThemePreferences,
+    enginePreferences: EnginePreferences
+) {
     var dmModelState by remember { mutableStateOf(initialDmModel) }
     var playerModelState by remember { mutableStateOf(initialPlayerModel) }
     var showUrlDialogFor by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
     var hfToken by remember { mutableStateOf(themePrefs.getToken() ?: "") }
+
+    // Stato per la selezione del motore AI, letto dalle preferenze salvate
+    var selectedEngine by remember {
+        mutableStateOf(if (enginePreferences.useGemmaForAll) EngineOption.GEMMA_ONLY else EngineOption.MIXED)
+    }
 
     if (showUrlDialogFor != null) {
         AddUrlDialog(
@@ -111,12 +171,51 @@ fun MainEngineScreen(viewModel: MainViewModel, workManager: WorkManager, modelPr
         )
     }
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
+    Column(modifier = Modifier
+        .fillMaxSize()
+        .verticalScroll(rememberScrollState())
+        .padding(16.dp)) {
+
+        // --- SEZIONE SCELTA MOTORE ---
+        Text("Modalità Motore AI", style = MaterialTheme.typography.titleLarge)
+        Text(
+            "Scegli come l'IA gestirà i personaggi. Richiede un riavvio dell'app per avere effetto.",
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+        Column {
+            EngineRadioButton(
+                text = "Modalità Mista (Consigliata)",
+                description = "Usa Gemma per il DM e GGUF per i PG. Ottimo equilibrio.",
+                selected = selectedEngine == EngineOption.MIXED,
+                onClick = {
+                    selectedEngine = EngineOption.MIXED
+                    enginePreferences.useGemmaForAll = false
+                }
+            )
+            EngineRadioButton(
+                text = "Modalità Solo Gemma",
+                description = "Usa Gemma per tutti i personaggi. Qualità alta, più esigente.",
+                selected = selectedEngine == EngineOption.GEMMA_ONLY,
+                onClick = {
+                    selectedEngine = EngineOption.GEMMA_ONLY
+                    enginePreferences.useGemmaForAll = true
+                }
+            )
+        }
+        Spacer(Modifier.height(16.dp))
+        Divider()
+        Spacer(Modifier.height(16.dp))
+        // --- FINE SEZIONE ---
+
+        val isGgufEnabled = selectedEngine == EngineOption.MIXED
+
+        // Modello DM (Gemma) - sempre abilitato
         ModelSlotView(
-            title = "Motore del Dungeon Master",
-            subtitle = "Consigliato: Gemma (formato TASK)",
+            title = "Motore del Dungeon Master (Gemma)",
+            subtitle = "Modello per narrazione e ambiente.Consigliato: Gemma",
             model = dmModelState,
-            token = hfToken, // Passiamo il token
+            token = hfToken,
             viewModel = viewModel,
             workManager = workManager,
             onSetUrlClick = { showUrlDialogFor = "DM" },
@@ -126,26 +225,37 @@ fun MainEngineScreen(viewModel: MainViewModel, workManager: WorkManager, modelPr
                 dmModelState.destination.delete()
                 modelPrefs.clearDmModel()
                 (context as? Activity)?.recreate()
-            }
-        )
-        Divider()
-        ModelSlotView(
-            title = "Motore dei Personaggi",
-            subtitle = "Consigliato: Llama/Mistral (formato GGUF)",
-            model = playerModelState,
-            token = hfToken, // Passiamo il token
-            viewModel = viewModel,
-            workManager = workManager,
-            onSetUrlClick = { showUrlDialogFor = "PLAYER" },
-            onDeleteClick = {
-                workManager.cancelAllWorkByTag(playerModelState.name)
-                playerModelState.destination.delete()
-                modelPrefs.clearPlayerModel()
-                (context as? Activity)?.recreate()
             },
-            onDownloadComplete = { modelPrefs.savePlayerModel(it) },
+            enabled = true // Questo slot è sempre attivo
         )
-        // Sezione per l'input del token in fondo
+
+        Spacer(Modifier.height(16.dp))
+        Divider()
+        Spacer(Modifier.height(16.dp))
+
+        // Modello PG (GGUF) - abilitato/disabilitato condizionalmente
+        Column(modifier = Modifier.alpha(if (isGgufEnabled) 1f else 0.5f)) {
+            ModelSlotView(
+                title = "Motore dei Personaggi (GGUF)",
+                subtitle = "Modello per le risposte dei PG. Disabilitato in modalità 'Solo Gemma'.",
+                model = playerModelState,
+                token = hfToken,
+                viewModel = viewModel,
+                workManager = workManager,
+                onSetUrlClick = { if (isGgufEnabled) showUrlDialogFor = "PLAYER" },
+                onDeleteClick = {
+                    workManager.cancelAllWorkByTag(playerModelState.name)
+                    playerModelState.destination.delete()
+                    modelPrefs.clearPlayerModel()
+                    (context as? Activity)?.recreate()
+                },
+                onDownloadComplete = { modelPrefs.savePlayerModel(it) },
+                enabled = isGgufEnabled
+            )
+        }
+
+        Spacer(Modifier.weight(1f, fill = false))
+        Spacer(Modifier.height(24.dp))
         TokenInputSection(
             token = hfToken,
             onTokenChange = { hfToken = it },
@@ -167,7 +277,8 @@ fun ModelSlotView(
     onSetUrlClick: () -> Unit,
     onDeleteClick: () -> Unit,
     onDownloadComplete: (Downloadable) -> Unit,
-    token: String
+    token: String,
+    enabled: Boolean
 ) {
     val workInfoList by workManager.getWorkInfosByTagLiveData(model.name).observeAsState()
     val runningWork = workInfoList?.find { !it.state.isFinished }
@@ -223,29 +334,27 @@ fun ModelSlotView(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-                Box(modifier = Modifier.weight(1f)) {
-                    Downloadable.Button(status = status, item = model, onClick = onClick)
-                }
-
-                Spacer(modifier = Modifier.width(8.dp)) // Aggiungiamo uno spazio tra il pulsante e le icone
-
-                Row {
-                    if (status is Downloadable.Companion.State.Downloading) {
-                        IconButton(onClick = onClick) {
-                            Icon(Icons.Default.Cancel, "Cancella Download")
-                        }
-                    } else {
-                        IconButton(onClick = onSetUrlClick) {
-                            Icon(Icons.Default.AddLink, "Imposta URL Modello")
-                        }
+            Box(modifier = Modifier.weight(1f)) {
+                // Ora usiamo il nostro pulsante personalizzato, passandogli 'enabled'
+                Downloadable.Button(status = status, item = model, onClick = onClick, enabled = enabled)
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Row {
+                if (status is Downloadable.Companion.State.Downloading) {
+                    IconButton(onClick = onClick, enabled = enabled) {
+                        Icon(Icons.Default.Cancel, "Cancella Download")
                     }
-                    // Ora questa icona sarà sempre visibile!
-                    if (status is Downloadable.Companion.State.Downloaded) {
-                        IconButton(onClick = onDeleteClick) {
-                            Icon(Icons.Default.Delete, "Cancella Modello", tint = MaterialTheme.colorScheme.error)
-                        }
+                } else {
+                    IconButton(onClick = onSetUrlClick, enabled = enabled) {
+                        Icon(Icons.Default.AddLink, "Imposta URL Modello")
                     }
                 }
+                if (status is Downloadable.Companion.State.Downloaded) {
+                    IconButton(onClick = onDeleteClick, enabled = enabled) {
+                        Icon(Icons.Default.Delete, "Cancella Modello", tint = MaterialTheme.colorScheme.error)
+                    }
+                }
+            }
         }
     }
 }
@@ -365,16 +474,43 @@ private fun ModelSlotViewPreview(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-                Button(onClick = {}, enabled = !isDownloaded) {
-                    Text(if (isDownloaded) "Load $modelName" else "Download $modelName")
+            Button(onClick = {}, enabled = !isDownloaded) {
+                Text(if (isDownloaded) "Load $modelName" else "Download $modelName")
+            }
+            Row {
+                IconButton(onClick = {}) { Icon(Icons.Default.AddLink, contentDescription = "URL") }
+                if (isDownloaded) {
+                    IconButton(onClick = {}) { Icon(Icons.Default.Delete, "Cancella", tint = MaterialTheme.colorScheme.error) }
                 }
-                Row {
-                    IconButton(onClick = {}) { Icon(Icons.Default.AddLink, contentDescription = "URL") }
-                    if (isDownloaded) {
-                        IconButton(onClick = {}) { Icon(Icons.Default.Delete, "Cancella", tint = MaterialTheme.colorScheme.error) }
-                    }
-                }
+            }
 
+        }
+    }
+}
+
+@Composable
+fun EngineRadioButton(
+    text: String,
+    description: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .selectable(
+                selected = selected,
+                onClick = onClick,
+                role = Role.RadioButton
+            )
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        RadioButton(selected = selected, onClick = onClick)
+        Spacer(modifier = Modifier.width(16.dp))
+        Column {
+            Text(text, style = MaterialTheme.typography.bodyMedium)
+            Text(description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

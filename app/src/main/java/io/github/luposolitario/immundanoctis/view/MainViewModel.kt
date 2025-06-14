@@ -10,6 +10,7 @@ import io.github.luposolitario.immundanoctis.data.CharacterID
 import io.github.luposolitario.immundanoctis.data.ExportedMessage
 import io.github.luposolitario.immundanoctis.data.GameCharacter
 import io.github.luposolitario.immundanoctis.engine.*
+import io.github.luposolitario.immundanoctis.util.EnginePreferences // <-- IMPORT
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -20,11 +21,6 @@ import java.util.*
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val tag: String? = this::class.simpleName
-
-    private val dmEngine: InferenceEngine = GemmaEngine(application.applicationContext)
-    private val playerEngine: InferenceEngine = LlamaCppEngine()
-    private val translationEngine = TranslationEngine()
-    private var generationJob: Job? = null
 
     private val _chatMessages = MutableStateFlow<List<ChatMessage>>(emptyList())
     val chatMessages: StateFlow<List<ChatMessage>> = _chatMessages.asStateFlow()
@@ -47,6 +43,31 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _saveChatEvent = MutableSharedFlow<String>()
     val saveChatEvent: SharedFlow<String> = _saveChatEvent.asSharedFlow()
 
+    private var generationJob: Job? = null
+
+    // --- FINE SPOSTAMENTO ---
+
+    private val enginePreferences = EnginePreferences(application)
+    private val useGemmaForAll = enginePreferences.useGemmaForAll
+
+    private val dmEngine: InferenceEngine
+    private val playerEngine: InferenceEngine
+    private val translationEngine = TranslationEngine()
+
+    init {
+        // Ora, quando questo blocco viene eseguito, _logMessages è già inizializzato e la chiamata a log() è sicura.
+        if (useGemmaForAll) {
+            log("Modalità Solo Gemma ATTIVA.")
+            dmEngine = GemmaEngine(application.applicationContext)
+            playerEngine = dmEngine
+        } else {
+            log("Modalità Mista ATTIVA (Gemma per DM, GGUF per PG).")
+            dmEngine = GemmaEngine(application.applicationContext)
+            playerEngine = LlamaCppEngine()
+        }
+    }
+
+
     override fun onCleared() {
         super.onCleared()
         viewModelScope.launch {
@@ -59,9 +80,26 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /**
-     * NUOVA VERSIONE: Avvia la traduzione di un messaggio, preservando le interruzioni di riga.
-     */
+    fun loadEngines(dmModelPath: String?, playerModelPath: String?) {
+        viewModelScope.launch {
+            dmModelPath?.let {
+                log("Caricamento modello DM (Gemma)...")
+                dmEngine.load(it)
+            } ?: log("Nessun percorso per il modello DM.")
+
+            // Carica il modello GGUF solo se non siamo in modalità "Solo Gemma"
+            if (!useGemmaForAll) {
+                playerModelPath?.let {
+                    log("Caricamento modello PG (GGUF)...")
+                    playerEngine.load(it)
+                } ?: log("Nessun percorso per il modello PG.")
+            } else {
+                log("Modalità Solo Gemma attiva, caricamento modello GGUF saltato.")
+            }
+        }
+    }
+
+    // ... (Il resto delle funzioni come sendMessage, translateMessage, ecc., rimangono invariate) ...
     fun translateMessage(messageId: String) {
         viewModelScope.launch {
             val originalMessage = _chatMessages.value.find { it.id == messageId } ?: return@launch
@@ -184,20 +222,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setConversationTarget(characterId: String) {
         _conversationTargetId.value = characterId
         log("Ora stai parlando con: $characterId")
-    }
-
-    fun loadEngines(dmModelPath: String?, playerModelPath: String?) {
-        viewModelScope.launch {
-            dmModelPath?.let {
-                log("Caricamento modello DM (Gemma)...")
-                dmEngine.load(it)
-            } ?: log("Nessun percorso per il modello DM.")
-
-            playerModelPath?.let {
-                log("Caricamento modello PG (GGUF)...")
-                playerEngine.load(it)
-            } ?: log("Nessun percorso per il modello PG.")
-        }
     }
 
     fun log(message: String) {

@@ -14,7 +14,6 @@ data class Downloadable(val name: String, val source: Uri, val destination: File
     companion object {
         sealed interface State {
             data object Ready : State
-            // MODIFICA: La definizione ora accetta due Long, come previsto
             data class Downloading(val bytesDownloaded: Long, val totalBytes: Long) : State
             data class Downloaded(val item: Downloadable) : State
             data class Error(val message: String) : State
@@ -26,39 +25,37 @@ data class Downloadable(val name: String, val source: Uri, val destination: File
             status: State,
             item: Downloadable,
             onClick: () -> Unit,
-            cancelIcon: @Composable (() -> Unit)? = null
+            cancelIcon: @Composable (() -> Unit)? = null,
+            // --- MODIFICA 1: Aggiunto il parametro 'enabled' ---
+            enabled: Boolean = true
         ) {
             val context = LocalContext.current
-            val isEnabled = status !is State.Downloading
+            // Ora l'abilitazione del pulsante dipende sia dallo stato del download
+            // SIA dal parametro 'enabled' che viene passato dall'esterno.
+            val isClickable = enabled && (status !is State.Downloading)
 
             if (status is State.Downloading && cancelIcon != null) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Button(onClick = {}, enabled = false) {
-                        // MODIFICA: Logica di visualizzazione del progresso aggiornata
+                    Button(onClick = {}, enabled = false) { // Il pulsante di progresso è sempre disabilitato
                         val progressText = if (status.totalBytes > 0) {
                             "${((status.bytesDownloaded.toDouble() / status.totalBytes) * 100).toInt()}%"
                         } else {
                             Formatter.formatShortFileSize(context, status.bytesDownloaded)
                         }
-                        Text(text = "Downloading ($progressText)")
+                        Text(text = "Download ($progressText)")
                     }
                     cancelIcon()
                 }
             } else {
-                Button(onClick = onClick, enabled = isEnabled) {
-                    when (status) {
-                        is State.Downloading -> { // Questo caso serve se non c'è l'icona di annullamento
-                            val progressText = if (status.totalBytes > 0) {
-                                "${((status.bytesDownloaded.toDouble() / status.totalBytes) * 100).toInt()}%"
-                            } else {
-                                Formatter.formatShortFileSize(context, status.bytesDownloaded)
-                            }
-                            Text(text = "Downloading ($progressText)")
-                        }
-                        is State.Downloaded -> Text("Load ${item.name}")
-                        is State.Ready -> Text("Download ${item.name}")
-                        is State.Error -> Text(status.message)
+                // --- MODIFICA 2: Usiamo la nostra nuova variabile 'isClickable' ---
+                Button(onClick = onClick, enabled = isClickable) {
+                    val text = when (status) {
+                        is State.Downloading -> "Annulla"
+                        is State.Downloaded -> "Ricarica"
+                        is State.Ready -> "Download"
+                        is State.Error -> "Riprova"
                     }
+                    Text(text)
                 }
             }
         }
