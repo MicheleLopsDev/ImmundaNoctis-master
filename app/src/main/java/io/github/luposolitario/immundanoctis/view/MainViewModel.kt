@@ -9,12 +9,12 @@ import io.github.luposolitario.immundanoctis.data.ChatMessage
 import io.github.luposolitario.immundanoctis.data.CharacterID
 import io.github.luposolitario.immundanoctis.data.ExportedMessage
 import io.github.luposolitario.immundanoctis.data.GameCharacter
-import io.github.luposolitario.immundanoctis.engine.GemmaEngine
-import io.github.luposolitario.immundanoctis.engine.InferenceEngine
-import io.github.luposolitario.immundanoctis.engine.LlamaCppEngine
+import io.github.luposolitario.immundanoctis.engine.*
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.Job
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -23,6 +23,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val dmEngine: InferenceEngine = GemmaEngine(application.applicationContext)
     private val playerEngine: InferenceEngine = LlamaCppEngine()
+    private val translationEngine = TranslationEngine()
     private var generationJob: Job? = null
 
     private val _chatMessages = MutableStateFlow<List<ChatMessage>>(emptyList())
@@ -43,7 +44,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _conversationTargetId = MutableStateFlow(CharacterID.DM)
     val conversationTargetId: StateFlow<String> = _conversationTargetId.asStateFlow()
 
-    // --- NUOVO FLUSSO PER L'EVENTO DI SALVATAGGIO ---
     private val _saveChatEvent = MutableSharedFlow<String>()
     val saveChatEvent: SharedFlow<String> = _saveChatEvent.asSharedFlow()
 
@@ -54,28 +54,67 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             stopGeneration()
             dmEngine.unload()
             playerEngine.unload()
+            translationEngine.close()
             log("Motori rilasciati.")
         }
     }
 
-    // ... le altre funzioni rimangono invariate ...
-
     /**
-     * NUOVA FUNZIONE: Viene chiamata quando l'utente preme "Salva Chat".
+     * NUOVA VERSIONE: Avvia la traduzione di un messaggio, preservando le interruzioni di riga.
      */
+    fun translateMessage(messageId: String) {
+        viewModelScope.launch {
+            val originalMessage = _chatMessages.value.find { it.id == messageId } ?: return@launch
+
+            // 1. Mostra lo stato di caricamento
+            updateMessage(messageId) { it.copy(isTranslating = true) }
+
+            try {
+                // 2. Divide il testo in righe
+                val lines = originalMessage.text.split('\n')
+
+                // 3. Traduce ogni riga non vuota in parallelo per efficienza
+                val translatedLines = lines.map { line ->
+                    if (line.isBlank()) {
+                        async { "" } // Mantiene le righe vuote per preservare i paragrafi
+                    } else {
+                        async { translationEngine.translate(line) }
+                    }
+                }.awaitAll() // Attende che tutte le traduzioni siano completate
+
+                // 4. Riunisce le righe tradotte
+                val finalTranslation = translatedLines.joinToString("\n")
+
+                // 5. Aggiorna il messaggio con la traduzione completa e formattata
+                updateMessage(messageId) {
+                    it.copy(translatedText = finalTranslation, isTranslating = false)
+                }
+                log("Traduzione completata per il messaggio ID: $messageId")
+            } catch (e: Exception) {
+                log("Errore di traduzione: ${e.message}")
+                updateMessage(messageId) { it.copy(isTranslating = false) }
+            }
+        }
+    }
+
+    private fun updateMessage(messageId: String, transformation: (ChatMessage) -> ChatMessage) {
+        _chatMessages.update { currentMessages ->
+            currentMessages.map { if (it.id == messageId) transformation(it) else it }
+        }
+    }
+
+    // ... Il resto del ViewModel rimane invariato (sendMessage, onSaveChatClicked, etc.) ...
+
     fun onSaveChatClicked(characters: List<GameCharacter>) {
         viewModelScope.launch {
-            // 1. Mappa la cronologia della chat nel formato corretto
             val exportedMessages = _chatMessages.value.map { chatMessage ->
                 val authorName = characters.find { it.id == chatMessage.authorId }?.name ?: "Sconosciuto"
                 ExportedMessage(author = authorName, message = chatMessage.text)
             }
 
-            // 2. Converte la lista in una stringa JSON formattata
             val gson = GsonBuilder().setPrettyPrinting().create()
             val jsonString = gson.toJson(exportedMessages)
 
-            // 3. Emette l'evento per l'Activity, che si occuperà del salvataggio
             _saveChatEvent.emit(jsonString)
             log("Contenuto JSON della chat pronto per il salvataggio.")
         }

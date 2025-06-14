@@ -59,6 +59,7 @@ dependencies {
     implementation(libs.androidx.concurrent.futures.ktx)
     implementation(libs.androidx.work.runtime.ktx) // O la versione più recente
     implementation(libs.gson)
+    implementation(libs.translate)
     implementation(project(":llama"))
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -35,12 +36,15 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -100,30 +104,6 @@ class AdventureActivity : ComponentActivity() {
     private val modelPreferences by lazy { ModelPreferences(applicationContext) }
     private val themePreferences by lazy { ThemePreferences(applicationContext) }
 
-    // Launcher per il salvataggio dei file, definito a livello di Activity
-    private val saveFileLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            result.data?.data?.let { uri ->
-                val jsonContent = result.data?.getStringExtra("JSON_CONTENT_TO_SAVE")
-                if (jsonContent != null) {
-                    try {
-                        contentResolver.openOutputStream(uri)?.use { outputStream ->
-                            outputStream.write(jsonContent.toByteArray())
-                        }
-                        Toast.makeText(this, "Chat salvata con successo!", Toast.LENGTH_SHORT).show()
-                    } catch (e: IOException) {
-                        Toast.makeText(this, "Errore durante il salvataggio.", Toast.LENGTH_SHORT).show()
-                    }
-                }
-            }
-        } else {
-            Toast.makeText(this, "Salvataggio annullato.", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -177,17 +157,19 @@ class AdventureActivity : ComponentActivity() {
                     },
                     onSaveChat = { characters ->
                         viewModel.onSaveChatClicked(characters)
+                    },
+                    onTranslateMessage = { messageId ->
+                        viewModel.translateMessage(messageId)
                     }
                 )
             }
         }
     }
 }
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdventureChatScreen(
-    viewModel: MainViewModel, // Aggiunto per accedere all'evento di salvataggio
+    viewModel: MainViewModel,
     messages: List<ChatMessage>,
     streamingText: String,
     isGenerating: Boolean,
@@ -196,7 +178,8 @@ fun AdventureChatScreen(
     onMessageSent: (String) -> Unit,
     onCharacterSelected: (String) -> Unit,
     onStopGeneration: () -> Unit,
-    onSaveChat: (List<GameCharacter>) -> Unit
+    onSaveChat: (List<GameCharacter>) -> Unit,
+    onTranslateMessage: (String) -> Unit
 ) {
     var thinkingTime by remember { mutableStateOf(0L) }
     val listState = rememberLazyListState()
@@ -204,16 +187,12 @@ fun AdventureChatScreen(
     val context = LocalContext.current
 
     // --- NUOVA LOGICA DI SALVATAGGIO ---
-
-    // 1. Stato per memorizzare temporaneamente il JSON da salvare
     var jsonToSave by remember { mutableStateOf<String?>(null) }
 
-    // 2. Launcher per il selettore di file, definito nel Composable
     val saveFileLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/json"),
         onResult = { uri: Uri? ->
             if (uri != null && jsonToSave != null) {
-                // Se l'utente ha scelto un file e abbiamo del contenuto da salvare...
                 try {
                     context.contentResolver.openOutputStream(uri)?.use { outputStream ->
                         outputStream.write(jsonToSave!!.toByteArray())
@@ -222,31 +201,24 @@ fun AdventureChatScreen(
                 } catch (e: IOException) {
                     Toast.makeText(context, "Errore durante il salvataggio.", Toast.LENGTH_SHORT).show()
                 } finally {
-                    // Pulisci lo stato dopo il tentativo di salvataggio
                     jsonToSave = null
                 }
             } else if (uri == null) {
-                // L'utente ha annullato la selezione
                 Toast.makeText(context, "Salvataggio annullato.", Toast.LENGTH_SHORT).show()
-                jsonToSave = null // Pulisci lo stato anche qui
+                jsonToSave = null
             }
         }
     )
 
-    // 3. Effetto che ascolta l'evento dal ViewModel
     LaunchedEffect(Unit) {
         viewModel.saveChatEvent.collectLatest { jsonContent ->
-            // Memorizza il contenuto JSON nello stato
             jsonToSave = jsonContent
-
-            // Crea il nome del file e lancia il selettore
             val timeStamp = SimpleDateFormat("yyyy_MM_dd_HH_mm_ss", Locale.getDefault()).format(Date())
             val fileName = "chat_$timeStamp.json"
             saveFileLauncher.launch(fileName)
         }
     }
     // --- FINE NUOVA LOGICA DI SALVATAGGIO ---
-
 
     val characters = listOf(
         GameCharacter(CharacterID.DM, "Master", "Dungeon Master", R.drawable.portrait_dm),
@@ -331,12 +303,17 @@ fun AdventureChatScreen(
                                 item {
                                     MessageBubble(
                                         message = ChatMessage(respondingCharacterId, streamingText),
-                                        characters = characters
+                                        characters = characters,
+                                        onTranslateClicked = {} // Non serve tradurre un messaggio in streaming
                                     )
                                 }
                             }
                             items(messages.reversed()) { message ->
-                                MessageBubble(message = message, characters = characters)
+                                MessageBubble(
+                                    message = message,
+                                    characters = characters,
+                                    onTranslateClicked = { onTranslateMessage(message.id) }
+                                )
                             }
                         }
                     }
@@ -356,14 +333,14 @@ fun AdventureChatScreen(
 }
 
 @Composable
-fun MessageBubble(message: ChatMessage, characters: List<GameCharacter>) {
+fun MessageBubble(
+    message: ChatMessage,
+    characters: List<GameCharacter>,
+    onTranslateClicked: () -> Unit
+) {
     val author = characters.find { it.id == message.authorId }
     val isUserMessage = message.authorId == CharacterID.HERO
-
-    // --- CORREZIONE APPLICATA QUI ---
-    // Definiamo due tipi di allineamento, uno per il Box e uno per la Column.
-    val boxAlignment = if (isUserMessage) Alignment.CenterEnd else Alignment.CenterStart
-    val columnHorizontalAlignment = if (isUserMessage) Alignment.End else Alignment.Start
+    val alignment = if (isUserMessage) Alignment.End else Alignment.Start
 
     val bubbleColor = if (isUserMessage) Color(0xFF005AC1) else MaterialTheme.colorScheme.secondaryContainer
     val textColor = if (isUserMessage) Color.White else MaterialTheme.colorScheme.onSecondaryContainer
@@ -372,13 +349,14 @@ fun MessageBubble(message: ChatMessage, characters: List<GameCharacter>) {
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp.dp
 
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp),
-        contentAlignment = boxAlignment // Usiamo l'allineamento corretto per il Box
+        contentAlignment = if (isUserMessage) Alignment.CenterEnd else Alignment.CenterStart
     ) {
-        Column(horizontalAlignment = columnHorizontalAlignment) { // Usiamo l'allineamento corretto per la Column
+        Column(horizontalAlignment = if (isUserMessage) Alignment.End else Alignment.Start) {
             if (author != null) {
                 Row(
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
@@ -389,7 +367,7 @@ fun MessageBubble(message: ChatMessage, characters: List<GameCharacter>) {
                         contentDescription = "Ritratto di ${author.name}",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
-                            .size(24.dp)
+                            .size(64.dp)
                             .clip(CircleShape)
                     )
                     Spacer(modifier = Modifier.size(4.dp))
@@ -407,30 +385,66 @@ fun MessageBubble(message: ChatMessage, characters: List<GameCharacter>) {
                 shape = RoundedCornerShape(8.dp),
                 colors = CardDefaults.cardColors(containerColor = bubbleColor)
             ) {
-                Text(
-                    text = message.text,
-                    modifier = Modifier.padding(12.dp),
-                    color = textColor
-                )
+                Column(Modifier.padding(12.dp)) {
+                    Text(
+                        text = message.text,
+                        color = textColor
+                    )
+                    if (message.translatedText != null) {
+                        Divider(
+                            modifier = Modifier.padding(vertical = 8.dp),
+                            color = textColor.copy(alpha = 0.5f)
+                        )
+                        Text(
+                            text = message.translatedText,
+                            color = textColor,
+                            fontStyle = FontStyle.Italic
+                        )
+                    }
+                }
             }
 
-            IconButton(
-                onClick = {
-                    clipboardManager.setText(AnnotatedString(message.text))
-                },
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(top = 2.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Outlined.ContentCopy,
-                    contentDescription = "Copia messaggio",
-                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                    modifier = Modifier.size(22.dp)
-                )
+                IconButton(
+                    onClick = {
+                        clipboardManager.setText(AnnotatedString(message.text))
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.ContentCopy,
+                        contentDescription = "Copia messaggio",
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        modifier = Modifier.size(44.dp)
+                    )
+                }
+
+                if (!isUserMessage) {
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Box(contentAlignment = Alignment.Center) {
+                        if (message.isTranslating) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(22.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            IconButton(onClick = onTranslateClicked) {
+                                Icon(
+                                    imageVector = Icons.Default.Translate,
+                                    contentDescription = "Traduci messaggio",
+                                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                                    modifier = Modifier.size(44.dp)
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
     }
 }
-
 @Composable
 fun GeneratingIndicator(
     characterName: String,

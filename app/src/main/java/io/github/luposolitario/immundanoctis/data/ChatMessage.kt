@@ -1,5 +1,6 @@
 package io.github.luposolitario.immundanoctis.data
 
+import java.util.UUID
 /**
  * La classe che rappresenta un singolo messaggio nella chat.
  * È stata aggiornata per usare l'ID del personaggio.
@@ -8,5 +9,11 @@ package io.github.luposolitario.immundanoctis.data
  */
 data class ChatMessage(
     val authorId: String,
-    val text: String
+    val text: String,
+    // Aggiunto un ID univoco per trovare e aggiornare il messaggio
+    val id: String = UUID.randomUUID().toString(),
+    // Campo per contenere il testo tradotto
+    val translatedText: String? = null,
+    // Flag per mostrare un indicatore di caricamento durante la traduzione
+    val isTranslating: Boolean = false
 )
