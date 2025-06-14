@@ -10,7 +10,7 @@ import io.github.luposolitario.immundanoctis.data.CharacterID
 import io.github.luposolitario.immundanoctis.data.ExportedMessage
 import io.github.luposolitario.immundanoctis.data.GameCharacter
 import io.github.luposolitario.immundanoctis.engine.*
-import io.github.luposolitario.immundanoctis.util.EnginePreferences // <-- IMPORT
+import io.github.luposolitario.immundanoctis.util.EnginePreferences
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -45,8 +45,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private var generationJob: Job? = null
 
-    // --- FINE SPOSTAMENTO ---
-
     private val enginePreferences = EnginePreferences(application)
     private val useGemmaForAll = enginePreferences.useGemmaForAll
 
@@ -55,7 +53,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val translationEngine = TranslationEngine()
 
     init {
-        // Ora, quando questo blocco viene eseguito, _logMessages è già inizializzato e la chiamata a log() è sicura.
         if (useGemmaForAll) {
             log("Modalità Solo Gemma ATTIVA.")
             dmEngine = GemmaEngine(application.applicationContext)
@@ -66,7 +63,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             playerEngine = LlamaCppEngine()
         }
     }
-
 
     override fun onCleared() {
         super.onCleared()
@@ -81,49 +77,42 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun loadEngines(dmModelPath: String?, playerModelPath: String?) {
+        // Non facciamo più nessun controllo qui, perché ora ogni motore
+        // è responsabile di non ricaricare se stesso se è già attivo.
         viewModelScope.launch {
             dmModelPath?.let {
-                log("Caricamento modello DM (Gemma)...")
+                log("Tentativo di caricamento modello DM (Gemma)...")
                 dmEngine.load(it)
             } ?: log("Nessun percorso per il modello DM.")
 
-            // Carica il modello GGUF solo se non siamo in modalità "Solo Gemma"
             if (!useGemmaForAll) {
                 playerModelPath?.let {
-                    log("Caricamento modello PG (GGUF)...")
+                    log("Tentativo di caricamento modello PG (GGUF)...")
                     playerEngine.load(it)
                 } ?: log("Nessun percorso per il modello PG.")
             } else {
                 log("Modalità Solo Gemma attiva, caricamento modello GGUF saltato.")
             }
+            log("Processo di caricamento motori completato.")
         }
     }
 
-    // ... (Il resto delle funzioni come sendMessage, translateMessage, ecc., rimangono invariate) ...
+    // ... (tutte le altre funzioni del ViewModel rimangono invariate) ...
+
     fun translateMessage(messageId: String) {
         viewModelScope.launch {
             val originalMessage = _chatMessages.value.find { it.id == messageId } ?: return@launch
-
-            // 1. Mostra lo stato di caricamento
             updateMessage(messageId) { it.copy(isTranslating = true) }
-
             try {
-                // 2. Divide il testo in righe
                 val lines = originalMessage.text.split('\n')
-
-                // 3. Traduce ogni riga non vuota in parallelo per efficienza
                 val translatedLines = lines.map { line ->
                     if (line.isBlank()) {
-                        async { "" } // Mantiene le righe vuote per preservare i paragrafi
+                        async { "" }
                     } else {
                         async { translationEngine.translate(line) }
                     }
-                }.awaitAll() // Attende che tutte le traduzioni siano completate
-
-                // 4. Riunisce le righe tradotte
+                }.awaitAll()
                 val finalTranslation = translatedLines.joinToString("\n")
-
-                // 5. Aggiorna il messaggio con la traduzione completa e formattata
                 updateMessage(messageId) {
                     it.copy(translatedText = finalTranslation, isTranslating = false)
                 }
@@ -141,18 +130,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // ... Il resto del ViewModel rimane invariato (sendMessage, onSaveChatClicked, etc.) ...
-
     fun onSaveChatClicked(characters: List<GameCharacter>) {
         viewModelScope.launch {
             val exportedMessages = _chatMessages.value.map { chatMessage ->
                 val authorName = characters.find { it.id == chatMessage.authorId }?.name ?: "Sconosciuto"
                 ExportedMessage(author = authorName, message = chatMessage.text)
             }
-
             val gson = GsonBuilder().setPrettyPrinting().create()
             val jsonString = gson.toJson(exportedMessages)
-
             _saveChatEvent.emit(jsonString)
             log("Contenuto JSON della chat pronto per il salvataggio.")
         }
@@ -185,7 +170,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _isGenerating.value = true
             _streamingText.value = ""
             _respondingCharacterId.value = targetId
-
             try {
                 val prompt = if (targetId == CharacterID.HERO) {
                     "L'eroe (hero) pensa o dice a se stesso: '$text'"

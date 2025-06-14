@@ -10,24 +10,16 @@ import kotlinx.coroutines.withContext
 import java.util.concurrent.Executors
 import kotlin.concurrent.thread
 
-class LLamaAndroid {
+class LLamaAndroid private constructor() { // Costruttore privato per forzare il singleton
     private val tag: String? = this::class.simpleName
-
-    private val threadLocalState: ThreadLocal<State> = ThreadLocal.withInitial { State.Idle }
 
     private val runLoop: CoroutineDispatcher = Executors.newSingleThreadExecutor {
         thread(start = false, name = "Llm-RunLoop") {
             Log.d(tag, "Dedicated thread for native code: ${Thread.currentThread().name}")
-
-            // No-op if called more than once.
             System.loadLibrary("llama-android")
-
-            // Set llama log handler to Android
             log_to_android()
             backend_init(false)
-
             Log.d(tag, system_info())
-
             it.run()
         }.apply {
             uncaughtExceptionHandler = Thread.UncaughtExceptionHandler { _, exception: Throwable ->
@@ -49,112 +41,83 @@ class LLamaAndroid {
     private external fun free_batch(batch: Long)
     private external fun new_sampler(): Long
     private external fun free_sampler(sampler: Long)
-    private external fun bench_model(
-        context: Long,
-        model: Long,
-        batch: Long,
-        pp: Int,
-        tg: Int,
-        pl: Int,
-        nr: Int
-    ): String
-
+    private external fun bench_model(context: Long, model: Long, batch: Long, pp: Int, tg: Int, pl: Int, nr: Int): String
     private external fun system_info(): String
-
-    private external fun completion_init(
-        context: Long,
-        batch: Long,
-        text: String,
-        formatChat: Boolean,
-        nLen: Int
-    ): Int
-
-    private external fun completion_loop(
-        context: Long,
-        batch: Long,
-        sampler: Long,
-        nLen: Int,
-        ncur: IntVar
-    ): String?
-
+    private external fun completion_init(context: Long, batch: Long, text: String, formatChat: Boolean, nLen: Int): Int
+    private external fun completion_loop(context: Long, batch: Long, sampler: Long, nLen: Int, ncur: IntVar): String?
     private external fun kv_cache_clear(context: Long)
-
-    suspend fun bench(pp: Int, tg: Int, pl: Int, nr: Int = 1): String {
-        return withContext(runLoop) {
-            when (val state = threadLocalState.get()) {
-                is State.Loaded -> {
-                    Log.d(tag, "bench(): $state")
-                    bench_model(state.context, state.model, state.batch, pp, tg, pl, nr)
-                }
-
-                else -> throw IllegalStateException("No model loaded")
-            }
-        }
-    }
 
     suspend fun load(pathToModel: String) {
         withContext(runLoop) {
-            when (threadLocalState.get()) {
-                is State.Idle -> {
-                    val model = load_model(pathToModel)
-                    if (model == 0L)  throw IllegalStateException("load_model() failed")
+            // Ora il controllo sullo stato statico è affidabile
+            if (state is State.Loaded) {
+                Log.d(tag, "Model already loaded, skipping load.")
+                return@withContext
+            }
 
-                    val context = new_context(model)
-                    if (context == 0L) throw IllegalStateException("new_context() failed")
+            val model = load_model(pathToModel)
+            if (model == 0L)  throw IllegalStateException("load_model() failed")
 
-                    val batch = new_batch(512, 0, 1)
-                    if (batch == 0L) throw IllegalStateException("new_batch() failed")
+            val context = new_context(model)
+            if (context == 0L) throw IllegalStateException("new_context() failed")
 
-                    val sampler = new_sampler()
-                    if (sampler == 0L) throw IllegalStateException("new_sampler() failed")
+            val batch = new_batch(512, 0, 1)
+            if (batch == 0L) throw IllegalStateException("new_batch() failed")
 
-                    Log.i(tag, "Loaded model $pathToModel")
-                    threadLocalState.set(State.Loaded(model, context, batch, sampler))
-                }
-                else -> throw IllegalStateException("Model already loaded")
+            val sampler = new_sampler()
+            if (sampler == 0L) throw IllegalStateException("new_sampler() failed")
+
+            Log.i(tag, "Loaded model $pathToModel")
+            state = State.Loaded(model, context, batch, sampler)
+        }
+    }
+
+    suspend fun unload() {
+        withContext(runLoop) {
+            if (state is State.Loaded) {
+                val loadedState = state as State.Loaded
+                free_context(loadedState.context)
+                free_model(loadedState.model)
+                free_batch(loadedState.batch)
+                free_sampler(loadedState.sampler);
+                state = State.Idle
             }
         }
     }
 
     fun send(message: String, formatChat: Boolean = false): Flow<String> = flow {
-        when (val state = threadLocalState.get()) {
+        when (val currentState = state) { // Usa la variabile di stato globale
             is State.Loaded -> {
-                val ncur = IntVar(completion_init(state.context, state.batch, message, formatChat, nlen))
+                val ncur = IntVar(completion_init(currentState.context, currentState.batch, message, formatChat, nlen))
                 while (ncur.value <= nlen) {
-                    val str = completion_loop(state.context, state.batch, state.sampler, nlen, ncur)
-                    if (str == null) {
-                        break
-                    }
+                    val str = completion_loop(currentState.context, currentState.batch, currentState.sampler, nlen, ncur)
+                    if (str == null) break
                     emit(str)
                 }
-                kv_cache_clear(state.context)
+                kv_cache_clear(currentState.context)
             }
             else -> {}
         }
     }.flowOn(runLoop)
 
-    /**
-     * Unloads the model and frees resources.
-     *
-     * This is a no-op if there's no model loaded.
-     */
-    suspend fun unload() {
-        withContext(runLoop) {
-            when (val state = threadLocalState.get()) {
-                is State.Loaded -> {
-                    free_context(state.context)
-                    free_model(state.model)
-                    free_batch(state.batch)
-                    free_sampler(state.sampler);
-
-                    threadLocalState.set(State.Idle)
-                }
-                else -> {}
-            }
-        }
-    }
-
     companion object {
+        // --- LOGICA DELLO STATO SPOSTATA QUI (STATICA) ---
+
+        sealed interface State {
+            data object Idle: State
+            data class Loaded(val model: Long, val context: Long, val batch: Long, val sampler: Long): State
+        }
+
+        // Variabile di stato "statica", condivisa e sicura per i thread
+        @Volatile
+        private var state: State = State.Idle
+
+        // Proprietà pubblica per leggere lo stato in modo sicuro
+        val currentState: State
+            get() = state
+
+        // --- FINE LOGICA STATO ---
+
         private class IntVar(value: Int) {
             @Volatile
             var value: Int = value
@@ -167,14 +130,7 @@ class LLamaAndroid {
             }
         }
 
-        private sealed interface State {
-            data object Idle: State
-            data class Loaded(val model: Long, val context: Long, val batch: Long, val sampler: Long): State
-        }
-
-        // Enforce only one instance of Llm.
         private val _instance: LLamaAndroid = LLamaAndroid()
-
         fun instance(): LLamaAndroid = _instance
     }
 }
