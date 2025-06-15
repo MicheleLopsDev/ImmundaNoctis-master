@@ -10,19 +10,36 @@ Ricordi i vecchi **libri-gioco**, dove ogni scelta apriva un nuovo paragrafo e u
 
 L'obiettivo è creare un'esperienza di gioco di ruolo profonda, rigiocabile e completamente offline, dove ogni partita è un racconto unico e irripetibile.
 
-## ✨ Architettura e Funzionalità Chiave
+## ✨ Funzionalità Chiave
 
 Questo progetto è costruito con un'architettura moderna e modulare per garantire flessibilità e manutenibilità.
 
-* **Architettura a Moduli**: Il progetto è diviso in due moduli principali:
+* **Gestione delle Sessioni**: Il gioco salva i tuoi progressi! Puoi continuare la tua ultima avventura o iniziarne una nuova da zero, sovrascrivendo quella precedente.
+
+* **Creazione dell'Eroe Personalizzato**: Prima di iniziare una nuova campagna, puoi dare forma al tuo eroe scegliendo:
+    * **Nome della Campagna**: Per dare un titolo unico alla tua partita.
+    * **Nome dell'Eroe**: Scegli il nome del tuo protagonista.
+    * **Ritratto e Genere**: Seleziona un ritratto maschile o femminile.
+    * **Classe**: Scegli tra Guerriero, Ladro, Mago o Saggio, ognuno con una breve descrizione.
+    * **Allineamento**: Definisci il carattere del tuo eroe come Buono, Neutrale or Malvagio.
+    * **Lingua**: Imposta la lingua del tuo eroe (per future funzionalità TTS).
+
+* **Motore IA Locale**: L'inferenza viene eseguita al 100% sul dispositivo grazie a implementazioni di `llama.cpp` e MediaPipe (per modelli Gemma), garantendo un'esperienza offline e la massima privacy.
+
+* **Architettura a Doppio Motore**: L'applicazione permette agli utenti di scaricare e gestire due modelli IA separati (es. Gemma per il DM, GGUF per i PG) tramite un'interfaccia dedicata.
+
+* **Struttura Modulare**: Il progetto è diviso in due moduli principali:
     * `:app`: Contiene tutta l'interfaccia utente (scritta in Jetpack Compose) e la logica di gioco.
-    * `:llama`: Una libreria Android autonoma che incapsula la complessità di `llama.cpp`, fornendo un'API Kotlin pulita per interagire con i modelli di linguaggio.
+    * `:llama`: Una libreria Android autonoma che incapsula la complessità di `llama.cpp`, fornendo un'API Kotlin pulita.
 
-* **Motore IA Locale**: L'inferenza viene eseguita al 100% sul dispositivo grazie a `llama.cpp` e in futuro a MediaPipe, garantendo un'esperienza offline e la massima privacy.
+## 🗺️ Flusso dell'Applicazione
 
-* **Gestione a Doppio Motore**: L'applicazione permette agli utenti di scaricare e gestire due modelli IA separati (es. Gemma per il DM, GGUF per i PG) tramite un'interfaccia dedicata (`ModelActivity`), rendendo il gioco completamente personalizzabile.
+L'app è strutturata con un flusso di navigazione chiaro:
 
-* **Navigazione Multi-Activity**: L'app è strutturata con un menu principale che indirizza al tavolo da gioco (`AdventureActivity`) o alla gestione dei motori (`ModelActivity`).
+1.  **MainActivity**: La schermata iniziale che funge da hub, da cui puoi scegliere se iniziare a giocare o configurare i motori AI.
+2.  **SetupActivity**: Il cuore della preparazione dell'avventura. Qui scegli se continuare una partita esistente o crearne una nuova attraverso la personalizzazione del personaggio.
+3.  **ModelActivity**: La schermata tecnica per la gestione e il download dei modelli di linguaggio.
+4.  **AdventureActivity**: Il tavolo da gioco vero e proprio, dove si svolge l'avventura testuale.
 
 ## 🚀 Come Iniziare
 
@@ -50,24 +67,3 @@ Per compilare ed eseguire il progetto, segui questi passaggi:
 ## 📄 Licenza
 
 Questo progetto è rilasciato sotto la **Licenza MIT**. Vedi il file `LICENSE` per maggiori dettagli.
-
----
-**Copyright (c) 2025 Michele Lops**
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.

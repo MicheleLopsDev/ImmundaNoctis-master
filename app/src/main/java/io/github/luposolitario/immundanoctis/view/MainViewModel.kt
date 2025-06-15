@@ -11,6 +11,7 @@ import io.github.luposolitario.immundanoctis.data.ExportedMessage
 import io.github.luposolitario.immundanoctis.data.GameCharacter
 import io.github.luposolitario.immundanoctis.engine.*
 import io.github.luposolitario.immundanoctis.util.EnginePreferences
+import io.github.luposolitario.immundanoctis.util.GameStateManager
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -22,8 +23,16 @@ import java.util.*
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val tag: String? = this::class.simpleName
 
+    // --- NUOVO GESTORE DI STATO ---
+    private val gameStateManager = GameStateManager(application)
+
     private val _chatMessages = MutableStateFlow<List<ChatMessage>>(emptyList())
     val chatMessages: StateFlow<List<ChatMessage>> = _chatMessages.asStateFlow()
+
+    // --- NUOVO STATEFLOW PER I PERSONAGGI ---
+    private val _gameCharacters = MutableStateFlow<List<GameCharacter>>(emptyList())
+    val gameCharacters: StateFlow<List<GameCharacter>> = _gameCharacters.asStateFlow()
+
 
     private val _streamingText = MutableStateFlow("")
     val streamingText: StateFlow<String> = _streamingText.asStateFlow()
@@ -64,6 +73,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * NUOVA FUNZIONE: Carica la sessione di gioco (o ne crea una di default)
+     * e popola lo StateFlow dei personaggi.
+     */
+    fun loadGameSession() {
+        val session = gameStateManager.loadSession() ?: gameStateManager.createDefaultSession()
+        _gameCharacters.value = session.characters
+        log("Sessione di gioco caricata: ${session.sessionName}")
+    }
+
+
     override fun onCleared() {
         super.onCleared()
         viewModelScope.launch {
@@ -77,8 +97,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun loadEngines(dmModelPath: String?, playerModelPath: String?) {
-        // Non facciamo più nessun controllo qui, perché ora ogni motore
-        // è responsabile di non ricaricare se stesso se è già attivo.
         viewModelScope.launch {
             dmModelPath?.let {
                 log("Tentativo di caricamento modello DM (Gemma)...")
@@ -96,8 +114,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             log("Processo di caricamento motori completato.")
         }
     }
-
-    // ... (tutte le altre funzioni del ViewModel rimangono invariate) ...
 
     fun translateMessage(messageId: String) {
         viewModelScope.launch {
@@ -130,8 +146,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun onSaveChatClicked(characters: List<GameCharacter>) {
+    /**
+     * MODIFICATA: Ora prende i personaggi direttamente dallo stato interno del ViewModel.
+     */
+    fun onSaveChatClicked() {
         viewModelScope.launch {
+            val characters = _gameCharacters.value
             val exportedMessages = _chatMessages.value.map { chatMessage ->
                 val authorName = characters.find { it.id == chatMessage.authorId }?.name ?: "Sconosciuto"
                 ExportedMessage(author = authorName, message = chatMessage.text)

@@ -34,6 +34,12 @@
             android:theme="@style/Theme.ImmundaNoctis" />
 
         <activity
+            android:name=".SetupActivity"
+            android:exported="false"
+            android:label="Prepara Avventura"
+            android:theme="@style/Theme.ImmundaNoctis" />
+
+        <activity
             android:name=".ModelActivity"
             android:exported="false"
             android:label="Gestione Motori"

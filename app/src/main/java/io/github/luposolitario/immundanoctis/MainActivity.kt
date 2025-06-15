@@ -1,5 +1,6 @@
 package io.github.luposolitario.immundanoctis
 
+import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -7,7 +8,9 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DarkMode
@@ -21,15 +24,16 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
 import io.github.luposolitario.immundanoctis.ui.theme.ImmundaNoctisTheme
 import io.github.luposolitario.immundanoctis.util.ThemePreferences
 
@@ -39,22 +43,29 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            // Leggiamo la preferenza salvata, usando quella di sistema come fallback
             val isSystemDark = isSystemInDarkTheme()
             var isDarkTheme by remember {
                 mutableStateOf(themePreferences.useDarkTheme(isSystemDark))
             }
 
-            // Passiamo lo stato al nostro tema principale
             ImmundaNoctisTheme(darkTheme = isDarkTheme) {
+                val view = LocalView.current
+                if (!view.isInEditMode) {
+                    SideEffect {
+                        val window = (view.context as Activity).window
+                        window.statusBarColor = Color.Black.toArgb()
+                        // --- MODIFICA CHIAVE ---
+                        // Forziamo le icone della status bar a essere CHIARE, sempre.
+                        WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
+                    }
+                }
+
                 MainMenuScreen(
-                    // Passiamo lo stato e l'azione per cambiarlo
                     isDarkTheme = isDarkTheme,
                     onThemeToggle = {
-                        // Quando l'utente cambia tema...
                         val newThemeState = !isDarkTheme
-                        isDarkTheme = newThemeState         // ...aggiorna lo stato della UI...
-                        themePreferences.saveTheme(newThemeState) // ...e salva la scelta!
+                        isDarkTheme = newThemeState
+                        themePreferences.saveTheme(newThemeState)
                     }
                 )
             }
@@ -62,6 +73,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+// In MainActivity.kt, sostituisci solo questa funzione
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainMenuScreen(isDarkTheme: Boolean, onThemeToggle: () -> Unit) {
@@ -79,7 +91,9 @@ fun MainMenuScreen(isDarkTheme: Boolean, onThemeToggle: () -> Unit) {
                     IconButton(onClick = onThemeToggle) {
                         Icon(
                             imageVector = if (isDarkTheme) Icons.Default.LightMode else Icons.Default.DarkMode,
-                            contentDescription = "Cambia Tema"
+                            contentDescription = "Cambia Tema",
+                            // --- TEST: Usiamo un colore fisso ---
+                            tint = Color.Red
                         )
                     }
                 }
@@ -94,16 +108,17 @@ fun MainMenuScreen(isDarkTheme: Boolean, onThemeToggle: () -> Unit) {
             verticalArrangement = Arrangement.Center
         ) {
             Button(onClick = {
-                val intent = Intent(context, AdventureActivity::class.java)
+                val intent = Intent(context, SetupActivity::class.java)
                 context.startActivity(intent)
             }) {
-                Text("Avvia Avventura")
+                Text("Inizia / Continua Avventura")
             }
+            Spacer(modifier = Modifier.height(16.dp))
             Button(onClick = {
                 val intent = Intent(context, ModelActivity::class.java)
                 context.startActivity(intent)
             }) {
-                Text("Gestisci Motori IA")
+                Text("Configura Motori IA")
             }
         }
     }

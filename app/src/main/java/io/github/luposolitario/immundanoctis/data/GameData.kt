@@ -39,12 +39,16 @@ data class HeroDetails(
  * La classe principale che rappresenta un personaggio nel gioco.
  * Assembla tutte le altre informazioni (anagrafica, statistiche, dettagli)
  * in un unico oggetto.
+ *
+ * AGGIORNATA per includere genere e lingua.
  */
 data class GameCharacter(
     val id: String,
     val name: String,
     val characterClass: String,
     @DrawableRes val portraitResId: Int,
+    val gender: String,      // "MALE" o "FEMALE"
+    val language: String,    // "it" o "en"
     val stats: CharacterStats? = null,
     val details: HeroDetails? = null
 )
