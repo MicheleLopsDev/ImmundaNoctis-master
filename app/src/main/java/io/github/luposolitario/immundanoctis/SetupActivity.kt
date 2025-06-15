@@ -5,6 +5,7 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
@@ -59,7 +60,6 @@ class SetupActivity : ComponentActivity() {
             val useDarkTheme = themePreferences.useDarkTheme(isSystemInDarkTheme())
             ImmundaNoctisTheme(darkTheme = useDarkTheme) {
 
-                // --- MODIFICA 3: Colore Status Bar ---
                 val view = LocalView.current
                 if (!view.isInEditMode) {
                     SideEffect {
@@ -174,6 +174,7 @@ fun CharacterCreationScreen(
     if (showClassDialog) {
         ClassSelectionDialog(
             selectedClass = selectedClass,
+            selectedGender = selectedGender,
             onClassSelected = {
                 selectedClass = it
                 showClassDialog = false
@@ -190,13 +191,7 @@ fun CharacterCreationScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         Text("Nome della Campagna", style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-        // --- MODIFICA 1: Testo Campagna Centrato ---
-        OutlinedTextField(
-            value = sessionName,
-            onValueChange = { sessionName = it },
-            modifier = Modifier.fillMaxWidth(),
-            textStyle = LocalTextStyle.current.copy(textAlign = TextAlign.Center)
-        )
+        OutlinedTextField(value = sessionName, onValueChange = { sessionName = it }, modifier = Modifier.fillMaxWidth(), textStyle = LocalTextStyle.current.copy(textAlign = TextAlign.Center))
         Spacer(modifier = Modifier.height(16.dp))
 
         OutlinedTextField(value = heroName, onValueChange = { heroName = it }, label = { Text("Nome del tuo Eroe") }, modifier = Modifier.fillMaxWidth())
@@ -260,6 +255,7 @@ fun CharacterCreationScreen(
 @Composable
 fun ClassSelectionDialog(
     selectedClass: String,
+    selectedGender: String,
     onClassSelected: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -267,7 +263,11 @@ fun ClassSelectionDialog(
         onDismissRequest = onDismiss,
         title = { Text("Scegli una Classe") },
         text = {
-            ClassSelector(selectedClass = selectedClass, onClassSelected = onClassSelected)
+            ClassSelector(
+                selectedClass = selectedClass,
+                selectedGender = selectedGender,
+                onClassSelected = onClassSelected
+            )
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
@@ -277,34 +277,47 @@ fun ClassSelectionDialog(
     )
 }
 
-// --- MODIFICA 2: Scorrimento Classi Verticale ---
+data class ClassInfo(
+    val name: String,
+    val description: String,
+    @DrawableRes val maleIconRes: Int,
+    @DrawableRes val femaleIconRes: Int
+)
+
 @Composable
-fun ClassSelector(selectedClass: String, onClassSelected: (String) -> Unit) {
+fun ClassSelector(
+    selectedClass: String,
+    selectedGender: String,
+    onClassSelected: (String) -> Unit
+) {
+    // --- MODIFICA CHIAVE: Uso dei nomi dei file reali ---
     val classes = listOf(
-        "Guerriero" to "Maestro d'armi, abile nel combattimento corpo a corpo.",
-        "Ladro" to "Scaltro e agile, esperto in furtività e raggiri.",
-        "Mago" to "Studioso delle arti arcane, piega la realtà al suo volere.",
-        "Saggio" to "Guaritore e sapiente, usa la conoscenza per proteggere gli altri."
+        ClassInfo("Guerriero", "Maestro d'armi, abile nel combattimento corpo a corpo.", R.drawable.class_warrior_male, R.drawable.class_warrior_female),
+        ClassInfo("Ladro", "Scaltro e agile, esperto in furtività e raggiri.", R.drawable.class_thief_male, R.drawable.class_thief_female),
+        ClassInfo("Mago", "Studioso delle arti arcane, piega la realtà al suo volere.", R.drawable.class_witch_male, R.drawable.class_witch_female),
+        ClassInfo("Saggio", "Guaritore e sapiente, usa la conoscenza per proteggere gli altri.", R.drawable.class_sage_male, R.drawable.class_sage_female)
     )
+
     LazyColumn(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp),
         contentPadding = PaddingValues(vertical = 4.dp)
     ) {
-        items(classes) { (name, description) ->
+        items(classes) { classInfo ->
+            val imageRes = if (selectedGender == "MALE") classInfo.maleIconRes else classInfo.femaleIconRes
             Card(
-                modifier = Modifier.fillMaxWidth().clickable { onClassSelected(name) },
+                modifier = Modifier.fillMaxWidth().clickable { onClassSelected(classInfo.name) },
                 shape = RoundedCornerShape(8.dp),
-                border = BorderStroke(2.dp, if (name == selectedClass) MaterialTheme.colorScheme.primary else Color.Transparent),
+                border = BorderStroke(2.dp, if (classInfo.name == selectedClass) MaterialTheme.colorScheme.primary else Color.Transparent),
                 elevation = CardDefaults.cardElevation(2.dp)
             ) {
                 Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Image(painter = painterResource(id = R.drawable.ic_launcher_background), contentDescription = name, modifier = Modifier.size(56.dp).clip(RoundedCornerShape(4.dp)), contentScale = ContentScale.Crop)
+                    Image(painter = painterResource(id = imageRes), contentDescription = classInfo.name, modifier = Modifier.size(56.dp).clip(RoundedCornerShape(4.dp)), contentScale = ContentScale.Crop)
                     Spacer(Modifier.width(12.dp))
                     Column {
-                        Text(name, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                        Text(classInfo.name, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                         Spacer(Modifier.height(4.dp))
-                        Text(description, fontSize = 12.sp, lineHeight = 14.sp)
+                        Text(classInfo.description, fontSize = 12.sp, lineHeight = 14.sp)
                     }
                 }
             }
@@ -312,7 +325,7 @@ fun ClassSelector(selectedClass: String, onClassSelected: (String) -> Unit) {
     }
 }
 
-// Dentro a SetupActivity.kt, sostituisci solo questa funzione
+
 @Composable
 fun AlignmentSelector(selectedAlignment: String, onAlignmentSelected: (String) -> Unit) {
     val alignments = listOf(
