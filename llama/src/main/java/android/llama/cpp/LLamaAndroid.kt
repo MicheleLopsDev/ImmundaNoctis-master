@@ -13,6 +13,9 @@ import kotlin.concurrent.thread
 class LLamaAndroid private constructor() { // Costruttore privato per forzare il singleton
     private val tag: String? = this::class.simpleName
 
+    @Volatile
+    private var isLoad: Boolean = false
+
     private val runLoop: CoroutineDispatcher = Executors.newSingleThreadExecutor {
         thread(start = false, name = "Llm-RunLoop") {
             Log.d(tag, "Dedicated thread for native code: ${Thread.currentThread().name}")
@@ -49,26 +52,23 @@ class LLamaAndroid private constructor() { // Costruttore privato per forzare il
 
     suspend fun load(pathToModel: String) {
         withContext(runLoop) {
-            // Ora il controllo sullo stato statico è affidabile
-            if (state is State.Loaded) {
-                Log.d(tag, "Model already loaded, skipping load.")
-                return@withContext
+            if (!isLoad) {
+                val model = load_model(pathToModel)
+                if (model == 0L)  throw IllegalStateException("load_model() failed")
+
+                val context = new_context(model)
+                if (context == 0L) throw IllegalStateException("new_context() failed")
+
+                val batch = new_batch(512, 0, 1)
+                if (batch == 0L) throw IllegalStateException("new_batch() failed")
+
+                val sampler = new_sampler()
+                if (sampler == 0L) throw IllegalStateException("new_sampler() failed")
+
+                Log.i(tag, "Loaded model $pathToModel")
+                state = State.Loaded(model, context, batch, sampler)
+                isLoad = true
             }
-
-            val model = load_model(pathToModel)
-            if (model == 0L)  throw IllegalStateException("load_model() failed")
-
-            val context = new_context(model)
-            if (context == 0L) throw IllegalStateException("new_context() failed")
-
-            val batch = new_batch(512, 0, 1)
-            if (batch == 0L) throw IllegalStateException("new_batch() failed")
-
-            val sampler = new_sampler()
-            if (sampler == 0L) throw IllegalStateException("new_sampler() failed")
-
-            Log.i(tag, "Loaded model $pathToModel")
-            state = State.Loaded(model, context, batch, sampler)
         }
     }
 
@@ -80,6 +80,7 @@ class LLamaAndroid private constructor() { // Costruttore privato per forzare il
                 free_model(loadedState.model)
                 free_batch(loadedState.batch)
                 free_sampler(loadedState.sampler);
+                isLoad = false
                 state = State.Idle
             }
         }
