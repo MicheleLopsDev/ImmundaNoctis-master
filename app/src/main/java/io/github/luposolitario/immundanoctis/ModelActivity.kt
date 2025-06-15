@@ -1,55 +1,28 @@
 package io.github.luposolitario.immundanoctis
 
 import android.app.Activity
+import android.content.Intent
 import android.database.Cursor
 import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
 import android.provider.OpenableColumns
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AddLink
-import androidx.compose.material.icons.filled.Cancel
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Divider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -70,10 +43,7 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import io.github.luposolitario.immundanoctis.ui.theme.ImmundaNoctisTheme
-import io.github.luposolitario.immundanoctis.util.Downloadable
-import io.github.luposolitario.immundanoctis.util.EnginePreferences
-import io.github.luposolitario.immundanoctis.util.ModelPreferences
-import io.github.luposolitario.immundanoctis.util.ThemePreferences
+import io.github.luposolitario.immundanoctis.util.*
 import io.github.luposolitario.immundanoctis.view.MainViewModel
 import io.github.luposolitario.immundanoctis.worker.DownloadWorker
 import java.io.File
@@ -83,12 +53,15 @@ class ModelActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
     private val modelPreferences by lazy { ModelPreferences(applicationContext) }
     private val themePreferences by lazy { ThemePreferences(applicationContext) }
+    private val ttsPreferences by lazy { TtsPreferences(applicationContext) }
     private val workManager by lazy { WorkManager.getInstance(applicationContext) }
     private lateinit var enginePreferences: EnginePreferences
+    private lateinit var gameStateManager: GameStateManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enginePreferences = EnginePreferences(applicationContext)
+        gameStateManager = GameStateManager(applicationContext)
         val dmDirectory = getDownloadDirectory("dm")
         val plDirectory = getDownloadDirectory("pl")
 
@@ -102,7 +75,6 @@ class ModelActivity : ComponentActivity() {
             val useDarkTheme = themePreferences.useDarkTheme(isSystemInDarkTheme())
             ImmundaNoctisTheme(darkTheme = useDarkTheme) {
 
-                // --- MODIFICA: Colore Status Bar ---
                 val view = LocalView.current
                 if (!view.isInEditMode) {
                     SideEffect {
@@ -122,7 +94,19 @@ class ModelActivity : ComponentActivity() {
                         dmDirectory = dmDirectory,
                         plDirectory = plDirectory,
                         themePrefs = themePreferences,
-                        enginePreferences = enginePreferences
+                        enginePreferences = enginePreferences,
+                        ttsPrefs = ttsPreferences,
+                        onDeleteSession = {
+                            if (gameStateManager.deleteSession()) {
+                                Toast.makeText(this, "Sessione cancellata con successo.", Toast.LENGTH_SHORT).show()
+                                val intent = Intent(this, MainActivity::class.java)
+                                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+                                startActivity(intent)
+                                finish()
+                            } else {
+                                Toast.makeText(this, "Errore durante la cancellazione della sessione.", Toast.LENGTH_SHORT).show()
+                            }
+                        }
                     )
                 }
             }
@@ -139,7 +123,6 @@ class ModelActivity : ComponentActivity() {
     }
 }
 
-// Enum per rendere la scelta più chiara e sicura
 private enum class EngineOption { MIXED, GEMMA_ONLY }
 
 @Composable
@@ -152,18 +135,20 @@ fun MainEngineScreen(
     dmDirectory: File,
     plDirectory: File,
     themePrefs: ThemePreferences,
-    enginePreferences: EnginePreferences
+    enginePreferences: EnginePreferences,
+    ttsPrefs: TtsPreferences,
+    onDeleteSession: () -> Unit
 ) {
     var dmModelState by remember { mutableStateOf(initialDmModel) }
     var playerModelState by remember { mutableStateOf(initialPlayerModel) }
     var showUrlDialogFor by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
     var hfToken by remember { mutableStateOf(themePrefs.getToken() ?: "") }
-
-    // Stato per la selezione del motore AI, letto dalle preferenze salvate
     var selectedEngine by remember {
         mutableStateOf(if (enginePreferences.useGemmaForAll) EngineOption.GEMMA_ONLY else EngineOption.MIXED)
     }
+    var autoReadEnabled by remember { mutableStateOf(ttsPrefs.isAutoReadEnabled()) }
+    var showDeleteConfirmDialog by remember { mutableStateOf(false) }
 
     if (showUrlDialogFor != null) {
         AddUrlDialog(
@@ -187,12 +172,64 @@ fun MainEngineScreen(
         )
     }
 
+    if (showDeleteConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmDialog = false },
+            icon = { Icon(Icons.Filled.Warning, contentDescription = "Attenzione") },
+            title = { Text("Conferma Cancellazione") },
+            text = { Text("Stai per cancellare permanentemente la sessione di gioco salvata. L'operazione non è reversibile. Vuoi continuare?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteConfirmDialog = false
+                        onDeleteSession()
+                    }
+                ) {
+                    Text("CANCELLA")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirmDialog = false }) {
+                    Text("Annulla")
+                }
+            }
+        )
+    }
+
     Column(modifier = Modifier
         .fillMaxSize()
         .verticalScroll(rememberScrollState())
         .padding(16.dp)) {
 
-        // --- SEZIONE SCELTA MOTORE ---
+        // --- SEZIONE IMPOSTAZIONI TTS ---
+        Text("Impostazioni Audio", style = MaterialTheme.typography.titleLarge)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Lettura Automatica Messaggi", style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    "Leggi automaticamente i messaggi di DM e PNG.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Switch(
+                checked = autoReadEnabled,
+                onCheckedChange = {
+                    autoReadEnabled = it
+                    ttsPrefs.saveAutoRead(it)
+                }
+            )
+        }
+        Spacer(Modifier.height(16.dp))
+        Divider()
+        Spacer(Modifier.height(16.dp))
+
         Text("Modalità Motore AI", style = MaterialTheme.typography.titleLarge)
         Text(
             "Scegli come l'IA gestirà i personaggi. Richiede un riavvio dell'app per avere effetto.",
@@ -222,11 +259,9 @@ fun MainEngineScreen(
         Spacer(Modifier.height(16.dp))
         Divider()
         Spacer(Modifier.height(16.dp))
-        // --- FINE SEZIONE ---
 
         val isGgufEnabled = selectedEngine == EngineOption.MIXED
 
-        // Modello DM (Gemma) - sempre abilitato
         ModelSlotView(
             title = "Motore del Dungeon Master (Gemma)",
             subtitle = "Modello per narrazione e ambiente.Consigliato: Gemma",
@@ -242,14 +277,13 @@ fun MainEngineScreen(
                 modelPrefs.clearDmModel()
                 (context as? Activity)?.recreate()
             },
-            enabled = true // Questo slot è sempre attivo
+            enabled = true
         )
 
         Spacer(Modifier.height(16.dp))
         Divider()
         Spacer(Modifier.height(16.dp))
 
-        // Modello PG (GGUF) - abilitato/disabilitato condizionalmente
         Column(modifier = Modifier.alpha(if (isGgufEnabled) 1f else 0.5f)) {
             ModelSlotView(
                 title = "Motore dei Personaggi (GGUF)",
@@ -269,6 +303,28 @@ fun MainEngineScreen(
                 enabled = isGgufEnabled
             )
         }
+
+        // --- SEZIONE: Operazioni di Emergenza (CORRETTA) ---
+        Spacer(Modifier.height(16.dp))
+        Divider()
+        Spacer(Modifier.height(16.dp))
+        Text("Operazioni di Emergenza", style = MaterialTheme.typography.titleLarge)
+        Text(
+            "Usa queste opzioni solo se l'app non funziona correttamente.",
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+        OutlinedButton(
+            onClick = { showDeleteConfirmDialog = true },
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error) // Corretto
+        ) {
+            Icon(Icons.Filled.DeleteForever, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+            Spacer(Modifier.size(ButtonDefaults.IconSpacing))
+            Text("Cancella Sessione di Gioco")
+        }
+
 
         Spacer(Modifier.weight(1f, fill = false))
         Spacer(Modifier.height(24.dp))
@@ -351,7 +407,6 @@ fun ModelSlotView(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(modifier = Modifier.weight(1f)) {
-                // Ora usiamo il nostro pulsante personalizzato, passandogli 'enabled'
                 Downloadable.Button(status = status, item = model, onClick = onClick, enabled = enabled)
             }
             Spacer(modifier = Modifier.width(8.dp))
@@ -375,7 +430,6 @@ fun ModelSlotView(
     }
 }
 
-// NUOVO COMPOSABLE: Aggiungi questa funzione in fondo al file ModelActivity.kt
 @Composable
 fun TokenInputSection(
     token: String,
@@ -412,7 +466,6 @@ fun TokenInputSection(
     }
 }
 
-
 @Composable
 fun AddUrlDialog(onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
     val urlText = remember { mutableStateOf("") }
@@ -427,11 +480,6 @@ fun AddUrlDialog(onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
     })
 }
 
-// --- FUNZIONE HELPER RI-AGGIUNTA ---
-/**
- * Funzione di estensione per ottenere il nome del file da un Uri.
- * Necessaria per il selettore di file.
- */
 fun android.content.ContentResolver.getFileName(uri: Uri): String? {
     var name: String? = null
     val cursor: Cursor? = query(uri, null, null, null, null)
@@ -499,7 +547,6 @@ private fun ModelSlotViewPreview(
                     IconButton(onClick = {}) { Icon(Icons.Default.Delete, "Cancella", tint = MaterialTheme.colorScheme.error) }
                 }
             }
-
         }
     }
 }

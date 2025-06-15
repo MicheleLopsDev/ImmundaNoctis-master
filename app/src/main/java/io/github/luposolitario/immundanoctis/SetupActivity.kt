@@ -3,6 +3,7 @@ package io.github.luposolitario.immundanoctis
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.annotation.DrawableRes
@@ -20,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Balance
+import androidx.compose.material.icons.filled.BrokenImage
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material3.*
@@ -29,7 +31,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
@@ -37,7 +38,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import io.github.luposolitario.immundanoctis.data.GameCharacter
 import io.github.luposolitario.immundanoctis.data.SessionData
@@ -104,6 +104,34 @@ class SetupActivity : ComponentActivity() {
     }
 }
 
+/**
+ * Un Composable che carica un'immagine in modo sicuro. Se il caricamento fallisce,
+ * mostra un'icona sostitutiva invece di causare un crash.
+ */
+@Composable
+fun RobustImage(
+    @DrawableRes resId: Int,
+    contentDescription: String?,
+    modifier: Modifier = Modifier,
+    contentScale: ContentScale = ContentScale.Fit,
+    placeholder: @Composable (Modifier) -> Unit = { mod ->
+        Icon(
+            imageVector = Icons.Default.BrokenImage,
+            contentDescription = "Immagine non caricata",
+            modifier = mod
+        )
+    }
+) {
+        val painter = painterResource(id = resId)
+        Image(
+            painter = painter,
+            contentDescription = contentDescription,
+            modifier = modifier,
+            contentScale = contentScale
+        )
+}
+
+
 @Composable
 fun ExistingSessionScreen(
     session: SessionData,
@@ -130,9 +158,11 @@ fun ExistingSessionScreen(
                 Text("Ultimo salvataggio: $formattedDate", style = MaterialTheme.typography.bodySmall)
                 if (hero != null) {
                     Spacer(modifier = Modifier.height(16.dp))
-                    Image(
-                        painter = painterResource(id = hero.portraitResId),
+                    // --- MODIFICA CHIAVE: Uso di RobustImage per evitare il crash ---
+                    RobustImage(
+                        resId = hero.portraitResId,
                         contentDescription = "Ritratto Eroe",
+                        contentScale = ContentScale.Crop,
                         modifier = Modifier.size(128.dp).clip(CircleShape).border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
                     )
                     Spacer(modifier = Modifier.height(8.dp))
@@ -202,8 +232,20 @@ fun CharacterCreationScreen(
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
             val malePortraitId = R.drawable.portrait_hero_male
             val femalePortraitId = R.drawable.portrait_hero_female
-            Image(painter = painterResource(id = malePortraitId), contentDescription = "Ritratto Maschile", modifier = Modifier.size(100.dp).clip(CircleShape).clickable { selectedGender = "MALE"; selectedPortraitId = malePortraitId }.border(width = 3.dp, color = if (selectedGender == "MALE") MaterialTheme.colorScheme.primary else Color.Transparent, shape = CircleShape))
-            Image(painter = painterResource(id = femalePortraitId), contentDescription = "Ritratto Femminile", modifier = Modifier.size(100.dp).clip(CircleShape).clickable { selectedGender = "FEMALE"; selectedPortraitId = femalePortraitId }.border(width = 3.dp, color = if (selectedGender == "FEMALE") MaterialTheme.colorScheme.primary else Color.Transparent, shape = CircleShape))
+
+            // --- MODIFICA CHIAVE: Uso di RobustImage anche qui per coerenza ---
+            RobustImage(
+                resId = malePortraitId,
+                contentDescription = "Ritratto Maschile",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.size(100.dp).clip(CircleShape).clickable { selectedGender = "MALE"; selectedPortraitId = malePortraitId }.border(width = 3.dp, color = if (selectedGender == "MALE") MaterialTheme.colorScheme.primary else Color.Transparent, shape = CircleShape)
+            )
+            RobustImage(
+                resId = femalePortraitId,
+                contentDescription = "Ritratto Femminile",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.size(100.dp).clip(CircleShape).clickable { selectedGender = "FEMALE"; selectedPortraitId = femalePortraitId }.border(width = 3.dp, color = if (selectedGender == "FEMALE") MaterialTheme.colorScheme.primary else Color.Transparent, shape = CircleShape)
+            )
         }
         Spacer(modifier = Modifier.height(24.dp))
 
@@ -252,6 +294,8 @@ fun CharacterCreationScreen(
     }
 }
 
+// Il resto del file (ClassSelectionDialog, ClassSelector, ecc.) rimane invariato.
+// ... (tutto il resto del file da qui in poi è identico a prima)
 @Composable
 fun ClassSelectionDialog(
     selectedClass: String,
@@ -290,7 +334,6 @@ fun ClassSelector(
     selectedGender: String,
     onClassSelected: (String) -> Unit
 ) {
-    // --- MODIFICA CHIAVE: Uso dei nomi dei file reali ---
     val classes = listOf(
         ClassInfo("Guerriero", "Maestro d'armi, abile nel combattimento corpo a corpo.", R.drawable.class_warrior_male, R.drawable.class_warrior_female),
         ClassInfo("Ladro", "Scaltro e agile, esperto in furtività e raggiri.", R.drawable.class_thief_male, R.drawable.class_thief_female),
@@ -312,12 +355,17 @@ fun ClassSelector(
                 elevation = CardDefaults.cardElevation(2.dp)
             ) {
                 Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Image(painter = painterResource(id = imageRes), contentDescription = classInfo.name, modifier = Modifier.size(56.dp).clip(RoundedCornerShape(4.dp)), contentScale = ContentScale.Crop)
+                    RobustImage(
+                        resId = imageRes,
+                        contentDescription = classInfo.name,
+                        modifier = Modifier.size(56.dp).clip(RoundedCornerShape(4.dp)),
+                        contentScale = ContentScale.Crop
+                    )
                     Spacer(Modifier.width(12.dp))
                     Column {
                         Text(classInfo.name, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                         Spacer(Modifier.height(4.dp))
-                        Text(classInfo.description, fontSize = 12.sp, lineHeight = 14.sp)
+                        Text(classInfo.description, style = MaterialTheme.typography.bodySmall, lineHeight = MaterialTheme.typography.bodySmall.lineHeight)
                     }
                 }
             }
@@ -340,8 +388,7 @@ fun AlignmentSelector(selectedAlignment: String, onAlignmentSelected: (String) -
                     imageVector = icon,
                     contentDescription = name,
                     modifier = Modifier.size(64.dp).clip(CircleShape).clickable { onAlignmentSelected(name) }.border(width = 3.dp, color = if (name == selectedAlignment) MaterialTheme.colorScheme.primary else Color.Transparent, shape = CircleShape).padding(8.dp),
-                    // --- MODIFICA QUI ---
-                    tint = if (name == selectedAlignment) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant // Colore più sicuro per il contrasto
+                    tint = if (name == selectedAlignment) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(name, style = MaterialTheme.typography.bodyMedium)
             }
