@@ -185,21 +185,21 @@ fun MainEngineScreen(
         )
         Column {
             EngineRadioButton(
-                text = "Modalità Mista (Consigliata)",
-                description = "Usa Gemma per il DM e GGUF per i PG. Ottimo equilibrio.",
-                selected = selectedEngine == EngineOption.MIXED,
-                onClick = {
-                    selectedEngine = EngineOption.MIXED
-                    enginePreferences.useGemmaForAll = false
-                }
-            )
-            EngineRadioButton(
-                text = "Modalità Solo Gemma",
+                text = "Modalità Solo Gemma (Consigliata)",
                 description = "Usa Gemma per tutti i personaggi. Qualità alta, più esigente.",
                 selected = selectedEngine == EngineOption.GEMMA_ONLY,
                 onClick = {
                     selectedEngine = EngineOption.GEMMA_ONLY
                     enginePreferences.useGemmaForAll = true
+                }
+            )
+            EngineRadioButton(
+                text = "Modalità Mista ",
+                description = "Usa Gemma per il DM e GGUF per i PG. Puoi sperimentare piu motori.",
+                selected = selectedEngine == EngineOption.MIXED,
+                onClick = {
+                    selectedEngine = EngineOption.MIXED
+                    enginePreferences.useGemmaForAll = false
                 }
             )
         }
