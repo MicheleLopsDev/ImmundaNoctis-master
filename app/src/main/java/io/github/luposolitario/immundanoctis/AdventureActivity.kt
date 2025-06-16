@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -119,17 +120,13 @@ class AdventureActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         viewModel.loadGameSession()
 
-        // Inizializza il TtsService
-        ttsService = TtsService(this) {
-            // Questo blocco viene eseguito quando il TTS è pronto.
-            // Potremmo voler fare qualcosa qui, ma per ora non è necessario.
-        }
+        ttsService = TtsService(this) { /* TTS Ready */ }
 
         val dmModel = modelPreferences.getDmModel()
         val playerModel = modelPreferences.getPlayerModel()
 
         if (dmModel == null && playerModel == null) {
-            viewModel.log("Nessun modello configurato. Vai in ModelActivity per scaricarli.")
+            viewModel.log("Nessun modello configurato. Vai in ConfigurationActivity per scaricarli.")
         } else {
             viewModel.log("Caricamento motori...")
             viewModel.loadEngines(
@@ -159,20 +156,6 @@ class AdventureActivity : ComponentActivity() {
                 val respondingCharacterId by viewModel.respondingCharacterId.collectAsState()
                 val isAutoReadEnabled = ttsPreferences.isAutoReadEnabled()
 
-                // Effetto per la lettura automatica dei nuovi messaggi
-                LaunchedEffect(chatMessages) {
-                    if (isAutoReadEnabled) {
-                        chatMessages.lastOrNull()?.let { lastMessage ->
-                            val author = characters.find { it.id == lastMessage.authorId }
-                            // Leggi solo se il messaggio non è dell'eroe e non è un messaggio vuoto
-                            if (author != null && author.id != CharacterID.HERO && lastMessage.text.isNotBlank()) {
-                                ttsService?.speak(lastMessage.text, author)
-                            }
-                        }
-                    }
-                }
-
-                // Gestisce il ciclo di vita del TtsService
                 DisposableEffect(Unit) {
                     onDispose {
                         ttsService?.shutdown()
@@ -185,7 +168,7 @@ class AdventureActivity : ComponentActivity() {
                     }
                 } else {
                     AdventureChatScreen(
-                        sessionName = sessionName, // Aggiungi questo parametro
+                        sessionName = sessionName,
                         characters = characters,
                         messages = chatMessages,
                         streamingText = streamingText,
@@ -207,7 +190,6 @@ class AdventureActivity : ComponentActivity() {
                         onTranslateMessage = { messageId ->
                             viewModel.translateMessage(messageId)
                         },
-                        // Nuova callback per il TTS
                         onPlayMessage = { message ->
                             val author = characters.find { it.id == message.authorId }
                             if (author != null) {
@@ -222,7 +204,6 @@ class AdventureActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        // Assicurati di rilasciare le risorse del TTS
         ttsService?.shutdown()
     }
 }
@@ -230,7 +211,7 @@ class AdventureActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdventureChatScreen(
-    sessionName: String , // Aggiungi questo parametro
+    sessionName: String,
     characters: List<GameCharacter>,
     messages: List<ChatMessage>,
     streamingText: String,
@@ -244,10 +225,15 @@ fun AdventureChatScreen(
     onTranslateMessage: (String) -> Unit,
     onPlayMessage: (ChatMessage) -> Unit
 ) {
-    var thinkingTime by remember { mutableStateOf(0L) }
     val listState = rememberLazyListState()
     var showMenu by remember { mutableStateOf(false) }
-    val hero = characters.find { it.type == CharacterType.PLAYER } // Troviamo l'eroe tramite il suo tipo
+    val hero = characters.find { it.type == CharacterType.PLAYER }
+
+    LaunchedEffect(messages.size) {
+        if (messages.isNotEmpty()) {
+            listState.animateScrollToItem(0)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -278,10 +264,11 @@ fun AdventureChatScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // La barra dei personaggi in alto rimane invariata
-            AdventureHeader(characters = characters, selectedCharacterId = selectedCharacterId, onCharacterClick = onCharacterSelected)
-
-            // Box della chat (LazyColumn)
+            AdventureHeader(
+                characters = characters,
+                selectedCharacterId = selectedCharacterId,
+                onCharacterClick = onCharacterSelected
+            )
             Card(
                 modifier = Modifier
                     .weight(1f)
@@ -308,77 +295,93 @@ fun AdventureChatScreen(
                                     message = message,
                                     characters = characters,
                                     onTranslateClicked = { onTranslateMessage(message.id) },
-                                    onPlayClicked = { onPlayMessage(message) } // Passa la callback
+                                    onPlayClicked = { onPlayMessage(message) }
                                 )
                             }
                         }
                     }
                 }
             }
-            // --- NUOVA SEZIONE INSERITA QUI ---
             if (hero != null) {
                 PlayerActionsBar(hero = hero)
             }
-            // --- FINE NUOVA SEZIONE ---
-
-
             if (isGenerating) {
-                GeneratingIndicator(characterName = characters.find { it.id == respondingCharacterId }?.name ?: "...", thinkingTime = thinkingTime, onStopClicked = onStopGeneration)
+                GeneratingIndicator(
+                    characterName = characters.find { it.id == respondingCharacterId }?.name ?: "...",
+                    onStopClicked = onStopGeneration
+                )
             }
             MessageInput(onMessageSent = onMessageSent, isEnabled = !isGenerating)
         }
     }
 }
 
-// --- NUOVO COMPOSABLE AGGIUNTO ---
-// Aggiungi questa nuova funzione nel file AdventureActivity.kt, dopo AdventureChatScreen
+@Composable
+fun AdventureHeader(
+    characters: List<GameCharacter>,
+    selectedCharacterId: String,
+    onCharacterClick: (String) -> Unit
+) {
+    val characterOrder = mapOf("dm" to 0, "hero" to 1, "companion1" to 2, "companion2" to 3)
+    val sortedCharacters = characters.sortedWith(compareBy { characterOrder[it.id] ?: Int.MAX_VALUE })
 
-/**
- * Mostra il ritratto del giocatore e i pulsanti azione.
- * AGGIORNATA con etichette e click per la scheda personaggio.
- */
-/**
- * Mostra il ritratto del giocatore e i pulsanti azione.
- */
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 8.dp)
+    ) {
+        Image(
+            painter = painterResource(id = R.drawable.map_dungeon),
+            contentDescription = "Mappa del Dungeon",
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxWidth().height(120.dp)
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.BottomCenter)
+                .padding(top = 80.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.Bottom
+        ) {
+            sortedCharacters.forEach { character ->
+                if (character.type == CharacterType.PLAYER) {
+                    // Non mostrare l'eroe nell'header, come da soluzione del bug
+                } else if (character.isVisible) {
+                    CharacterPortrait(
+                        character = character,
+                        isSelected = character.id == selectedCharacterId,
+                        modifier = Modifier.clickable { onCharacterClick(character.id) },
+                        size = if (character.type == CharacterType.DM) 72.dp else 60.dp
+                    )
+                } else {
+                    PlaceholderPortrait(size = 60.dp)
+                }
+            }
+        }
+    }
+}
+
 @Composable
 fun PlayerActionsBar(hero: GameCharacter) {
-    // Stato per controllare la visibilità di tutti i popup
     var showStrengthDialog by remember { mutableStateOf(false) }
     var showCunningDialog by remember { mutableStateOf(false) }
     var showKnowledgeDialog by remember { mutableStateOf(false) }
     var showSpellDialog by remember { mutableStateOf(false) }
     var showDiceDialog by remember { mutableStateOf(false) }
-
     val context = LocalContext.current
 
-    // --- GESTIONE DEI NUOVI POPUP AVANZATI ---
     if (showStrengthDialog) {
-        SkillDialog(
-            title = "Abilità di Forza",
-            skills = PlaceholderSkills.strengthSkills,
-            onDismiss = { showStrengthDialog = false }
-        )
+        SkillDialog(title = "Abilità di Forza", skills = PlaceholderSkills.strengthSkills, onDismiss = { showStrengthDialog = false })
     }
     if (showCunningDialog) {
-        SkillDialog(
-            title = "Abilità di Astuzia",
-            skills = PlaceholderSkills.cunningSkills,
-            onDismiss = { showCunningDialog = false }
-        )
+        SkillDialog(title = "Abilità di Astuzia", skills = PlaceholderSkills.cunningSkills, onDismiss = { showCunningDialog = false })
     }
     if (showKnowledgeDialog) {
-        SkillDialog(
-            title = "Abilità di Sapere",
-            skills = PlaceholderSkills.knowledgeSkills,
-            onDismiss = { showKnowledgeDialog = false }
-        )
+        SkillDialog(title = "Abilità di Sapere", skills = PlaceholderSkills.knowledgeSkills, onDismiss = { showKnowledgeDialog = false })
     }
     if (showSpellDialog) {
-        SkillDialog(
-            title = "Incantesimi",
-            skills = PlaceholderSkills.spellSkills,
-            onDismiss = { showSpellDialog = false }
-        )
+        SkillDialog(title = "Incantesimi", skills = PlaceholderSkills.spellSkills, onDismiss = { showSpellDialog = false })
     }
     if (showDiceDialog) {
         DiceDialog(onDismiss = { showDiceDialog = false })
@@ -409,15 +412,25 @@ fun PlayerActionsBar(hero: GameCharacter) {
     }
 }
 
-/**
- * Il popup che mostra una lista di abilità.
- */
+@Composable
+fun ActionIcon(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.clickable(onClick = onClick)
+    ) {
+        IconButton(onClick = onClick) {
+            Icon(icon, contentDescription = label, Modifier.size(32.dp))
+        }
+        Text(text = label, fontSize = 10.sp)
+    }
+}
+
 @Composable
 fun SkillDialog(title: String, skills: List<Skill>, onDismiss: () -> Unit) {
     Dialog(onDismissRequest = onDismiss) {
         Card(
             shape = RoundedCornerShape(16.dp),
-            modifier = Modifier.fillMaxWidth().height(400.dp) // Altezza fissa per mostrare lo scroll
+            modifier = Modifier.fillMaxWidth().heightIn(max = 450.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(text = title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.align(Alignment.CenterHorizontally))
@@ -432,9 +445,6 @@ fun SkillDialog(title: String, skills: List<Skill>, onDismiss: () -> Unit) {
     }
 }
 
-/**
- * La card che mostra una singola abilità con i suoi livelli.
- */
 @Composable
 fun SkillCard(skill: Skill) {
     Card(
@@ -442,14 +452,13 @@ fun SkillCard(skill: Skill) {
         elevation = CardDefaults.cardElevation(2.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
-        Row(modifier = Modifier.padding(12.dp)) {
-            Icon(imageVector = skill.icon, contentDescription = null, modifier = Modifier.size(40.dp).padding(end = 8.dp))
+        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(imageVector = skill.icon, contentDescription = null, modifier = Modifier.size(40.dp).padding(end = 8.dp), tint = MaterialTheme.colorScheme.primary)
             Column {
                 Text(text = skill.name, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(4.dp))
                 RatingStars(currentLevel = skill.level, maxLevel = skill.maxLevel)
                 Spacer(modifier = Modifier.height(8.dp))
-                // Lista degli effetti con colore dinamico
                 skill.effects.forEachIndexed { index, effect ->
                     val levelRequired = index + 1
                     val unlocked = skill.level >= levelRequired
@@ -464,9 +473,6 @@ fun SkillCard(skill: Skill) {
     }
 }
 
-/**
- * Mostra le stelle di valutazione per un'abilità.
- */
 @Composable
 fun RatingStars(currentLevel: Int, maxLevel: Int) {
     Row {
@@ -481,20 +487,13 @@ fun RatingStars(currentLevel: Int, maxLevel: Int) {
     }
 }
 
-/**
- * Il popup per il lancio dei dadi.
- */
 @Composable
 fun DiceDialog(onDismiss: () -> Unit) {
     var diceCount by remember { mutableStateOf("2") }
     var modifier by remember { mutableStateOf("0") }
-
     Dialog(onDismissRequest = onDismiss) {
         Card(shape = RoundedCornerShape(16.dp)) {
-            Column(
-                modifier = Modifier.padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
+            Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(text = "Lancia i Dadi", style = MaterialTheme.typography.headlineSmall)
                 Spacer(modifier = Modifier.height(16.dp))
                 Row {
@@ -503,59 +502,17 @@ fun DiceDialog(onDismiss: () -> Unit) {
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedTextField(
-                        value = diceCount,
-                        onValueChange = { diceCount = it },
-                        label = { Text("N. Dadi") },
-                        modifier = Modifier.weight(1f)
-                    )
+                    OutlinedTextField(value = diceCount, onValueChange = { diceCount = it }, label = { Text("N. Dadi") }, modifier = Modifier.weight(1f))
                     Spacer(modifier = Modifier.width(8.dp))
-                    OutlinedTextField(
-                        value = modifier,
-                        onValueChange = { modifier = it },
-                        label = { Text("Modificatore") },
-                        modifier = Modifier.weight(1f)
-                    )
+                    OutlinedTextField(value = modifier, onValueChange = { modifier = it }, label = { Text("Modificatore") }, modifier = Modifier.weight(1f))
                 }
                 Spacer(modifier = Modifier.height(24.dp))
-                Button(onClick = { /* La logica verrà aggiunta qui */ }, modifier = Modifier.fillMaxWidth()) {
+                Button(onClick = { /* Logica da aggiungere */ }, modifier = Modifier.fillMaxWidth()) {
                     Text("TIRA")
                 }
             }
         }
     }
-}
-/**
- * Composable riutilizzabile per un'icona con etichetta nella barra delle azioni.
- */
-@Composable
-fun ActionIcon(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.clickable(onClick = onClick) // Rendiamo cliccabile l'intera colonna
-    ) {
-        IconButton(onClick = onClick) {
-            Icon(icon, contentDescription = label, Modifier.size(32.dp))
-        }
-        Text(text = label, fontSize = 10.sp) // Etichetta con testo piccolo
-    }
-}
-
-/**
- * Un AlertDialog riutilizzabile per i popup placeholder delle abilità.
- */
-@Composable
-fun SkillAlertDialog(title: String, text: String, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = { Text(text) },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Ottimo")
-            }
-        }
-    )
 }
 
 @Composable
@@ -563,13 +520,12 @@ fun MessageBubble(
     message: ChatMessage,
     characters: List<GameCharacter>,
     onTranslateClicked: () -> Unit,
-    onPlayClicked: () -> Unit // Nuova callback
+    onPlayClicked: () -> Unit
 ) {
     val author = characters.find { it.id == message.authorId }
     val isUserMessage = message.authorId == CharacterID.HERO
-    val alignment = if (isUserMessage) Alignment.End else Alignment.Start
-    val bubbleColor = if (isUserMessage) Color(0xFF005AC1) else MaterialTheme.colorScheme.secondaryContainer
-    val textColor = if (isUserMessage) Color.White else MaterialTheme.colorScheme.onSecondaryContainer
+    val bubbleColor = if (isUserMessage) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer
+    val textColor = if (isUserMessage) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer
     val clipboardManager = LocalClipboardManager.current
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp.dp
@@ -580,97 +536,72 @@ fun MessageBubble(
             .padding(vertical = 4.dp),
         contentAlignment = if (isUserMessage) Alignment.CenterEnd else Alignment.CenterStart
     ) {
-        Column(horizontalAlignment = if (isUserMessage) Alignment.End else Alignment.Start) {
-            if (author != null) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Image(
-                        painter = painterResource(id = author.portraitResId),
-                        contentDescription = "Ritratto di ${author.name}",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .size(64.dp)
-                            .clip(CircleShape)
-                    )
-                    Spacer(modifier = Modifier.size(4.dp))
+        Row(verticalAlignment = Alignment.Bottom) {
+            if (!isUserMessage && author != null) {
+                Image(
+                    painter = painterResource(id = author.portraitResId),
+                    contentDescription = author.name,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                )
+                Spacer(Modifier.width(8.dp))
+            }
+            Column(horizontalAlignment = if (isUserMessage) Alignment.End else Alignment.Start) {
+                if (author != null && !isUserMessage) {
                     Text(
                         text = author.name,
-                        fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(start = 12.dp, bottom = 2.dp)
                     )
                 }
-            }
-
-            Card(
-                modifier = Modifier.widthIn(max = screenWidth * 0.85f),
-                shape = RoundedCornerShape(8.dp),
-                colors = CardDefaults.cardColors(containerColor = bubbleColor)
-            ) {
-                Column(Modifier.padding(12.dp)) {
-                    Text(text = message.text, color = textColor)
-                    if (message.translatedText != null) {
-                        Divider(modifier = Modifier.padding(vertical = 8.dp), color = textColor.copy(alpha = 0.5f))
-                        Text(text = message.translatedText, color = textColor, fontStyle = FontStyle.Italic)
-                    }
-                }
-            }
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(top = 2.dp)
-            ) {
-                IconButton(onClick = { clipboardManager.setText(AnnotatedString(message.text)) }) {
-                    Icon(
-                        imageVector = Icons.Outlined.ContentCopy,
-                        contentDescription = "Copia messaggio",
-                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                        modifier = Modifier.size(44.dp)
-                    )
-                }
-
-                if (!isUserMessage) {
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Box(contentAlignment = Alignment.Center) {
-                        if (message.isTranslating) {
-                            CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
-                        } else {
-                            IconButton(onClick = onTranslateClicked) {
-                                Icon(
-                                    imageVector = Icons.Default.Translate,
-                                    contentDescription = "Traduci messaggio",
-                                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                                    modifier = Modifier.size(44.dp)
-                                )
-                            }
+                Card(
+                    modifier = Modifier.widthIn(max = screenWidth * 0.8f),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = bubbleColor)
+                ) {
+                    Column(Modifier.padding(12.dp)) {
+                        Text(text = message.text, color = textColor)
+                        if (message.translatedText != null) {
+                            Divider(modifier = Modifier.padding(vertical = 8.dp), color = textColor.copy(alpha = 0.5f))
+                            Text(text = message.translatedText, color = textColor, fontStyle = FontStyle.Italic)
                         }
                     }
                 }
-
-                // --- NUOVO PULSANTE PLAY ---
-                Spacer(modifier = Modifier.width(4.dp))
-                IconButton(onClick = onPlayClicked) {
-                    Icon(
-                        imageVector = Icons.Default.PlayCircleOutline,
-                        contentDescription = "Leggi messaggio",
-                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                        modifier = Modifier.size(44.dp)
-                    )
+                Row(modifier = Modifier.padding(start = 8.dp, top = 4.dp)) {
+                    IconButton(onClick = { clipboardManager.setText(AnnotatedString(message.text)) }, modifier = Modifier.size(24.dp)) {
+                        Icon(Icons.Outlined.ContentCopy, "Copia", tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                    }
+                    if (!isUserMessage) {
+                        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(24.dp)) {
+                            if (message.isTranslating) CircularProgressIndicator(strokeWidth = 2.dp)
+                            else IconButton(onClick = onTranslateClicked, modifier = Modifier.size(24.dp)) {
+                                Icon(Icons.Default.Translate, "Traduci", tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                            }
+                        }
+                    }
+                    IconButton(onClick = onPlayClicked, modifier = Modifier.size(24.dp)) {
+                        Icon(Icons.Default.PlayCircleOutline, "Leggi", tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                    }
                 }
+            }
+            if (isUserMessage && author != null) {
+                Spacer(Modifier.width(8.dp))
+                Image(
+                    painter = painterResource(id = author.portraitResId),
+                    contentDescription = author.name,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                )
             }
         }
     }
 }
 
-// Il resto del file AdventureActivity.kt rimane invariato...
 @Composable
-fun GeneratingIndicator(
-    characterName: String,
-    thinkingTime: Long,
-    onStopClicked: () -> Unit
-) {
+fun GeneratingIndicator(onStopClicked: () -> Unit, characterName: String) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -679,16 +610,14 @@ fun GeneratingIndicator(
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(
-            text = "Il motore di $characterName sta pensando... (${String.format("%.1f", thinkingTime / 1000.0)}s)",
+            text = "$characterName sta pensando...",
             fontStyle = FontStyle.Italic,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
             modifier = Modifier.weight(1f, fill = false)
         )
         Button(
             onClick = onStopClicked,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.error
-            )
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
         ) {
             Text("Ferma")
         }
@@ -726,71 +655,7 @@ fun CharacterPortrait(
 }
 
 @Composable
-fun AdventureHeader(
-    characters: List<GameCharacter>,
-    selectedCharacterId: String,
-    onCharacterClick: (String) -> Unit
-) {
-    // L'ordinamento rimane corretto
-    val characterOrder = mapOf("dm" to 0, "hero" to 1, "companion1" to 2, "companion2" to 3)
-    val sortedCharacters = characters.sortedWith(compareBy { characterOrder[it.id] ?: Int.MAX_VALUE })
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(bottom = 8.dp)
-    ) {
-        Image(
-            painter = painterResource(id = R.drawable.map_dungeon),
-            contentDescription = "Mappa del Dungeon",
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxWidth().height(120.dp)
-        )
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.BottomCenter)
-                .padding(top = 80.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.Bottom
-        ) {
-            sortedCharacters.forEach { character ->
-                val isClickable = character.isVisible
-
-                // --- QUESTA È LA LOGICA DI CLICK CORRETTA E DEFINITIVA ---
-                val portraitModifier = if (isClickable) {
-                    Modifier.clickable { onCharacterClick(character.id) }
-                } else {
-                    Modifier
-                }
-                // --- FINE DELLA LOGICA DI CLICK ---
-
-                if (character.isVisible) {
-                    CharacterPortrait(
-                        character = character,
-                        // La logica di selezione rimane semplice e corretta.
-                        isSelected = character.id == selectedCharacterId,
-                        modifier = portraitModifier,
-                        size = if (character.type == CharacterType.DM) 72.dp else 60.dp
-                    )
-                } else {
-                    if(character.type != CharacterType.PLAYER){
-                        PlaceholderPortrait(
-                            size = 60.dp,
-                            modifier = Modifier
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun PlaceholderPortrait(
-    modifier: Modifier = Modifier,
-    size: Dp = 64.dp
-) {
+fun PlaceholderPortrait(modifier: Modifier = Modifier, size: Dp = 64.dp) {
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally
@@ -818,7 +683,6 @@ fun PlaceholderPortrait(
         )
     }
 }
-
 
 @Composable
 fun MessageInput(onMessageSent: (String) -> Unit, isEnabled: Boolean) {
