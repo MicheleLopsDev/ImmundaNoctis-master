@@ -23,6 +23,10 @@ import java.util.*
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val tag: String? = this::class.simpleName
 
+    // --- 1. AGGIUNGI QUESTO STATEFLOW SOTTO GLI ALTRI ---
+    private val _sessionName = MutableStateFlow("Immunda Noctis")
+    val sessionName: StateFlow<String> = _sessionName.asStateFlow()
+
     // --- NUOVO GESTORE DI STATO ---
     private val gameStateManager = GameStateManager(application)
 
@@ -77,11 +81,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      * NUOVA FUNZIONE: Carica la sessione di gioco (o ne crea una di default)
      * e popola lo StateFlow dei personaggi.
      */
+
     fun loadGameSession() {
         val session = gameStateManager.loadSession() ?: gameStateManager.createDefaultSession()
         _gameCharacters.value = session.characters
+        // --- 2. AGGIORNA IL NOME DELLA SESSIONE QUI ---
+        _sessionName.value = session.sessionName
         log("Sessione di gioco caricata: ${session.sessionName}")
     }
+
 
 
     override fun onCleared() {
@@ -172,18 +180,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val userMessage = ChatMessage(authorId = CharacterID.HERO, text = text)
         _chatMessages.update { it + userMessage }
 
-        val targetId = _conversationTargetId.value
-        val engineToUse = if (targetId == CharacterID.DM || targetId == CharacterID.HERO) {
-            dmEngine
-        } else {
-            playerEngine
-        }
+        var targetId = _conversationTargetId.value
 
-        val logMessage = if (targetId == CharacterID.HERO) {
-            "Invio prompt a 'HERO' (gestito dal DM)..."
-        } else {
-            "Invio prompt a '$targetId'..."
-        }
+        // --- INIZIO DELLA CORREZIONE ---
+
+        // LOGICA SEMPLIFICATA:
+        // Usiamo SEMPRE il motore principale (dmEngine) per mantenere uno stile narrativo coerente.
+        // Il motore è abbastanza intelligente da impersonare il personaggio target.
+        val engineToUse = dmEngine
+
+        val logMessage = "Invio prompt per una risposta da '$targetId'..."
         log(logMessage)
 
         generationJob = viewModelScope.launch {
@@ -191,12 +197,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _streamingText.value = ""
             _respondingCharacterId.value = targetId
             try {
-                val prompt = if (targetId == CharacterID.HERO) {
-                    "L'eroe (hero) pensa o dice a se stesso: '$text'"
-                } else {
-                    text
-                }
-                engineToUse.sendMessage(prompt)
+                // Il prompt non ha più bisogno di casi speciali.
+                // Sarà il "System Prompt" (che miglioreremo in futuro) a dare le istruzioni.
+                engineToUse.sendMessage(text)
                     .collect { token ->
                         _streamingText.update { it + token }
                     }
@@ -211,9 +214,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 _isGenerating.value = false
                 _streamingText.value = ""
-                _respondingCharacterId.value = null
+                _respondingCharacterId.value = null // Resettiamo il responding character
             }
         }
+        // --- FINE DELLA CORREZIONE ---
     }
 
     fun stopGeneration() {

@@ -1,11 +1,14 @@
 package io.github.luposolitario.immundanoctis
 
 import android.app.Activity
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -31,11 +34,19 @@ import androidx.compose.foundation.text.selection.LocalTextSelectionColors
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoFixHigh
+import androidx.compose.material.icons.filled.Casino
+import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.Lightbulb
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayCircleOutline
+import androidx.compose.material.icons.filled.QuestionMark
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Save
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -51,6 +62,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -81,17 +93,20 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.core.view.WindowCompat
 import io.github.luposolitario.immundanoctis.data.CharacterID
+import io.github.luposolitario.immundanoctis.data.CharacterType
 import io.github.luposolitario.immundanoctis.data.ChatMessage
 import io.github.luposolitario.immundanoctis.data.GameCharacter
+import io.github.luposolitario.immundanoctis.data.PlaceholderSkills
+import io.github.luposolitario.immundanoctis.data.Skill
 import io.github.luposolitario.immundanoctis.service.TtsService
 import io.github.luposolitario.immundanoctis.ui.theme.ImmundaNoctisTheme
 import io.github.luposolitario.immundanoctis.util.ModelPreferences
 import io.github.luposolitario.immundanoctis.util.ThemePreferences
 import io.github.luposolitario.immundanoctis.util.TtsPreferences
 import io.github.luposolitario.immundanoctis.view.MainViewModel
-import kotlinx.coroutines.flow.distinctUntilChanged
 
 class AdventureActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
@@ -224,12 +239,12 @@ fun AdventureChatScreen(
     onStopGeneration: () -> Unit,
     onSaveChat: () -> Unit,
     onTranslateMessage: (String) -> Unit,
-    onPlayMessage: (ChatMessage) -> Unit // Nuova callback
+    onPlayMessage: (ChatMessage) -> Unit
 ) {
     var thinkingTime by remember { mutableStateOf(0L) }
     val listState = rememberLazyListState()
     var showMenu by remember { mutableStateOf(false) }
-    val hero = characters.find { it.id == CharacterID.HERO }
+    val hero = characters.find { it.type == CharacterType.PLAYER } // Troviamo l'eroe tramite il suo tipo
 
     Scaffold(
         topBar = {
@@ -260,7 +275,10 @@ fun AdventureChatScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
+            // La barra dei personaggi in alto rimane invariata
             AdventureHeader(characters = characters, selectedCharacterId = selectedCharacterId, onCharacterClick = onCharacterSelected)
+
+            // Box della chat (LazyColumn)
             Card(
                 modifier = Modifier
                     .weight(1f)
@@ -294,6 +312,12 @@ fun AdventureChatScreen(
                     }
                 }
             }
+            // --- NUOVA SEZIONE INSERITA QUI ---
+            if (hero != null) {
+                PlayerActionsBar(hero = hero)
+            }
+            // --- FINE NUOVA SEZIONE ---
+
 
             if (isGenerating) {
                 GeneratingIndicator(characterName = characters.find { it.id == respondingCharacterId }?.name ?: "...", thinkingTime = thinkingTime, onStopClicked = onStopGeneration)
@@ -301,6 +325,234 @@ fun AdventureChatScreen(
             MessageInput(onMessageSent = onMessageSent, isEnabled = !isGenerating)
         }
     }
+}
+
+// --- NUOVO COMPOSABLE AGGIUNTO ---
+// Aggiungi questa nuova funzione nel file AdventureActivity.kt, dopo AdventureChatScreen
+
+/**
+ * Mostra il ritratto del giocatore e i pulsanti azione.
+ * AGGIORNATA con etichette e click per la scheda personaggio.
+ */
+/**
+ * Mostra il ritratto del giocatore e i pulsanti azione.
+ */
+@Composable
+fun PlayerActionsBar(hero: GameCharacter) {
+    // Stato per controllare la visibilità di tutti i popup
+    var showStrengthDialog by remember { mutableStateOf(false) }
+    var showCunningDialog by remember { mutableStateOf(false) }
+    var showKnowledgeDialog by remember { mutableStateOf(false) }
+    var showSpellDialog by remember { mutableStateOf(false) }
+    var showDiceDialog by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
+
+    // --- GESTIONE DEI NUOVI POPUP AVANZATI ---
+    if (showStrengthDialog) {
+        SkillDialog(
+            title = "Abilità di Forza",
+            skills = PlaceholderSkills.strengthSkills,
+            onDismiss = { showStrengthDialog = false }
+        )
+    }
+    if (showCunningDialog) {
+        SkillDialog(
+            title = "Abilità di Astuzia",
+            skills = PlaceholderSkills.cunningSkills,
+            onDismiss = { showCunningDialog = false }
+        )
+    }
+    if (showKnowledgeDialog) {
+        SkillDialog(
+            title = "Abilità di Sapere",
+            skills = PlaceholderSkills.knowledgeSkills,
+            onDismiss = { showKnowledgeDialog = false }
+        )
+    }
+    if (showSpellDialog) {
+        SkillDialog(
+            title = "Incantesimi",
+            skills = PlaceholderSkills.spellSkills,
+            onDismiss = { showSpellDialog = false }
+        )
+    }
+    if (showDiceDialog) {
+        DiceDialog(onDismiss = { showDiceDialog = false })
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.Top,
+        horizontalArrangement = Arrangement.SpaceAround
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            CharacterPortrait(
+                character = hero,
+                isSelected = false,
+                size = 56.dp,
+                modifier = Modifier.clickable {
+                    context.startActivity(Intent(context, CharacterSheetActivity::class.java))
+                }
+            )
+        }
+        ActionIcon(icon = Icons.Default.FitnessCenter, label = "Forza", onClick = { showStrengthDialog = true })
+        ActionIcon(icon = Icons.Default.Lightbulb, label = "Astuzia", onClick = { showCunningDialog = true })
+        ActionIcon(icon = Icons.Default.MenuBook, label = "Sapere", onClick = { showKnowledgeDialog = true })
+        ActionIcon(icon = Icons.Default.AutoFixHigh, label = "Magia", onClick = { showSpellDialog = true })
+        ActionIcon(icon = Icons.Default.Casino, label = "Dadi", onClick = { showDiceDialog = true })
+    }
+}
+
+/**
+ * Il popup che mostra una lista di abilità.
+ */
+@Composable
+fun SkillDialog(title: String, skills: List<Skill>, onDismiss: () -> Unit) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier.fillMaxWidth().height(400.dp) // Altezza fissa per mostrare lo scroll
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(text = title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.align(Alignment.CenterHorizontally))
+                Spacer(modifier = Modifier.height(16.dp))
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    items(skills) { skill ->
+                        SkillCard(skill = skill)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * La card che mostra una singola abilità con i suoi livelli.
+ */
+@Composable
+fun SkillCard(skill: Skill) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(2.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+    ) {
+        Row(modifier = Modifier.padding(12.dp)) {
+            Icon(imageVector = skill.icon, contentDescription = null, modifier = Modifier.size(40.dp).padding(end = 8.dp))
+            Column {
+                Text(text = skill.name, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(4.dp))
+                RatingStars(currentLevel = skill.level, maxLevel = skill.maxLevel)
+                Spacer(modifier = Modifier.height(8.dp))
+                // Lista degli effetti con colore dinamico
+                skill.effects.forEachIndexed { index, effect ->
+                    val levelRequired = index + 1
+                    val unlocked = skill.level >= levelRequired
+                    Text(
+                        text = "Liv $levelRequired: $effect",
+                        fontSize = 14.sp,
+                        color = if (unlocked) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Mostra le stelle di valutazione per un'abilità.
+ */
+@Composable
+fun RatingStars(currentLevel: Int, maxLevel: Int) {
+    Row {
+        for (i in 1..maxLevel) {
+            Icon(
+                imageVector = Icons.Default.Star,
+                contentDescription = "Livello $i",
+                tint = if (i <= currentLevel) Color(0xFFFFD700) else Color.Gray,
+                modifier = Modifier.size(16.dp)
+            )
+        }
+    }
+}
+
+/**
+ * Il popup per il lancio dei dadi.
+ */
+@Composable
+fun DiceDialog(onDismiss: () -> Unit) {
+    var diceCount by remember { mutableStateOf("2") }
+    var modifier by remember { mutableStateOf("0") }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(shape = RoundedCornerShape(16.dp)) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(text = "Lancia i Dadi", style = MaterialTheme.typography.headlineSmall)
+                Spacer(modifier = Modifier.height(16.dp))
+                Row {
+                    Icon(Icons.Default.Casino, contentDescription = "Dado", modifier = Modifier.size(64.dp))
+                    Icon(Icons.Default.Casino, contentDescription = "Dado", modifier = Modifier.size(64.dp))
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedTextField(
+                        value = diceCount,
+                        onValueChange = { diceCount = it },
+                        label = { Text("N. Dadi") },
+                        modifier = Modifier.weight(1f)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    OutlinedTextField(
+                        value = modifier,
+                        onValueChange = { modifier = it },
+                        label = { Text("Modificatore") },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                Spacer(modifier = Modifier.height(24.dp))
+                Button(onClick = { /* La logica verrà aggiunta qui */ }, modifier = Modifier.fillMaxWidth()) {
+                    Text("TIRA")
+                }
+            }
+        }
+    }
+}
+/**
+ * Composable riutilizzabile per un'icona con etichetta nella barra delle azioni.
+ */
+@Composable
+fun ActionIcon(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.clickable(onClick = onClick) // Rendiamo cliccabile l'intera colonna
+    ) {
+        IconButton(onClick = onClick) {
+            Icon(icon, contentDescription = label, Modifier.size(32.dp))
+        }
+        Text(text = label, fontSize = 10.sp) // Etichetta con testo piccolo
+    }
+}
+
+/**
+ * Un AlertDialog riutilizzabile per i popup placeholder delle abilità.
+ */
+@Composable
+fun SkillAlertDialog(title: String, text: String, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = { Text(text) },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Ottimo")
+            }
+        }
+    )
 }
 
 @Composable
@@ -476,6 +728,10 @@ fun AdventureHeader(
     selectedCharacterId: String,
     onCharacterClick: (String) -> Unit
 ) {
+    // L'ordinamento rimane corretto
+    val characterOrder = mapOf("dm" to 0, "hero" to 1, "companion1" to 2, "companion2" to 3)
+    val sortedCharacters = characters.sortedWith(compareBy { characterOrder[it.id] ?: Int.MAX_VALUE })
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -485,9 +741,7 @@ fun AdventureHeader(
             painter = painterResource(id = R.drawable.map_dungeon),
             contentDescription = "Mappa del Dungeon",
             contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(120.dp)
+            modifier = Modifier.fillMaxWidth().height(120.dp)
         )
         Row(
             modifier = Modifier
@@ -497,25 +751,70 @@ fun AdventureHeader(
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.Bottom
         ) {
-            characters.forEach { character ->
-                val isClickable = character.id != CharacterID.DM
+            sortedCharacters.forEach { character ->
+                val isClickable = character.isVisible
 
+                // --- QUESTA È LA LOGICA DI CLICK CORRETTA E DEFINITIVA ---
                 val portraitModifier = if (isClickable) {
                     Modifier.clickable { onCharacterClick(character.id) }
                 } else {
                     Modifier
                 }
+                // --- FINE DELLA LOGICA DI CLICK ---
 
-                CharacterPortrait(
-                    character = character,
-                    isSelected = character.id == selectedCharacterId,
-                    modifier = portraitModifier,
-                    size = if (character.id == CharacterID.DM) 72.dp else 60.dp
-                )
+                if (character.isVisible) {
+                    CharacterPortrait(
+                        character = character,
+                        // La logica di selezione rimane semplice e corretta.
+                        isSelected = character.id == selectedCharacterId,
+                        modifier = portraitModifier,
+                        size = if (character.type == CharacterType.DM) 72.dp else 60.dp
+                    )
+                } else {
+                    if(character.type != CharacterType.PLAYER)
+                    PlaceholderPortrait(
+                        size = 60.dp,
+                        modifier = Modifier
+                    )
+                }
             }
         }
     }
 }
+
+@Composable
+fun PlaceholderPortrait(
+    modifier: Modifier = Modifier,
+    size: Dp = 64.dp
+) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            modifier = Modifier
+                .size(size)
+                .clip(CircleShape)
+                .background(Color.Black.copy(alpha = 0.8f))
+                .border(3.dp, Color.DarkGray, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.QuestionMark,
+                contentDescription = "Personaggio Sconosciuto",
+                tint = Color.Gray,
+                modifier = Modifier.size(size * 0.6f)
+            )
+        }
+        Text(
+            text = "Sconosciuto",
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(top = 2.dp)
+        )
+    }
+}
+
 
 @Composable
 fun MessageInput(onMessageSent: (String) -> Unit, isEnabled: Boolean) {

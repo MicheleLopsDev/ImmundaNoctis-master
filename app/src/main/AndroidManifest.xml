@@ -40,6 +40,12 @@
             android:theme="@style/Theme.ImmundaNoctis" />
 
         <activity
+            android:name=".CharacterSheetActivity"
+            android:exported="false"
+            android:label="Scheda Personaggio"
+            android:theme="@style/Theme.ImmundaNoctis" />
+
+        <activity
             android:name=".ConfigurationActivity"
             android:exported="false"
             android:label="Gestione Motori"

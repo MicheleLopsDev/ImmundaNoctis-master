@@ -39,6 +39,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
+import io.github.luposolitario.immundanoctis.data.CharacterType
 import io.github.luposolitario.immundanoctis.data.GameCharacter
 import io.github.luposolitario.immundanoctis.data.SessionData
 import io.github.luposolitario.immundanoctis.ui.theme.ImmundaNoctisTheme
@@ -415,7 +416,7 @@ fun LanguageSelector(selectedLanguage: String, onLanguageSelected: (String) -> U
 fun ExistingSessionScreenPreview() {
     ImmundaNoctisTheme {
         ExistingSessionScreen(
-            session = SessionData("La Tomba Dimenticata", System.currentTimeMillis(), listOf(GameCharacter("hero", "Eldrin", "Guerriero", R.drawable.portrait_hero_male, "MALE", "it"))),
+            session = SessionData("La Tomba Dimenticata", System.currentTimeMillis(), listOf(GameCharacter("hero", "Eldrin", CharacterType.NPC,"Guerriero", R.drawable.portrait_hero_male, "MALE", "it"))),
             onContinue = {},
             onCreateNew = {}
         )

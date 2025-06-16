@@ -4,6 +4,7 @@ import android.content.Context
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import io.github.luposolitario.immundanoctis.R
+import io.github.luposolitario.immundanoctis.data.CharacterType
 import io.github.luposolitario.immundanoctis.data.GameCharacter
 import io.github.luposolitario.immundanoctis.data.SessionData
 import java.io.File
@@ -55,13 +56,52 @@ class GameStateManager(private val context: Context) {
     }
 
     fun createDefaultSession(): SessionData {
-        // ... (il resto del metodo createDefaultSession rimane invariato)
+        // --- LOGICA DI VISIBILITÀ APPLICATA QUI ---
         val defaultCharacters = listOf(
-            GameCharacter("hero", "Eroe", "Guerriero", R.drawable.portrait_hero_male, "MALE", "it"),
-            GameCharacter("dm", "Dungeon Master", "Narratore", R.drawable.portrait_dm, "MALE", "it"),
-            GameCharacter("companion1", "Elara", "Saggio", R.drawable.portrait_cleric, "FEMALE", "it"),
-            GameCharacter("companion2", "Baldur", "Mago", R.drawable.portrait_mage, "MALE", "it")
+            GameCharacter(
+                "hero",
+                "Eroe",
+                CharacterType.PLAYER,
+                "Guerriero",
+                R.drawable.portrait_hero_male,
+                "MALE",
+                "it",
+                isVisible = false
+            ),
+            GameCharacter(
+                "dm",
+                "Dungeon Master",
+                CharacterType.DM,
+                "Narratore",
+                R.drawable.portrait_dm,
+                "MALE",
+                "it",
+                isVisible = true
+            ),
+            // REQUISITO: Companion 1 è visibile di default
+            GameCharacter(
+                "companion1",
+                "Elara",
+                CharacterType.NPC,
+                "Saggio",
+                R.drawable.portrait_cleric,
+                "FEMALE",
+                "it",
+                isVisible = true
+            ),
+            // REQUISITO: Companion 2 è invisibile di default
+            GameCharacter(
+                "companion2",
+                "Baldur",
+                CharacterType.NPC,
+                "Mago",
+                R.drawable.portrait_mage,
+                "MALE",
+                "it",
+                isVisible = false
+            )
         )
+        // --- FINE MODIFICA ---
         return SessionData(
             sessionName = "La Prova dell'Eroe",
             lastUpdate = System.currentTimeMillis(),
