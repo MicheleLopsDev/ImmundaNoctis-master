@@ -15,14 +15,11 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -30,24 +27,20 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
-import androidx.work.ExistingWorkPolicy
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkInfo
 import androidx.work.WorkManager
-import androidx.work.workDataOf
 import io.github.luposolitario.immundanoctis.service.TtsService
+import io.github.luposolitario.immundanoctis.ui.configuration.AddUrlDialog
+import io.github.luposolitario.immundanoctis.ui.configuration.EngineRadioButton
+import io.github.luposolitario.immundanoctis.ui.configuration.ModelSlotView
+import io.github.luposolitario.immundanoctis.ui.configuration.TokenInputSection
+import io.github.luposolitario.immundanoctis.ui.configuration.VoiceDropdown
 import io.github.luposolitario.immundanoctis.ui.theme.ImmundaNoctisTheme
 import io.github.luposolitario.immundanoctis.util.*
 import io.github.luposolitario.immundanoctis.view.MainViewModel
-import io.github.luposolitario.immundanoctis.worker.DownloadWorker
 import java.io.File
+
 
 class ConfigurationActivity : ComponentActivity() {
 
@@ -58,6 +51,8 @@ class ConfigurationActivity : ComponentActivity() {
     private val workManager by lazy { WorkManager.getInstance(applicationContext) }
     private lateinit var enginePreferences: EnginePreferences
     private lateinit var gameStateManager: GameStateManager
+    private val savePreferences by lazy { SavePreferences(applicationContext) }
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -97,6 +92,7 @@ class ConfigurationActivity : ComponentActivity() {
                         themePrefs = themePreferences,
                         enginePreferences = enginePreferences,
                         ttsPrefs = ttsPreferences,
+                        savePrefs = savePreferences,
                         onDeleteSession = {
                             if (gameStateManager.deleteSession()) {
                                 Toast.makeText(this, "Sessione cancellata con successo.", Toast.LENGTH_SHORT).show()
@@ -139,6 +135,7 @@ fun MainEngineScreen(
     themePrefs: ThemePreferences,
     enginePreferences: EnginePreferences,
     ttsPrefs: TtsPreferences,
+    savePrefs: SavePreferences,
     onDeleteSession: () -> Unit
 ) {
     var dmModelState by remember { mutableStateOf(initialDmModel) }
@@ -150,6 +147,7 @@ fun MainEngineScreen(
         mutableStateOf(if (enginePreferences.useGemmaForAll) EngineOption.GEMMA_ONLY else EngineOption.MIXED)
     }
     var autoReadEnabled by remember { mutableStateOf(ttsPrefs.isAutoReadEnabled()) }
+    var autoSaveEnabled by remember { mutableStateOf(savePrefs.isAutoSaveEnabled) }
     var speechRate by remember { mutableStateOf(ttsPrefs.getSpeechRate()) }
     var pitch by remember { mutableStateOf(ttsPrefs.getPitch()) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
@@ -223,6 +221,35 @@ fun MainEngineScreen(
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)
     ) {
+
+        // --- INSERISCI QUESTA NUOVA SEZIONE ALL'INIZIO ---
+        Text("Impostazioni di Salvataggio", style = MaterialTheme.typography.titleLarge)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Salvataggio Automatico", style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    "Salva la chat ad ogni messaggio. Se disattivato, potrai salvare solo manualmente dal menu.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Switch(
+                checked = autoSaveEnabled,
+                onCheckedChange = {
+                    autoSaveEnabled = it
+                    savePrefs.isAutoSaveEnabled = it
+                }
+            )
+        }
+        Spacer(Modifier.height(16.dp))
+        Divider()
+        Spacer(Modifier.height(16.dp))
 
         Text("Impostazioni Audio e Voce", style = MaterialTheme.typography.titleLarge)
 
@@ -383,189 +410,6 @@ fun MainEngineScreen(
     }
 }
 
-/**
- * Un Composable riutilizzabile per il nostro menu a tendina delle voci.
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun VoiceDropdown(
-    expanded: Boolean,
-    onExpandedChange: (Boolean) -> Unit,
-    selectedValue: String?,
-    availableVoices: List<android.speech.tts.Voice>,
-    onVoiceSelected: (String?) -> Unit
-) {
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = onExpandedChange
-    ) {
-        OutlinedTextField(
-            value = selectedValue ?: "Predefinita",
-            onValueChange = {},
-            readOnly = true,
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier.menuAnchor().fillMaxWidth(),
-            colors = ExposedDropdownMenuDefaults.textFieldColors()
-        )
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { onExpandedChange(false) }
-        ) {
-            DropdownMenuItem(
-                text = { Text("Predefinita (consigliato)") },
-                onClick = { onVoiceSelected(null) }
-            )
-            availableVoices.forEach { voice ->
-                DropdownMenuItem(
-                    text = { Text(voice.name) },
-                    onClick = { onVoiceSelected(voice.name) }
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun ModelSlotView(
-    title: String,
-    subtitle: String,
-    model: Downloadable,
-    viewModel: MainViewModel,
-    workManager: WorkManager,
-    onSetUrlClick: () -> Unit,
-    onDeleteClick: () -> Unit,
-    onDownloadComplete: (Downloadable) -> Unit,
-    token: String,
-    enabled: Boolean
-) {
-    val workInfoList by workManager.getWorkInfosByTagLiveData(model.name).observeAsState()
-    val runningWork = workInfoList?.find { !it.state.isFinished }
-
-    val status by remember(runningWork, model.destination.exists()) {
-        derivedStateOf {
-            when (runningWork?.state) {
-                WorkInfo.State.RUNNING -> {
-                    val bytesDownloaded = runningWork.progress.getLong(DownloadWorker.KEY_BYTES_DOWNLOADED, 0L)
-                    val totalBytes = runningWork.progress.getLong(DownloadWorker.KEY_TOTAL_BYTES, 0L)
-                    Downloadable.Companion.State.Downloading(bytesDownloaded, totalBytes)
-                }
-                WorkInfo.State.SUCCEEDED -> Downloadable.Companion.State.Downloaded(model)
-                WorkInfo.State.FAILED, WorkInfo.State.CANCELLED -> Downloadable.Companion.State.Error("Download fallito")
-                else -> if (model.destination.exists()) Downloadable.Companion.State.Downloaded(model) else Downloadable.Companion.State.Ready
-            }
-        }
-    }
-
-    LaunchedEffect(status) {
-        if (status is Downloadable.Companion.State.Downloaded) {
-            onDownloadComplete(model)
-        }
-    }
-
-    val onClick: () -> Unit = {
-        if (status is Downloadable.Companion.State.Downloading) {
-            runningWork?.id?.let {
-                workManager.cancelWorkById(it)
-                viewModel.log("Cancellazione download per ${model.name}")
-            }
-        } else {
-            model.destination.delete()
-            val downloadData = workDataOf(
-                DownloadWorker.KEY_URL to model.source.toString(),
-                DownloadWorker.KEY_DESTINATION to model.destination.absolutePath,
-                DownloadWorker.KEY_MODEL_NAME to model.destination.name,
-                DownloadWorker.KEY_MODEL_DOWNLOAD_ACCESS_TOKEN to token
-            )
-            val downloadWorkRequest = OneTimeWorkRequestBuilder<DownloadWorker>()
-                .setInputData(downloadData)
-                .addTag(model.name)
-                .build()
-            workManager.enqueueUniqueWork(model.name, ExistingWorkPolicy.REPLACE, downloadWorkRequest)
-            viewModel.log("Download per ${model.name} messo in coda.")
-        }
-    }
-
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(text = title, style = MaterialTheme.typography.titleLarge)
-        Text(text = subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(modifier = Modifier.weight(1f)) {
-                Downloadable.Button(status = status, item = model, onClick = onClick, enabled = enabled)
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-            Row {
-                if (status is Downloadable.Companion.State.Downloading) {
-                    IconButton(onClick = onClick, enabled = enabled) {
-                        Icon(Icons.Default.Cancel, "Cancella Download")
-                    }
-                } else {
-                    IconButton(onClick = onSetUrlClick, enabled = enabled) {
-                        Icon(Icons.Default.AddLink, "Imposta URL Modello")
-                    }
-                }
-                if (status is Downloadable.Companion.State.Downloaded) {
-                    IconButton(onClick = onDeleteClick, enabled = enabled) {
-                        Icon(Icons.Default.Delete, "Cancella Modello", tint = MaterialTheme.colorScheme.error)
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun TokenInputSection(
-    token: String,
-    onTokenChange: (String) -> Unit,
-    onSaveClick: () -> Unit
-) {
-    var passwordVisible by remember { mutableStateOf(false) }
-
-    Surface(tonalElevation = 4.dp, modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text("Hugging Face Access Token", style = MaterialTheme.typography.titleMedium)
-            Spacer(modifier = Modifier.height(8.dp))
-            OutlinedTextField(
-                value = token,
-                onValueChange = onTokenChange,
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Il tuo token con permessi 'read'") },
-                singleLine = true,
-                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                trailingIcon = {
-                    val image = if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
-                    val description = if (passwordVisible) "Nascondi token" else "Mostra token"
-                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                        Icon(imageVector = image, contentDescription = description)
-                    }
-                }
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Button(onClick = onSaveClick, modifier = Modifier.align(Alignment.End)) {
-                Text("Salva Token")
-            }
-        }
-    }
-}
-
-@Composable
-fun AddUrlDialog(onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
-    val urlText = remember { mutableStateOf("") }
-    AlertDialog(onDismissRequest = onDismiss, title = { Text("Imposta URL del Modello") }, text = {
-        OutlinedTextField(value = urlText.value, onValueChange = { urlText.value = it }, label = { Text("URL diretto del modello") }, placeholder = { Text("https://huggingface.co/...") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-    }, confirmButton = {
-        TextButton(onClick = { if (urlText.value.isNotBlank()) onConfirm(urlText.value) }) {
-            Text("Conferma")
-        }
-    }, dismissButton = {
-        TextButton(onClick = onDismiss) { Text("Annulla") }
-    })
-}
-
 fun android.content.ContentResolver.getFileName(uri: Uri): String? {
     var name: String? = null
     val cursor: Cursor? = query(uri, null, null, null, null)
@@ -580,86 +424,3 @@ fun android.content.ContentResolver.getFileName(uri: Uri): String? {
     return name
 }
 
-@Preview(showBackground = true, name = "Gestione Motori (Chiaro)")
-@Composable
-private fun MainEngineScreenPreview() {
-    ImmundaNoctisTheme(darkTheme = false) {
-        Surface {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(24.dp)
-            ) {
-                ModelSlotViewPreview(
-                    title = "Motore del Dungeon Master",
-                    subtitle = "Modello Gemma (caricato localmente)",
-                    modelName = "gemma-2b-it-Q4_K_M.gguf",
-                    isDownloaded = true
-                )
-                Divider()
-                ModelSlotViewPreview(
-                    title = "Motore dei Personaggi",
-                    subtitle = "Consigliato: Llama/Mistral (formato GGUF)",
-                    modelName = "Llama-3.1-8B-Q6_K.gguf",
-                    isDownloaded = false
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun ModelSlotViewPreview(
-    title: String,
-    subtitle: String,
-    modelName: String,
-    isDownloaded: Boolean
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(text = title, style = MaterialTheme.typography.titleLarge)
-        Text(text = subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Button(onClick = {}, enabled = !isDownloaded) {
-                Text(if (isDownloaded) "Load $modelName" else "Download $modelName")
-            }
-            Row {
-                IconButton(onClick = {}) { Icon(Icons.Default.AddLink, contentDescription = "URL") }
-                if (isDownloaded) {
-                    IconButton(onClick = {}) { Icon(Icons.Default.Delete, "Cancella", tint = MaterialTheme.colorScheme.error) }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun EngineRadioButton(
-    text: String,
-    description: String,
-    selected: Boolean,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .selectable(
-                selected = selected,
-                onClick = onClick,
-                role = Role.RadioButton
-            )
-            .padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        RadioButton(selected = selected, onClick = onClick)
-        Spacer(modifier = Modifier.width(16.dp))
-        Column {
-            Text(text, style = MaterialTheme.typography.bodyMedium)
-            Text(description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-}
