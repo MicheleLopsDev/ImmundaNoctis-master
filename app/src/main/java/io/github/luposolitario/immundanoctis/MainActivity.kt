@@ -118,7 +118,7 @@ fun MainMenuScreen(isDarkTheme: Boolean, onThemeToggle: () -> Unit) {
                 val intent = Intent(context, ConfigurationActivity::class.java)
                 context.startActivity(intent)
             }) {
-                Text("Configura Motori IA")
+                Text("Impostazioni")
             }
         }
     }

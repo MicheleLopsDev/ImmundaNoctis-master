@@ -88,7 +88,6 @@ fun ModelSlotView(
             val downloadData = workDataOf(
                 DownloadWorker.KEY_URL to model.source.toString(),
                 DownloadWorker.KEY_DESTINATION to model.destination.absolutePath,
-                DownloadWorker.KEY_MODEL_NAME to model.destination.name,
                 DownloadWorker.KEY_MODEL_DOWNLOAD_ACCESS_TOKEN to token
             )
             val downloadWorkRequest =

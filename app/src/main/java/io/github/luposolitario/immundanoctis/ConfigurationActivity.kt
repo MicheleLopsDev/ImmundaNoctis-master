@@ -60,8 +60,8 @@ class ConfigurationActivity : ComponentActivity() {
         val dmDirectory = getAppSpecificDirectory(applicationContext,"dm")
         val plDirectory = getAppSpecificDirectory(applicationContext,"pl")
 
-        val dmModelDefault = Downloadable("gemma-2b-it-quant.bin", Uri.parse(""), File(dmDirectory, "gemma-2b-it-quant.bin"))
-        val playerModelDefault = Downloadable("llama-3-8b-instruct.Q4_K_M.gguf", Uri.parse(""), File(plDirectory, "llama-3-8b-instruct.Q4_K_M.gguf"))
+        val dmModelDefault = Downloadable("gemma-3n-E4B-it-int4", Uri.parse("https://huggingface.co/?download=true") , File(dmDirectory, "gemma-3n-E4B-it-int4.task"))
+        val playerModelDefault = Downloadable("llama-3.1-8b-instruct-fei-v1-uncensored-q6_k", Uri.parse("https://huggingface.co/?download=true"),  File(plDirectory, "llama-3.1-8b-instruct-fei-v1-uncensored-q6_k.gguf"))
 
         val dmModel = modelPreferences.getDmModel() ?: dmModelDefault
         val playerModel = modelPreferences.getPlayerModel() ?: playerModelDefault
