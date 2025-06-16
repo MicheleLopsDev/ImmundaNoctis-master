@@ -146,10 +146,11 @@ class AdventureActivity : ComponentActivity() {
                     SideEffect {
                         val window = (view.context as Activity).window
                         window.statusBarColor = Color.Black.toArgb()
-                        WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !useDarkTheme
+                        WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
                     }
                 }
 
+                val sessionName by viewModel.sessionName.collectAsState()
                 val characters by viewModel.gameCharacters.collectAsState()
                 val chatMessages by viewModel.chatMessages.collectAsState()
                 val streamingText by viewModel.streamingText.collectAsState()
@@ -184,6 +185,7 @@ class AdventureActivity : ComponentActivity() {
                     }
                 } else {
                     AdventureChatScreen(
+                        sessionName = sessionName, // Aggiungi questo parametro
                         characters = characters,
                         messages = chatMessages,
                         streamingText = streamingText,
@@ -228,6 +230,7 @@ class AdventureActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdventureChatScreen(
+    sessionName: String , // Aggiungi questo parametro
     characters: List<GameCharacter>,
     messages: List<ChatMessage>,
     streamingText: String,
@@ -249,7 +252,7 @@ fun AdventureChatScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(hero?.name ?: "Immunda Noctis") },
+                title = { Text(sessionName) },
                 actions = {
                     Box {
                         IconButton(onClick = { showMenu = true }) {
@@ -771,11 +774,12 @@ fun AdventureHeader(
                         size = if (character.type == CharacterType.DM) 72.dp else 60.dp
                     )
                 } else {
-                    if(character.type != CharacterType.PLAYER)
-                    PlaceholderPortrait(
-                        size = 60.dp,
-                        modifier = Modifier
-                    )
+                    if(character.type != CharacterType.PLAYER){
+                        PlaceholderPortrait(
+                            size = 60.dp,
+                            modifier = Modifier
+                        )
+                    }
                 }
             }
         }

@@ -1,5 +1,7 @@
 package io.github.luposolitario.immundanoctis
 
+import androidx.core.view.WindowCompat
+import androidx.compose.ui.graphics.Color
 import android.app.Activity
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -65,13 +67,15 @@ class CharacterSheetActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CharacterSheetScreen(character: GameCharacter, onNavigateBack: () -> Unit) {
-    // --- Gestione Colori Status Bar ---
+    // --- GESTIONE COLORI STATUS BAR (CORRETTA) ---
     val view = LocalView.current
     if (!view.isInEditMode) {
-        val primaryColor = MaterialTheme.colorScheme.primary
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = primaryColor.toArgb()
+            // Impostiamo un colore NERO fisso per la barra di stato
+            window.statusBarColor = Color.Black.toArgb()
+            // Assicuriamo che le icone della barra (batteria, ora) siano CHIARE e quindi visibili
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
         }
     }
 
@@ -94,7 +98,7 @@ fun CharacterSheetScreen(character: GameCharacter, onNavigateBack: () -> Unit) {
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // --- PARTE SUPERIORE ---
+            // Il resto del codice della funzione rimane identico...
             Text(character.name, style = MaterialTheme.typography.headlineMedium)
             Spacer(Modifier.height(16.dp))
             Row(
@@ -120,8 +124,6 @@ fun CharacterSheetScreen(character: GameCharacter, onNavigateBack: () -> Unit) {
             }
             Spacer(Modifier.height(16.dp))
             ExperienceCard()
-
-            // --- PARTE INFERIORE ---
             Spacer(Modifier.height(16.dp))
             Divider()
             Spacer(Modifier.height(16.dp))
@@ -132,7 +134,6 @@ fun CharacterSheetScreen(character: GameCharacter, onNavigateBack: () -> Unit) {
         }
     }
 }
-
 // --- Sezione dei Composable Helper per pulizia ---
 
 @Composable
