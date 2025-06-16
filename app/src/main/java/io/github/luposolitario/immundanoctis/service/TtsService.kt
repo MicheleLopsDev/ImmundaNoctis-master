@@ -5,6 +5,7 @@ import android.speech.tts.TextToSpeech
 import android.speech.tts.Voice
 import android.util.Log
 import io.github.luposolitario.immundanoctis.data.GameCharacter
+import io.github.luposolitario.immundanoctis.util.TtsPreferences
 import java.util.Locale
 
 /**
@@ -17,13 +18,14 @@ import java.util.Locale
  * @param onReady Callback invocato quando il motore TTS è pronto.
  */
 class TtsService(
-    context: Context,
+    private val context: Context,
     onReady: () -> Unit
 ) : TextToSpeech.OnInitListener {
 
     private var tts: TextToSpeech? = TextToSpeech(context, this)
     private var isReady = false
     private var onReadyCallback: (() -> Unit)? = onReady
+    private val ttsPreferences = TtsPreferences(context)
 
     /**
      * Viene chiamato quando l'inizializzazione del motore TTS è completata.
@@ -57,43 +59,55 @@ class TtsService(
             return
         }
 
-        val voice = findBestVoiceForCharacter(character)
-        if (voice != null) {
-            tts?.voice = voice
-            Log.d("TtsService", "Using voice: ${voice.name} for lang: ${voice.locale}")
+        tts?.setSpeechRate(ttsPreferences.getSpeechRate())
+        tts?.setPitch(ttsPreferences.getPitch())
+
+        // --- NUOVA LOGICA DI SELEZIONE VOCE BASATA SUL GENERE ---
+        // 1. Cerca la voce specifica scelta dall'utente per il genere del personaggio
+        val preferredVoiceName = ttsPreferences.getVoiceForGender(character.gender)
+        var voiceToUse = if (preferredVoiceName != null) {
+            tts?.voices?.find { it.name == preferredVoiceName }
         } else {
+            null
+        }
+
+        // 2. Se non c'è una preferenza per quel genere, prova a indovinarla (vecchia logica di fallback)
+        if (voiceToUse == null) {
+            voiceToUse = findVoiceByGenderKeyword(character)
+        }
+
+        if (voiceToUse != null) {
+            tts?.voice = voiceToUse
+            Log.d("TtsService", "Using voice: ${voiceToUse.name} for gender: ${character.gender}")
+        } else {
+            // 3. Fallback finale sulla lingua
             val locale = Locale(character.language)
             tts?.language = locale
-            Log.w("TtsService", "Specific voice not found. Falling back to locale: $locale")
+            Log.w("TtsService", "Specific voice not found. Falling back to locale for gender: ${character.gender}")
         }
+        // --- FINE NUOVA LOGICA ---
 
         tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, null)
     }
 
+    fun getAvailableVoices(): List<Voice> {
+        if (!isReady || tts == null) return emptyList()
+        return tts?.voices?.filter { it.locale.language == Locale.ITALIAN.language } ?: emptyList()
+    }
+
     /**
-     * Cerca la voce migliore disponibile che corrisponda al genere e alla lingua del personaggio.
-     * Questo metodo è stato reso più compatibile controllando il nome della voce invece della
-     * proprietà 'gender'.
-     *
-     * @param character Il personaggio per cui trovare la voce.
-     * @return L'oggetto Voice migliore, o null se non viene trovata una corrispondenza.
+     * Tenta di trovare una voce cercando keyword nel nome.
+     * Usato come fallback se l'utente non ha fatto una scelta esplicita.
      */
-    private fun findBestVoiceForCharacter(character: GameCharacter): Voice? {
+    private fun findVoiceByGenderKeyword(character: GameCharacter): Voice? {
         val targetLocale = Locale(character.language)
-        // Usiamo una keyword per cercare il genere nel nome della voce (es. "it-it-x-ita-local#male_1-local")
         val targetGenderKeyword = if (character.gender.equals("MALE", ignoreCase = true)) "male" else "female"
 
         return tts?.voices?.filter { voice ->
-            // Controlla che la lingua corrisponda
             val localeMatches = voice.locale.language == targetLocale.language
-            // Controlla che il nome della voce contenga la keyword del genere (male/female)
             val genderMatches = voice.name.contains(targetGenderKeyword, ignoreCase = true)
-
             localeMatches && genderMatches
-        }?.minByOrNull {
-            // Criterio di preferenza (es. minore latenza, maggiore qualità)
-            it.latency
-        }
+        }?.minByOrNull { it.latency }
     }
 
     /**

@@ -40,7 +40,7 @@
             android:theme="@style/Theme.ImmundaNoctis" />
 
         <activity
-            android:name=".ModelActivity"
+            android:name=".ConfigurationActivity"
             android:exported="false"
             android:label="Gestione Motori"
             android:theme="@style/Theme.ImmundaNoctis" />

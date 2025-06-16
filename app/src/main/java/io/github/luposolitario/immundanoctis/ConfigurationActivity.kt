@@ -42,6 +42,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.workDataOf
+import io.github.luposolitario.immundanoctis.service.TtsService
 import io.github.luposolitario.immundanoctis.ui.theme.ImmundaNoctisTheme
 import io.github.luposolitario.immundanoctis.util.*
 import io.github.luposolitario.immundanoctis.view.MainViewModel
@@ -125,6 +126,7 @@ class ConfigurationActivity : ComponentActivity() {
 
 private enum class EngineOption { MIXED, GEMMA_ONLY }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainEngineScreen(
     viewModel: MainViewModel,
@@ -148,7 +150,29 @@ fun MainEngineScreen(
         mutableStateOf(if (enginePreferences.useGemmaForAll) EngineOption.GEMMA_ONLY else EngineOption.MIXED)
     }
     var autoReadEnabled by remember { mutableStateOf(ttsPrefs.isAutoReadEnabled()) }
+    var speechRate by remember { mutableStateOf(ttsPrefs.getSpeechRate()) }
+    var pitch by remember { mutableStateOf(ttsPrefs.getPitch()) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
+    var availableVoices by remember { mutableStateOf<List<android.speech.tts.Voice>>(emptyList()) }
+
+    // Due stati separati per le voci maschile e femminile
+    var selectedMaleVoiceName by remember { mutableStateOf(ttsPrefs.getVoiceForGender("MALE")) }
+    var selectedFemaleVoiceName by remember { mutableStateOf(ttsPrefs.getVoiceForGender("FEMALE")) }
+
+    var isMaleDropdownExpanded by remember { mutableStateOf(false) }
+    var isFemaleDropdownExpanded by remember { mutableStateOf(false) }
+
+    DisposableEffect(context) {
+        var ttsService: TtsService? = null
+        val onReadyListener = {
+            availableVoices = ttsService?.getAvailableVoices() ?: emptyList()
+        }
+        ttsService = TtsService(context, onReadyListener)
+
+        onDispose {
+            ttsService.shutdown()
+        }
+    }
 
     if (showUrlDialogFor != null) {
         AddUrlDialog(
@@ -196,35 +220,18 @@ fun MainEngineScreen(
         )
     }
 
-    Column(modifier = Modifier
-        .fillMaxSize()
-        .verticalScroll(rememberScrollState())
-        .padding(16.dp)) {
+    Column(
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)
+    ) {
 
-        // --- SEZIONE IMPOSTAZIONI TTS ---
-        Text("Impostazioni Audio", style = MaterialTheme.typography.titleLarge)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text("Lettura Automatica Messaggi", style = MaterialTheme.typography.bodyLarge)
-                Text(
-                    "Leggi automaticamente i messaggi di DM e PNG.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Switch(
-                checked = autoReadEnabled,
-                onCheckedChange = {
-                    autoReadEnabled = it
-                    ttsPrefs.saveAutoRead(it)
-                }
-            )
+        Text("Impostazioni Audio e Voce", style = MaterialTheme.typography.titleLarge)
+
+        Row(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), /*...*/) {
+            Column(modifier = Modifier.weight(1f)) { Text("Lettura Automatica", style = MaterialTheme.typography.bodyLarge) }
+            Switch(checked = autoReadEnabled, onCheckedChange = {
+                autoReadEnabled = it
+                ttsPrefs.saveAutoRead(it)
+            })
         }
         Spacer(Modifier.height(16.dp))
         Divider()
@@ -257,9 +264,6 @@ fun MainEngineScreen(
             )
         }
         Spacer(Modifier.height(16.dp))
-        Divider()
-        Spacer(Modifier.height(16.dp))
-
         val isGgufEnabled = selectedEngine == EngineOption.MIXED
 
         ModelSlotView(
@@ -304,6 +308,46 @@ fun MainEngineScreen(
             )
         }
 
+        Spacer(Modifier.height(16.dp))
+        Divider()
+        Spacer(Modifier.height(16.dp))
+        // --- MENU PER VOCE MASCHILE ---
+        Spacer(Modifier.height(16.dp))
+        Text("Velocità Voce", style = MaterialTheme.typography.bodyLarge)
+        Slider(value = speechRate, onValueChange = { speechRate = it }, onValueChangeFinished = { ttsPrefs.saveSpeechRate(speechRate) }, valueRange = 0.5f..2.0f)
+        Spacer(Modifier.height(16.dp))
+        Text("Tono Voce", style = MaterialTheme.typography.bodyLarge)
+        Slider(value = pitch, onValueChange = { pitch = it }, onValueChangeFinished = { ttsPrefs.savePitch(pitch) }, valueRange = 0.5f..2.0f)
+
+        Text("Voce Maschile", style = MaterialTheme.typography.bodyLarge)
+        VoiceDropdown(
+            expanded = isMaleDropdownExpanded,
+            onExpandedChange = { isMaleDropdownExpanded = it },
+            selectedValue = selectedMaleVoiceName,
+            availableVoices = availableVoices,
+            onVoiceSelected = { voiceName ->
+                selectedMaleVoiceName = voiceName
+                ttsPrefs.saveVoiceForGender("MALE", voiceName)
+                isMaleDropdownExpanded = false
+            }
+        )
+
+        Spacer(Modifier.height(16.dp))
+        // --- MENU PER VOCE FEMMINILE ---
+        Text("Voce Femminile", style = MaterialTheme.typography.bodyLarge)
+        VoiceDropdown(
+            expanded = isFemaleDropdownExpanded,
+            onExpandedChange = { isFemaleDropdownExpanded = it },
+            selectedValue = selectedFemaleVoiceName,
+            availableVoices = availableVoices,
+            onVoiceSelected = { voiceName ->
+                selectedFemaleVoiceName = voiceName
+                ttsPrefs.saveVoiceForGender("FEMALE", voiceName)
+                isFemaleDropdownExpanded = false
+            }
+        )
+
+
         // --- SEZIONE: Operazioni di Emergenza (CORRETTA) ---
         Spacer(Modifier.height(16.dp))
         Divider()
@@ -336,6 +380,48 @@ fun MainEngineScreen(
                 viewModel.log("Token Hugging Face salvato.")
             }
         )
+    }
+}
+
+/**
+ * Un Composable riutilizzabile per il nostro menu a tendina delle voci.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun VoiceDropdown(
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    selectedValue: String?,
+    availableVoices: List<android.speech.tts.Voice>,
+    onVoiceSelected: (String?) -> Unit
+) {
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = onExpandedChange
+    ) {
+        OutlinedTextField(
+            value = selectedValue ?: "Predefinita",
+            onValueChange = {},
+            readOnly = true,
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier.menuAnchor().fillMaxWidth(),
+            colors = ExposedDropdownMenuDefaults.textFieldColors()
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { onExpandedChange(false) }
+        ) {
+            DropdownMenuItem(
+                text = { Text("Predefinita (consigliato)") },
+                onClick = { onVoiceSelected(null) }
+            )
+            availableVoices.forEach { voice ->
+                DropdownMenuItem(
+                    text = { Text(voice.name) },
+                    onClick = { onVoiceSelected(voice.name) }
+                )
+            }
+        }
     }
 }
 
