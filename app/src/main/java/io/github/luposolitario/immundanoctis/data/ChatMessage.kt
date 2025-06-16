@@ -10,6 +10,8 @@ import java.util.UUID
 data class ChatMessage(
     val authorId: String,
     val text: String,
+    val position: Long,
+    val timestamp: Long = System.currentTimeMillis(),
     // Aggiunto un ID univoco per trovare e aggiornare il messaggio
     val id: String = UUID.randomUUID().toString(),
     // Campo per contenere il testo tradotto

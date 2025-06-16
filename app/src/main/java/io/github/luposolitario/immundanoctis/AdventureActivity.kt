@@ -49,6 +49,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
+import io.github.luposolitario.immundanoctis.data.CharacterID
 import io.github.luposolitario.immundanoctis.data.CharacterType
 import io.github.luposolitario.immundanoctis.data.ChatMessage
 import io.github.luposolitario.immundanoctis.data.GameCharacter
@@ -63,6 +64,8 @@ import io.github.luposolitario.immundanoctis.util.ModelPreferences
 import io.github.luposolitario.immundanoctis.util.ThemePreferences
 import io.github.luposolitario.immundanoctis.util.TtsPreferences
 import io.github.luposolitario.immundanoctis.view.MainViewModel
+import io.github.luposolitario.immundanoctis.util.SavePreferences // <-- 1. Aggiungi questo import
+
 
 class AdventureActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
@@ -70,6 +73,7 @@ class AdventureActivity : ComponentActivity() {
     private val themePreferences by lazy { ThemePreferences(applicationContext) }
     private val ttsPreferences by lazy { TtsPreferences(applicationContext) }
     private var ttsService: TtsService? = null
+    private val savePreferences by lazy { SavePreferences(applicationContext) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -110,7 +114,20 @@ class AdventureActivity : ComponentActivity() {
                 val conversationTargetId by viewModel.conversationTargetId.collectAsState()
                 val respondingCharacterId by viewModel.respondingCharacterId.collectAsState()
                 val isAutoReadEnabled = ttsPreferences.isAutoReadEnabled()
+                val isAutoSaveEnabled = savePreferences.isAutoSaveEnabled // Leggiamo il valore
 
+                // Effetto per la lettura automatica dei nuovi messaggi
+                LaunchedEffect(chatMessages) {
+                    if (isAutoReadEnabled) {
+                        chatMessages.lastOrNull()?.let { lastMessage ->
+                            val author = characters.find { it.id == lastMessage.authorId }
+                            // Leggi solo se il messaggio non è dell'eroe e non è un messaggio vuoto
+                            if (author != null && author.id != CharacterID.HERO && lastMessage.text.isNotBlank()) {
+                                ttsService?.speak(lastMessage.text, author)
+                            }
+                        }
+                    }
+                }
                 DisposableEffect(Unit) {
                     onDispose {
                         ttsService?.shutdown()
@@ -123,6 +140,7 @@ class AdventureActivity : ComponentActivity() {
                     }
                 } else {
                     AdventureChatScreen(
+                        isAutoSaveEnabled = isAutoSaveEnabled, // Passiamo il valore alla UI
                         sessionName = sessionName,
                         characters = characters,
                         messages = chatMessages,
@@ -166,6 +184,7 @@ class AdventureActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdventureChatScreen(
+    isAutoSaveEnabled: Boolean, // <-- 3. Aggiungi il nuovo parametro
     sessionName: String,
     characters: List<GameCharacter>,
     messages: List<ChatMessage>,
@@ -190,6 +209,13 @@ fun AdventureChatScreen(
         }
     }
 
+    // --- AGGIUNGI QUESTO BLOCCO PER LO SCROLL AUTOMATICO ---
+    LaunchedEffect(messages.size) {
+        if (messages.isNotEmpty()) {
+            listState.animateScrollToItem(0)
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -200,14 +226,16 @@ fun AdventureChatScreen(
                             Icon(Icons.Default.MoreVert, contentDescription = "Opzioni")
                         }
                         DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                            DropdownMenuItem(
-                                text = { Text("Salva Chat") },
-                                onClick = {
-                                    onSaveChat()
-                                    showMenu = false
-                                },
-                                leadingIcon = { Icon(Icons.Outlined.Save, contentDescription = "Salva") }
-                            )
+                            if (!isAutoSaveEnabled) {
+                                DropdownMenuItem(
+                                    text = { Text("Salva Chat Manualmente") },
+                                    onClick = {
+                                        onSaveChat()
+                                        showMenu = false
+                                    },
+                                    leadingIcon = { Icon(Icons.Outlined.Save, contentDescription = "Salva") }
+                                )
+                            }
                         }
                     }
                 }
@@ -241,7 +269,7 @@ fun AdventureChatScreen(
                         ) {
                             if (isGenerating && streamingText.isNotBlank() && respondingCharacterId != null) {
                                 item {
-                                    val streamingMessage = ChatMessage(respondingCharacterId, streamingText)
+                                    val streamingMessage = ChatMessage(position = -1L,authorId=respondingCharacterId, text=streamingText)
                                     MessageBubble(
                                         message = streamingMessage,
                                         characters = characters,

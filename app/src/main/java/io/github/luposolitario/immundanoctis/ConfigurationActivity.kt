@@ -2,11 +2,8 @@ package io.github.luposolitario.immundanoctis
 
 import android.app.Activity
 import android.content.Intent
-import android.database.Cursor
 import android.net.Uri
 import android.os.Bundle
-import android.os.Environment
-import android.provider.OpenableColumns
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -40,6 +37,8 @@ import io.github.luposolitario.immundanoctis.ui.theme.ImmundaNoctisTheme
 import io.github.luposolitario.immundanoctis.util.*
 import io.github.luposolitario.immundanoctis.view.MainViewModel
 import java.io.File
+import io.github.luposolitario.immundanoctis.util.getAppSpecificDirectory // <-- Assicurati che ci sia questo import
+
 
 
 class ConfigurationActivity : ComponentActivity() {
@@ -58,8 +57,8 @@ class ConfigurationActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enginePreferences = EnginePreferences(applicationContext)
         gameStateManager = GameStateManager(applicationContext)
-        val dmDirectory = getDownloadDirectory("dm")
-        val plDirectory = getDownloadDirectory("pl")
+        val dmDirectory = getAppSpecificDirectory(applicationContext,"dm")
+        val plDirectory = getAppSpecificDirectory(applicationContext,"pl")
 
         val dmModelDefault = Downloadable("gemma-2b-it-quant.bin", Uri.parse(""), File(dmDirectory, "gemma-2b-it-quant.bin"))
         val playerModelDefault = Downloadable("llama-3-8b-instruct.Q4_K_M.gguf", Uri.parse(""), File(plDirectory, "llama-3-8b-instruct.Q4_K_M.gguf"))
@@ -110,16 +109,6 @@ class ConfigurationActivity : ComponentActivity() {
         }
     }
 
-    private fun getDownloadDirectory(subfolder: String): File {
-        val appSpecificDir = applicationContext.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
-        val immundaDir = File(appSpecificDir, subfolder)
-        if (!immundaDir.exists()) {
-            immundaDir.mkdirs()
-        }
-        return immundaDir
-    }
-}
-
 private enum class EngineOption { MIXED, GEMMA_ONLY }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -130,8 +119,8 @@ fun MainEngineScreen(
     modelPrefs: ModelPreferences,
     initialDmModel: Downloadable,
     initialPlayerModel: Downloadable,
-    dmDirectory: File,
-    plDirectory: File,
+    dmDirectory: File?,
+    plDirectory: File?,
     themePrefs: ThemePreferences,
     enginePreferences: EnginePreferences,
     ttsPrefs: TtsPreferences,
@@ -251,19 +240,6 @@ fun MainEngineScreen(
         Divider()
         Spacer(Modifier.height(16.dp))
 
-        Text("Impostazioni Audio e Voce", style = MaterialTheme.typography.titleLarge)
-
-        Row(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), /*...*/) {
-            Column(modifier = Modifier.weight(1f)) { Text("Lettura Automatica", style = MaterialTheme.typography.bodyLarge) }
-            Switch(checked = autoReadEnabled, onCheckedChange = {
-                autoReadEnabled = it
-                ttsPrefs.saveAutoRead(it)
-            })
-        }
-        Spacer(Modifier.height(16.dp))
-        Divider()
-        Spacer(Modifier.height(16.dp))
-
         Text("Modalità Motore AI", style = MaterialTheme.typography.titleLarge)
         Text(
             "Scegli come l'IA gestirà i personaggi. Richiede un riavvio dell'app per avere effetto.",
@@ -338,6 +314,35 @@ fun MainEngineScreen(
         Spacer(Modifier.height(16.dp))
         Divider()
         Spacer(Modifier.height(16.dp))
+
+        // --- SEZIONE IMPOSTAZIONI TTS ---
+        Text("Impostazioni Audio", style = MaterialTheme.typography.titleLarge)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Lettura Automatica Messaggi", style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    "Leggi automaticamente i messaggi di DM e PNG.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Switch(
+                checked = autoReadEnabled,
+                onCheckedChange = {
+                    autoReadEnabled = it
+                    ttsPrefs.saveAutoRead(it)
+                }
+            )
+        }
+        Spacer(Modifier.height(16.dp))
+        Divider()
+        Spacer(Modifier.height(16.dp))
         // --- MENU PER VOCE MASCHILE ---
         Spacer(Modifier.height(16.dp))
         Text("Velocità Voce", style = MaterialTheme.typography.bodyLarge)
@@ -408,19 +413,6 @@ fun MainEngineScreen(
             }
         )
     }
-}
-
-fun android.content.ContentResolver.getFileName(uri: Uri): String? {
-    var name: String? = null
-    val cursor: Cursor? = query(uri, null, null, null, null)
-    cursor?.use {
-        if (it.moveToFirst()) {
-            val nameIndex = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-            if (nameIndex != -1) {
-                name = it.getString(nameIndex)
-            }
-        }
-    }
-    return name
+  }
 }
 

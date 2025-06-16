@@ -5,20 +5,37 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.gson.GsonBuilder
-import io.github.luposolitario.immundanoctis.data.ChatMessage
+import com.google.gson.reflect.TypeToken
 import io.github.luposolitario.immundanoctis.data.CharacterID
-import io.github.luposolitario.immundanoctis.data.ExportedMessage
+import io.github.luposolitario.immundanoctis.data.ChatMessage
 import io.github.luposolitario.immundanoctis.data.GameCharacter
-import io.github.luposolitario.immundanoctis.engine.*
+import io.github.luposolitario.immundanoctis.engine.GemmaEngine
+import io.github.luposolitario.immundanoctis.engine.InferenceEngine
+import io.github.luposolitario.immundanoctis.engine.LlamaCppEngine
+import io.github.luposolitario.immundanoctis.engine.TranslationEngine
 import io.github.luposolitario.immundanoctis.util.EnginePreferences
 import io.github.luposolitario.immundanoctis.util.GameStateManager
+import io.github.luposolitario.immundanoctis.util.SavePreferences
+import io.github.luposolitario.immundanoctis.util.getAppSpecificDirectory
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.io.File
+import java.io.FileReader
+import java.io.FileWriter
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Date
+import java.util.Locale
+import java.util.concurrent.atomic.AtomicLong
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val tag: String? = this::class.simpleName
@@ -26,41 +43,33 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // --- 1. AGGIUNGI QUESTO STATEFLOW SOTTO GLI ALTRI ---
     private val _sessionName = MutableStateFlow("Immunda Noctis")
     val sessionName: StateFlow<String> = _sessionName.asStateFlow()
-
     // --- NUOVO GESTORE DI STATO ---
     private val gameStateManager = GameStateManager(application)
-
+    private val enginePreferences = EnginePreferences(application)
+    // --- 1. AGGIUNGIAMO LE PREFERENZE DI SALVATAGGIO ---
+    private val savePreferences = SavePreferences(application)
     private val _chatMessages = MutableStateFlow<List<ChatMessage>>(emptyList())
     val chatMessages: StateFlow<List<ChatMessage>> = _chatMessages.asStateFlow()
-
-    // --- NUOVO STATEFLOW PER I PERSONAGGI ---
+    // ... altri StateFlow ...
     private val _gameCharacters = MutableStateFlow<List<GameCharacter>>(emptyList())
     val gameCharacters: StateFlow<List<GameCharacter>> = _gameCharacters.asStateFlow()
-
-
     private val _streamingText = MutableStateFlow("")
     val streamingText: StateFlow<String> = _streamingText.asStateFlow()
-
     private val _isGenerating = MutableStateFlow(false)
     val isGenerating: StateFlow<Boolean> = _isGenerating.asStateFlow()
-
     private val _respondingCharacterId = MutableStateFlow<String?>(null)
     val respondingCharacterId: StateFlow<String?> = _respondingCharacterId.asStateFlow()
-
     private val _logMessages = MutableStateFlow<List<String>>(listOf("ViewModel Inizializzato."))
     val logMessages: StateFlow<List<String>> = _logMessages.asStateFlow()
-
     private val _conversationTargetId = MutableStateFlow(CharacterID.DM)
     val conversationTargetId: StateFlow<String> = _conversationTargetId.asStateFlow()
-
     private val _saveChatEvent = MutableSharedFlow<String>()
     val saveChatEvent: SharedFlow<String> = _saveChatEvent.asSharedFlow()
-
     private var generationJob: Job? = null
+    // --- 1. NUOVO CONTATORE PER GLI ID DEI MESSAGGI ---
+    private val messageCounter = AtomicLong(0)
 
-    private val enginePreferences = EnginePreferences(application)
     private val useGemmaForAll = enginePreferences.useGemmaForAll
-
     private val dmEngine: InferenceEngine
     private val playerEngine: InferenceEngine
     private val translationEngine = TranslationEngine()
@@ -85,11 +94,46 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun loadGameSession() {
         val session = gameStateManager.loadSession() ?: gameStateManager.createDefaultSession()
         _gameCharacters.value = session.characters
-        // --- 2. AGGIORNA IL NOME DELLA SESSIONE QUI ---
         _sessionName.value = session.sessionName
         log("Sessione di gioco caricata: ${session.sessionName}")
+
+        // --- 1. NUOVA LOGICA DI CARICAMENTO ---
+        // Se l'autosave è attivo, proviamo a caricare la chat precedente
+        if (savePreferences.isAutoSaveEnabled) {
+            loadChatFromAutoSave()
+        }
     }
 
+    private fun loadChatFromAutoSave() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val savesDir = getAppSpecificDirectory(getApplication(), "saves")
+                val autoSaveFile = File(savesDir, "autosave_chat.json")
+
+                if (autoSaveFile.exists() && autoSaveFile.length() > 0) {
+                    val gson = GsonBuilder().create()
+                    // Definiamo il tipo corretto per deserializzare una lista di ChatMessage
+                    val type = object : TypeToken<List<ChatMessage>>() {}.type
+
+                    FileReader(autoSaveFile).use { reader ->
+                        val loadedMessages: List<ChatMessage> = gson.fromJson(reader, type)
+                        if (loadedMessages.isNotEmpty()) {
+                            _chatMessages.value = loadedMessages
+                            // Reimposta il contatore all'ultimo valore salvato + 1 per evitare ID duplicati
+                            val maxPosition = loadedMessages.maxOfOrNull { it.position } ?: -1L
+                            messageCounter.set(maxPosition + 1)
+                            log("Chat caricata con successo (${loadedMessages.size} messaggi).")
+                        }
+                    }
+                } else {
+                    log("Nessun file di auto-salvataggio valido trovato.")
+                }
+            } catch (e: Exception) {
+                log("Errore durante il caricamento della chat: ${e.message}")
+                Log.e(tag, "Errore caricamento chat", e)
+            }
+        }
+    }
 
 
     override fun onCleared() {
@@ -154,41 +198,54 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /**
-     * MODIFICATA: Ora prende i personaggi direttamente dallo stato interno del ViewModel.
-     */
+    // --- FUNZIONE PER IL SALVATAGGIO MANUALE CORRETTA ---
     fun onSaveChatClicked() {
-        viewModelScope.launch {
-            val characters = _gameCharacters.value
-            val exportedMessages = _chatMessages.value.map { chatMessage ->
-                val authorName = characters.find { it.id == chatMessage.authorId }?.name ?: "Sconosciuto"
-                ExportedMessage(author = authorName, message = chatMessage.text)
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                // --- MODIFICA QUI ---
+                val chatToSave = _chatMessages.value
+                if (chatToSave.isEmpty()) {
+                    log("Chat vuota, nessun salvataggio manuale eseguito.")
+                    return@launch
+                }
+                val gson = GsonBuilder().setPrettyPrinting().create()
+                // Salviamo direttamente la lista di ChatMessage
+                val jsonString = gson.toJson(chatToSave)
+                // --- FINE MODIFICA ---
+
+                // --- MODIFICA QUI ---
+                val savesDir = getAppSpecificDirectory(getApplication(), "saves")
+                if (savesDir == null) {
+                    log("Errore: impossibile accedere alla cartella di salvataggio.")
+                    return@launch
+                }
+
+                val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+                val fileName = "manual_save_${timeStamp}.json"
+                val file = File(savesDir, fileName)
+                // --- FINE MODIFICA ---
+
+                FileWriter(file).use { writer -> writer.write(jsonString) }
+                log("Chat salvata manualmente su $fileName")
+            } catch (e: Exception) {
+                log("Errore durante il salvataggio manuale: ${e.message}")
+                Log.e(tag, "Errore salvataggio manuale", e)
             }
-            val gson = GsonBuilder().setPrettyPrinting().create()
-            val jsonString = gson.toJson(exportedMessages)
-            _saveChatEvent.emit(jsonString)
-            log("Contenuto JSON della chat pronto per il salvataggio.")
         }
     }
-
+    // --- 2. MODIFICHIAMO sendMessage PER USARE IL NUOVO ID ---
     fun sendMessage(text: String) {
         if (_isGenerating.value) {
             log("Generazione già in corso, richiesta ignorata.")
             return
         }
 
-        val userMessage = ChatMessage(authorId = CharacterID.HERO, text = text)
+        val userMessage = ChatMessage(authorId = CharacterID.HERO,position = messageCounter.getAndIncrement(), text = text)
         _chatMessages.update { it + userMessage }
+        autoSaveChatIfEnabled()
 
-        var targetId = _conversationTargetId.value
-
-        // --- INIZIO DELLA CORREZIONE ---
-
-        // LOGICA SEMPLIFICATA:
-        // Usiamo SEMPRE il motore principale (dmEngine) per mantenere uno stile narrativo coerente.
-        // Il motore è abbastanza intelligente da impersonare il personaggio target.
+        val targetId = _conversationTargetId.value
         val engineToUse = dmEngine
-
         val logMessage = "Invio prompt per una risposta da '$targetId'..."
         log(logMessage)
 
@@ -197,8 +254,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _streamingText.value = ""
             _respondingCharacterId.value = targetId
             try {
-                // Il prompt non ha più bisogno di casi speciali.
-                // Sarà il "System Prompt" (che miglioreremo in futuro) a dare le istruzioni.
                 engineToUse.sendMessage(text)
                     .collect { token ->
                         _streamingText.update { it + token }
@@ -209,15 +264,45 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             } finally {
                 log("Generazione per '$targetId' completata o interrotta.")
                 if (_streamingText.value.isNotBlank()) {
-                    val finalMessage = ChatMessage(authorId = targetId, text = _streamingText.value)
+                    val finalMessage = ChatMessage(position = messageCounter.getAndIncrement(), authorId = targetId, text = _streamingText.value)
                     _chatMessages.update { it + finalMessage }
+                    autoSaveChatIfEnabled()
                 }
                 _isGenerating.value = false
                 _streamingText.value = ""
-                _respondingCharacterId.value = null // Resettiamo il responding character
+                _respondingCharacterId.value = null
             }
         }
-        // --- FINE DELLA CORREZIONE ---
+    }
+
+    // --- FUNZIONE PER L'AUTOSALVATAGGIO CORRETTA ---
+    private fun autoSaveChatIfEnabled() {
+        if (!savePreferences.isAutoSaveEnabled) return
+
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                // --- MODIFICA QUI ---
+                val chatToSave = _chatMessages.value
+                if (chatToSave.isEmpty()) return@launch
+
+                val gson = GsonBuilder().setPrettyPrinting().create()
+                // Salviamo direttamente la lista di ChatMessage
+                val jsonString = gson.toJson(chatToSave)
+
+                // --- MODIFICA QUI ---
+                val savesDir = getAppSpecificDirectory(getApplication(), "saves")
+                if (savesDir == null) {
+                    log("Errore: impossibile accedere alla cartella di salvataggio.")
+                    return@launch
+                }
+                val file = File(savesDir, "autosave_chat.json")
+                FileWriter(file).use { writer -> writer.write(jsonString) }
+                log("Chat salvata automaticamente.")
+            } catch (e: Exception) {
+                log("Errore durante il salvataggio automatico della chat: ${e.message}")
+                Log.e(tag, "Errore salvataggio automatico", e)
+            }
+        }
     }
 
     fun stopGeneration() {
