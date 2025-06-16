@@ -115,7 +115,7 @@ fun MainMenuScreen(isDarkTheme: Boolean, onThemeToggle: () -> Unit) {
             }
             Spacer(modifier = Modifier.height(16.dp))
             Button(onClick = {
-                val intent = Intent(context, ModelActivity::class.java)
+                val intent = Intent(context, ConfigurationActivity::class.java)
                 context.startActivity(intent)
             }) {
                 Text("Configura Motori IA")
