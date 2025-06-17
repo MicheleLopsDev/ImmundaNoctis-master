@@ -6,65 +6,115 @@ import com.google.mediapipe.tasks.genai.llminference.LlmInference
 import com.google.mediapipe.tasks.genai.llminference.LlmInferenceSession
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.isActive
 import java.io.File
 
 /**
  * Implementazione di InferenceEngine che usa la libreria MediaPipe per i modelli Gemma.
- * AGGIORNATA per usare il corretto flusso con LlmInferenceSession.
+ * QUESTA VERSIONE È COMPATIBILE CON LA NUOVA INTERFACCIA E GESTISCE INTERNAMENTE I TOKEN.
  */
 class GemmaEngine(private val context: Context) : InferenceEngine {
     private val tag = "GemmaEngine"
     private var llmInference: LlmInference? = null
     private var session: LlmInferenceSession? = null
+    private var sessionOptions: LlmInferenceSession.LlmInferenceSessionOptions? = null
+    private val maxTokens = 4096
+    private var totalTokensUsed: Int = 0
+    private var currentModelPath: String? = null
+
+    // --- StateFlow per esporre le informazioni sui token alla UI (richiesto dall'interfaccia) ---
+    private val _tokenInfo = MutableStateFlow(
+        TokenInfo(0, maxTokens, TokenStatus.GREEN, 0)
+    )
+    override val tokenInfo: StateFlow<TokenInfo> = _tokenInfo.asStateFlow()
+
+    companion object {
+        const val TOKEN_LIMIT_REACHED_SIGNAL = "[TOKEN_LIMIT_REACHED]"
+    }
 
     override suspend fun load(modelPath: String) {
+        currentModelPath = modelPath
         try {
             if (!File(modelPath).exists()) {
                 Log.e(tag, "Modello Gemma non trovato: $modelPath")
                 return
             }
 
-            // 1. Crea le opzioni per il motore principale
             val inferenceOptions = LlmInference.LlmInferenceOptions.builder()
                 .setModelPath(modelPath)
+                .setMaxTokens(maxTokens)
                 .build()
             llmInference = LlmInference.createFromOptions(context, inferenceOptions)
 
-            // 2. Crea le opzioni per la sessione di chat
-            val sessionOptions = LlmInferenceSession.LlmInferenceSessionOptions.builder()
+            sessionOptions = LlmInferenceSession.LlmInferenceSessionOptions.builder()
                 .setTopK(40)
-                .setTemperature(1.0f)
+                .setTemperature(0.7f)
                 .setTopP(0.9f)
                 .build()
 
-            // 3. Crea la sessione usando sia il motore che le sue opzioni
-            session = LlmInferenceSession.createFromOptions(llmInference, sessionOptions)
+            resetSession(null) // Crea la prima sessione
 
-            Log.d(tag, "Motore e sessione Gemma caricati con successo.")
+            Log.d(tag, "Motore Gemma caricato con successo.")
         } catch (e: Exception) {
-            Log.e(tag, "Errore durante il caricamento del modello o della sessione Gemma.", e)
+            Log.e(tag, "Errore durante il caricamento del modello Gemma.", e)
+        }
+    }
+
+    override suspend fun resetSession(systemPrompt: String?) {
+        if (llmInference == null || sessionOptions == null) {
+            Log.e(tag, "Il motore non è inizializzato, impossibile resettare la sessione.")
+            return
+        }
+
+        try {
+            session?.close()
+            session = LlmInferenceSession.createFromOptions(llmInference!!, sessionOptions!!)
+            totalTokensUsed = 0 // Azzera il contatore dei token
+
+            if (!systemPrompt.isNullOrBlank()) {
+                session?.addQueryChunk(systemPrompt)
+                totalTokensUsed += session?.sizeInTokens(systemPrompt) ?: 0
+                Log.d(tag, "System prompt iniettato.")
+            }
+            updateTokenCount()
+            Log.d(tag, "Sessione resettata con successo.")
+        } catch (e: Exception) {
+            Log.e(tag, "Errore durante il reset della sessione.", e)
         }
     }
 
     override fun sendMessage(text: String): Flow<String> = callbackFlow {
         if (session == null) {
-            val errorMessage = "[ERRORE: Sessione di chat con Gemma non inizializzata]"
-            Log.e(tag, errorMessage)
-            trySend(errorMessage)
+            trySend("[ERRORE: Sessione non inizializzata]").isSuccess
             close()
             return@callbackFlow
         }
 
-        try {
-            // MODIFICA CHIAVE: La chiamata ora avviene in due passaggi
-            // 1. Aggiungi il prompt alla conversazione attuale della sessione
-            session!!.addQueryChunk(text)
+        val inputTokens = session!!.sizeInTokens(text)
+        val fullResponse = StringBuilder()
 
-            // 2. Chiama generateResponseAsync solo con il listener per ricevere la risposta
+        try {
+            session!!.addQueryChunk(text)
             session!!.generateResponseAsync { partialResponse, done ->
-                trySend(partialResponse)
+                if (isActive) {
+                    partialResponse?.let {
+                        fullResponse.append(it)
+                        trySend(it)
+                    }
+                }
                 if (done) {
+                    val outputTokens = session!!.sizeInTokens(fullResponse.toString())
+                    totalTokensUsed += inputTokens + outputTokens
+                    updateTokenCount()
+
+                    if (partialResponse.isNullOrEmpty()) {
+                        Log.w(tag, "Limite token raggiunto. Invio segnale di reset.")
+                        trySend(TOKEN_LIMIT_REACHED_SIGNAL)
+                    }
                     close()
                 }
             }
@@ -73,14 +123,43 @@ class GemmaEngine(private val context: Context) : InferenceEngine {
             close(e)
         }
 
-        awaitClose { }
+        awaitClose {
+            Log.d(tag, "Flow per sendMessage chiuso.")
+        }
+    }
+
+    private fun updateTokenCount() {
+        val currentTokens = totalTokensUsed
+        val percentage = if (maxTokens > 0) (currentTokens * 100) / maxTokens else 0
+
+        val newStatus = when {
+            percentage >= 95 -> TokenStatus.CRITICAL
+            percentage > 60 -> TokenStatus.RED
+            percentage > 33 -> TokenStatus.YELLOW
+            else -> TokenStatus.GREEN
+        }
+
+        _tokenInfo.value = TokenInfo(currentTokens, maxTokens, newStatus, percentage)
+        Log.d(tag, "Token count: $currentTokens/$maxTokens ($percentage%) - Status: $newStatus")
     }
 
     override suspend fun unload() {
-        session?.close()
-        llmInference?.close()
-        session = null
-        llmInference = null
-        Log.d(tag, "Motore e sessione Gemma rilasciati.")
+        try {
+            session?.close()
+            llmInference?.close()
+        } catch (e: Exception) {
+            Log.e(tag, "Errore durante il rilascio delle risorse.", e)
+        } finally {
+            session = null
+            llmInference = null
+            currentModelPath = null
+            totalTokensUsed = 0
+            updateTokenCount() // Resetta la UI
+            Log.d(tag, "Motore e sessione Gemma rilasciati.")
+        }
+    }
+
+    override fun getTokensUsed(): Int {
+        return totalTokensUsed
     }
 }
