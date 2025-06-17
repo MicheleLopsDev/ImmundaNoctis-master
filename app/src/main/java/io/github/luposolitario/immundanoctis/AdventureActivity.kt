@@ -149,7 +149,7 @@ class AdventureActivity : ComponentActivity() {
                         selectedCharacterId = conversationTargetId,
                         respondingCharacterId = respondingCharacterId,
                         onMessageSent = { messageText ->
-                            viewModel.sendMessage(messageText)
+                            viewModel.sendMessage(messageText,conversationTargetId)
                         },
                         onCharacterSelected = { characterId ->
                             viewModel.setConversationTarget(characterId)

@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
 import io.github.luposolitario.immundanoctis.data.CharacterID
+import io.github.luposolitario.immundanoctis.data.CharacterType
 import io.github.luposolitario.immundanoctis.data.ChatMessage
 import io.github.luposolitario.immundanoctis.data.GameCharacter
 import io.github.luposolitario.immundanoctis.engine.GemmaEngine
@@ -234,7 +235,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
     // --- 2. MODIFICHIAMO sendMessage PER USARE IL NUOVO ID ---
-    fun sendMessage(text: String) {
+    fun sendMessage(text: String,conversationTargetId: String) {
         if (_isGenerating.value) {
             log("Generazione già in corso, richiesta ignorata.")
             return
@@ -245,7 +246,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         autoSaveChatIfEnabled()
 
         val targetId = _conversationTargetId.value
-        val engineToUse = dmEngine
+        var engineToUse = dmEngine
+
+        if (!useGemmaForAll && conversationTargetId.toString().startsWith("Companion",true)) {
+            engineToUse = playerEngine
+        }
+
         val logMessage = "Invio prompt per una risposta da '$targetId'..."
         log(logMessage)
 
