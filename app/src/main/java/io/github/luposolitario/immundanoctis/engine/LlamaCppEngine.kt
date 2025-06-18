@@ -1,7 +1,9 @@
 package io.github.luposolitario.immundanoctis.engine
 
+import android.content.Context
 import android.llama.cpp.LLamaAndroid
 import android.util.Log
+import io.github.luposolitario.immundanoctis.util.LlamaPreferences
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,13 +16,15 @@ import kotlin.math.roundToInt
  * Implementazione di InferenceEngine che usa il modulo :llama (llama.cpp).
  * QUESTA VERSIONE INTEGRA LA NUOVA INTERFACCIA E IL SEMAFORO DEI TOKEN.
  */
-class LlamaCppEngine(private val llama: LLamaAndroid = LLamaAndroid.instance()) : InferenceEngine {
-
+class LlamaCppEngine(private val context: Context) : InferenceEngine {
+    private val llama: LLamaAndroid = LLamaAndroid.instance()
     private val tag = "LlamaCppEngine"
     private var currentModelPath: String? = null
     // Definiamo un valore massimo di token per coerenza con GemmaEngine.
     private val maxTokens = 4096
     private var totalTokensUsed = 0
+    // Aggiungi questa riga
+    private val llamaPreferences = LlamaPreferences(context)
 
     // --- StateFlow per esporre le informazioni sui token alla UI (richiesto dall'interfaccia) ---
     private val _tokenInfo = MutableStateFlow(
@@ -32,6 +36,11 @@ class LlamaCppEngine(private val llama: LLamaAndroid = LLamaAndroid.instance()) 
         currentModelPath = modelPath
         totalTokensUsed = 0 // Reset del contatore quando si carica un nuovo modello
         updateTokenCount() // Aggiorna la UI allo stato iniziale
+
+        // Imposta il parametro nLen usando le preferenze
+        llama.nlen = llamaPreferences.nLen
+        Log.i(tag, "Llama GGUF configurato con nLen (max tokens): ${llama.nlen}")
+
         llama.load(modelPath)
         Log.d(tag, "Modello LlamaCpp caricato: $modelPath")
     }

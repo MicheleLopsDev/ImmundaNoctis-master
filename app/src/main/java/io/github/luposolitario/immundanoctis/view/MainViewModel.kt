@@ -87,7 +87,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         } else {
             log("Modalità Mista ATTIVA (Gemma per DM, GGUF per PG).")
             dmEngine = GemmaEngine(application.applicationContext)
-            playerEngine = LlamaCppEngine()
+            playerEngine = LlamaCppEngine(application.applicationContext)
         }
     }
     // --- 👇 INCOLLA QUESTO BLOCCO DI CODICE QUI SOTTO 👇 ---

@@ -12,6 +12,8 @@ import kotlin.concurrent.thread
 
 class LLamaAndroid private constructor() { // Costruttore privato per forzare il singleton
     private val tag: String? = this::class.simpleName
+    var nlen: Int = 4096
+
 
     @Volatile
     private var isLoad: Boolean = false
@@ -31,7 +33,7 @@ class LLamaAndroid private constructor() { // Costruttore privato per forzare il
         }
     }.asCoroutineDispatcher()
 
-    private val nlen: Int = 1024
+
 
     private external fun log_to_android()
     private external fun load_model(filename: String): Long

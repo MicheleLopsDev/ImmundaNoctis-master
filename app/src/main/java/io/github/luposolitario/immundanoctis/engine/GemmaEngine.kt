@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.google.mediapipe.tasks.genai.llminference.LlmInference
 import com.google.mediapipe.tasks.genai.llminference.LlmInferenceSession
+import io.github.luposolitario.immundanoctis.util.GemmaPreferences
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,10 +22,14 @@ class GemmaEngine(private val context: Context) : InferenceEngine {
     private val tag = "GemmaEngine"
     private var llmInference: LlmInference? = null
     private var session: LlmInferenceSession? = null
+    // --- 1. Rimuovi la creazione diretta qui
     private var sessionOptions: LlmInferenceSession.LlmInferenceSessionOptions? = null
     private val maxTokens = 4096
     private var totalTokensUsed: Int = 0
     private var currentModelPath: String? = null
+
+    // --- 2. Inizializza le preferenze
+    private val gemmaPreferences = GemmaPreferences(context)
 
     // --- StateFlow per esporre le informazioni sui token alla UI (richiesto dall'interfaccia) ---
     private val _tokenInfo = MutableStateFlow(
@@ -46,15 +51,18 @@ class GemmaEngine(private val context: Context) : InferenceEngine {
 
             val inferenceOptions = LlmInference.LlmInferenceOptions.builder()
                 .setModelPath(modelPath)
-                .setMaxTokens(maxTokens)
+                .setMaxTokens(gemmaPreferences.nLen)
                 .build()
             llmInference = LlmInference.createFromOptions(context, inferenceOptions)
 
+            // --- 3. Carica le impostazioni dalle preferenze ---
             sessionOptions = LlmInferenceSession.LlmInferenceSessionOptions.builder()
-                .setTopK(40)
-                .setTemperature(0.7f)
-                .setTopP(0.9f)
+                .setTopK(gemmaPreferences.topK)
+                .setTemperature(gemmaPreferences.temperature)
+                .setTopP(gemmaPreferences.topP)
                 .build()
+
+            logParameters() // Logghiamo i parametri usati
 
             resetSession(null) // Crea la prima sessione
 
@@ -62,6 +70,14 @@ class GemmaEngine(private val context: Context) : InferenceEngine {
         } catch (e: Exception) {
             Log.e(tag, "Errore durante il caricamento del modello Gemma.", e)
         }
+    }
+
+    // Funzione helper per loggare i parametri
+    private fun logParameters() {
+        Log.i(tag, "GemmaEngine configurato con i seguenti parametri:")
+        Log.i(tag, " - Temperatura: ${gemmaPreferences.temperature}")
+        Log.i(tag, " - Top-K: ${gemmaPreferences.topK}")
+        Log.i(tag, " - Top-P: ${gemmaPreferences.topP}")
     }
 
     override suspend fun resetSession(systemPrompt: String?) {
@@ -98,7 +114,6 @@ class GemmaEngine(private val context: Context) : InferenceEngine {
         val fullResponse = StringBuilder()
 
         try {
-            session!!.addQueryChunk(text)
             session!!.generateResponseAsync { partialResponse, done ->
                 if (isActive) {
                     partialResponse?.let {

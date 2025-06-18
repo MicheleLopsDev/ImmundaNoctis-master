@@ -38,7 +38,12 @@ import io.github.luposolitario.immundanoctis.util.*
 import io.github.luposolitario.immundanoctis.view.MainViewModel
 import java.io.File
 import io.github.luposolitario.immundanoctis.util.getAppSpecificDirectory // <-- Assicurati che ci sia questo import
-
+import io.github.luposolitario.immundanoctis.util.GemmaPreferences
+import io.github.luposolitario.immundanoctis.util.LlamaPreferences
+import androidx.compose.material3.Slider
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.style.TextAlign
 
 
 class ConfigurationActivity : ComponentActivity() {
@@ -51,6 +56,9 @@ class ConfigurationActivity : ComponentActivity() {
     private lateinit var enginePreferences: EnginePreferences
     private lateinit var gameStateManager: GameStateManager
     private val savePreferences by lazy { SavePreferences(applicationContext) }
+    private val gemmaPreferences by lazy { GemmaPreferences(applicationContext) }
+    private val llamaPreferences by lazy { LlamaPreferences(applicationContext) }
+
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -92,6 +100,8 @@ class ConfigurationActivity : ComponentActivity() {
                         enginePreferences = enginePreferences,
                         ttsPrefs = ttsPreferences,
                         savePrefs = savePreferences,
+                        gemmaPrefs = gemmaPreferences,
+                        llamaPrefs = llamaPreferences,
                         onDeleteSession = {
                             if (gameStateManager.deleteSession()) {
                                 Toast.makeText(this, "Sessione cancellata con successo.", Toast.LENGTH_SHORT).show()
@@ -125,6 +135,8 @@ fun MainEngineScreen(
     enginePreferences: EnginePreferences,
     ttsPrefs: TtsPreferences,
     savePrefs: SavePreferences,
+    gemmaPrefs: GemmaPreferences,
+    llamaPrefs: LlamaPreferences,
     onDeleteSession: () -> Unit
 ) {
     var dmModelState by remember { mutableStateOf(initialDmModel) }
@@ -148,6 +160,13 @@ fun MainEngineScreen(
 
     var isMaleDropdownExpanded by remember { mutableStateOf(false) }
     var isFemaleDropdownExpanded by remember { mutableStateOf(false) }
+
+    // Aggiungi gli stati per i nuovi parametri
+    var nLen1 by remember { mutableStateOf(gemmaPrefs.nLen.toString()) }
+    var nLen2 by remember { mutableStateOf(llamaPrefs.nLen.toString()) }
+    var temperature by remember { mutableStateOf(gemmaPrefs.temperature) }
+    var topP by remember { mutableStateOf(gemmaPrefs.topP) }
+    var topK by remember { mutableStateOf(gemmaPrefs.topK.toString()) }
 
     DisposableEffect(context) {
         var ttsService: TtsService? = null
@@ -290,6 +309,93 @@ fun MainEngineScreen(
         Spacer(Modifier.height(16.dp))
         Divider()
         Spacer(Modifier.height(16.dp))
+        // === SEZIONE GEMMA ===
+        Text("Impostazioni Avanzate Gemma", style = MaterialTheme.typography.titleLarge)
+        Text(
+            "Modifica il comportamento del modello Gemma. Richiede il riavvio della partita per avere effetto.",
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+
+        Text("Token Massimi (nLen)", style = MaterialTheme.typography.bodyLarge)
+        Text(
+            "Numero massimo di token (parole/simboli) che il modello GEMMA può generare in una singola risposta. Valori alti permettono risposte più lunghe ma consumano più memoria e tempo. Impatto su CPU/Memoria: Medio.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        OutlinedTextField(
+            value = nLen1,
+            onValueChange = { newValue ->
+                if (newValue.all { it.isDigit() }) {
+                    nLen1 = newValue
+                    newValue.toIntOrNull()?.let { gemmaPrefs.nLen = it }
+                }
+            },
+            label = { Text("Max. Token Generabili") },
+            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            enabled = isGgufEnabled
+        )
+
+        Spacer(Modifier.height(16.dp))
+        Divider()
+        Spacer(Modifier.height(16.dp))
+
+        Text("Temperatura (Creatività)", style = MaterialTheme.typography.bodyLarge)
+        Text(
+            "Valori più alti (es. 0.9) rendono le risposte più creative, valori bassi (es. 0.2) le rendono più coerenti. Impatto su CPU/Memoria: Nullo.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Slider(
+            value = temperature,
+            onValueChange = { temperature = it },
+            onValueChangeFinished = { gemmaPrefs.temperature = temperature },
+            valueRange = 0.0f..1.0f
+        )
+        Text(String.format("%.2f", temperature), modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.End)
+
+        Spacer(Modifier.height(16.dp))
+
+        Text("Top-P (Campionamento Nucleo)", style = MaterialTheme.typography.bodyLarge)
+        Text(
+            "Un valore alto (es. 0.95) considera più parole, uno basso è più restrittivo. Impatto su CPU/Memoria: Basso.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Slider(
+            value = topP,
+            onValueChange = { topP = it },
+            onValueChangeFinished = { gemmaPrefs.topP = topP },
+            valueRange = 0.0f..1.0f
+        )
+        Text(String.format("%.2f", topP), modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.End)
+
+        Spacer(Modifier.height(16.dp))
+
+        Text("Top-K (Campionamento Vocabolario)", style = MaterialTheme.typography.bodyLarge)
+        Text(
+            "Considera solo le K parole più probabili. Un valore alto (es. 50) offre più varietà, uno basso (es. 10) è più sicuro. Impatto su CPU/Memoria: Basso.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        OutlinedTextField(
+            value = topK,
+            onValueChange = { newValue ->
+                if (newValue.all { it.isDigit() }) {
+                    topK = newValue
+                    newValue.toIntOrNull()?.let { gemmaPrefs.topK = it }
+                }
+            },
+            label = { Text("Valore di Top-K") },
+            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+        )
+
+
+        Spacer(Modifier.height(16.dp))
+        Divider()
+        Spacer(Modifier.height(16.dp))
 
         Column(modifier = Modifier.alpha(if (isGgufEnabled) 1f else 0.5f)) {
             ModelSlotView(
@@ -307,6 +413,27 @@ fun MainEngineScreen(
                     (context as? Activity)?.recreate()
                 },
                 onDownloadComplete = { modelPrefs.savePlayerModel(it) },
+                enabled = isGgufEnabled
+            )
+
+            Spacer(Modifier.height(16.dp))
+            Text("Token Massimi (nLen)", style = MaterialTheme.typography.bodyLarge)
+            Text(
+                "Numero massimo di token (parole/simboli) che il modello GGUF può generare in una singola risposta. Valori alti permettono risposte più lunghe ma consumano più memoria e tempo. Impatto su CPU/Memoria: Medio.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            OutlinedTextField(
+                value = nLen2,
+                onValueChange = { newValue ->
+                    if (newValue.all { it.isDigit() }) {
+                        nLen2 = newValue
+                        newValue.toIntOrNull()?.let { llamaPrefs.nLen = it }
+                    }
+                },
+                label = { Text("Max. Token Generabili") },
+                modifier = Modifier.fillMaxWidth(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 enabled = isGgufEnabled
             )
         }
