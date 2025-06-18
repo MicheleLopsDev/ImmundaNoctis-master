@@ -9,8 +9,11 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -53,12 +56,14 @@ import io.github.luposolitario.immundanoctis.data.CharacterID
 import io.github.luposolitario.immundanoctis.data.CharacterType
 import io.github.luposolitario.immundanoctis.data.ChatMessage
 import io.github.luposolitario.immundanoctis.data.GameCharacter
+import io.github.luposolitario.immundanoctis.engine.TokenInfo
 import io.github.luposolitario.immundanoctis.service.TtsService
 import io.github.luposolitario.immundanoctis.ui.adventure.AdventureHeader
 import io.github.luposolitario.immundanoctis.ui.adventure.GeneratingIndicator
 import io.github.luposolitario.immundanoctis.ui.adventure.MessageBubble
 import io.github.luposolitario.immundanoctis.ui.adventure.MessageInput
 import io.github.luposolitario.immundanoctis.ui.adventure.PlayerActionsBar
+import io.github.luposolitario.immundanoctis.ui.adventure.TokenSemaphoreIndicator
 import io.github.luposolitario.immundanoctis.ui.theme.ImmundaNoctisTheme
 import io.github.luposolitario.immundanoctis.util.ModelPreferences
 import io.github.luposolitario.immundanoctis.util.ThemePreferences
@@ -115,6 +120,8 @@ class AdventureActivity : ComponentActivity() {
                 val respondingCharacterId by viewModel.respondingCharacterId.collectAsState()
                 val isAutoReadEnabled = ttsPreferences.isAutoReadEnabled()
                 val isAutoSaveEnabled = savePreferences.isAutoSaveEnabled // Leggiamo il valore
+                val tokenInfo by viewModel.activeTokenInfo.collectAsState()
+
 
                 // Effetto per la lettura automatica dei nuovi messaggi
                 LaunchedEffect(chatMessages) {
@@ -148,6 +155,7 @@ class AdventureActivity : ComponentActivity() {
                         isGenerating = isGenerating,
                         selectedCharacterId = conversationTargetId,
                         respondingCharacterId = respondingCharacterId,
+                        tokenInfo = tokenInfo, // <-- NUOVO PARAMETRO
                         onMessageSent = { messageText ->
                             viewModel.sendMessage(messageText,conversationTargetId)
                         },
@@ -168,7 +176,9 @@ class AdventureActivity : ComponentActivity() {
                             if (author != null) {
                                 ttsService?.speak(message.text, author)
                             }
-                        }
+                        },
+                        // --- 👇 AGGIUNGI QUESTO NUOVO PARAMETRO 👇 ---
+                        onResetSession = { viewModel.resetSession() }
                     )
                 }
             }
@@ -192,12 +202,15 @@ fun AdventureChatScreen(
     isGenerating: Boolean,
     selectedCharacterId: String,
     respondingCharacterId: String?,
+    tokenInfo: TokenInfo, // <-- 2. Aggiungi il nuovo parametro qui
     onMessageSent: (String) -> Unit,
     onCharacterSelected: (String) -> Unit,
     onStopGeneration: () -> Unit,
     onSaveChat: () -> Unit,
     onTranslateMessage: (String) -> Unit,
-    onPlayMessage: (ChatMessage) -> Unit
+    onPlayMessage: (ChatMessage) -> Unit,
+    // --- 👇 AGGIUNGI QUESTO NUOVO PARAMETRO ALLA FIRMA 👇 ---
+    onResetSession: () -> Unit
 ) {
     val listState = rememberLazyListState()
     var showMenu by remember { mutableStateOf(false) }
@@ -219,7 +232,14 @@ fun AdventureChatScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(sessionName) },
+                title = {
+                    // --- 👇 MODIFICA QUI: Sostituisci il Text con una Row 👇 ---
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        TokenSemaphoreIndicator(tokenInfo = tokenInfo, onResetSession = onResetSession )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(sessionName)
+                    }
+                        },
                 actions = {
                     Box {
                         IconButton(onClick = { showMenu = true }) {

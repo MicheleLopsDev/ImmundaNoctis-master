@@ -14,11 +14,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.QuestionMark
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,6 +39,8 @@ import androidx.compose.ui.unit.sp
 import io.github.luposolitario.immundanoctis.R
 import io.github.luposolitario.immundanoctis.data.CharacterType
 import io.github.luposolitario.immundanoctis.data.GameCharacter
+import io.github.luposolitario.immundanoctis.engine.TokenInfo
+import io.github.luposolitario.immundanoctis.engine.TokenStatus
 
 @Composable
 fun AdventureHeader(
@@ -75,6 +85,64 @@ fun AdventureHeader(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun TokenSemaphoreIndicator(tokenInfo: TokenInfo, onResetSession: () -> Unit) { // Aggiunto onResetSession
+    var showDialog by remember { mutableStateOf(false) }
+
+    val semaphoreColor = when (tokenInfo.status) {
+        TokenStatus.GREEN -> Color.Green
+        TokenStatus.YELLOW -> Color(0xFFFBC02D)
+        TokenStatus.RED -> Color.Red
+        TokenStatus.CRITICAL -> Color.Red
+    }
+
+    IconButton(onClick = { showDialog = true }) {
+        Icon(
+            imageVector = Icons.Default.Circle,
+            contentDescription = "Stato Utilizzo Token",
+            tint = semaphoreColor
+        )
+    }
+
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            title = { Text(text = "Dettaglio Utilizzo Token") },
+            text = {
+                // Se i token sono in stato critico, aggiungi un avviso
+                val criticalWarning = if (tokenInfo.status == TokenStatus.CRITICAL) {
+                    "ATTENZIONE: Limite token quasi raggiunto! Resetta la sessione per continuare.\n\n"
+                } else {
+                    ""
+                }
+                Text(
+                    criticalWarning +
+                        "Hai utilizzato il ${tokenInfo.percentage}% dei token disponibili.\n" +
+                        "Utilizzati: ${tokenInfo.count} / Massimi: ${tokenInfo.maxTokens}"
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { showDialog = false }) {
+                    Text("OK")
+                }
+            },
+            // --- 👇 MODIFICA QUI: Aggiungiamo il pulsante di reset condizionale 👇 ---
+            dismissButton = {
+                if (tokenInfo.status == TokenStatus.CRITICAL) {
+                    TextButton(
+                        onClick = {
+                            onResetSession()
+                            showDialog = false
+                        }
+                    ) {
+                        Text("RESET SESSIONE", color = MaterialTheme.colorScheme.error)
+                    }
+                }
+            }
+        )
     }
 }
 

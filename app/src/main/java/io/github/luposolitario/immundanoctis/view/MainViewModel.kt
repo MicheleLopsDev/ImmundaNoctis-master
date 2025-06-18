@@ -37,6 +37,11 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicLong
+import kotlinx.coroutines.flow.SharingStarted // Aggiungi questo import in cima al file
+import kotlinx.coroutines.flow.flatMapLatest // Aggiungi questo import in cima al file
+import kotlinx.coroutines.flow.stateIn // Aggiungi questo import in cima al file
+import io.github.luposolitario.immundanoctis.engine.TokenInfo // Aggiungi questo import
+
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val tag: String? = this::class.simpleName
@@ -74,7 +79,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val dmEngine: InferenceEngine
     private val playerEngine: InferenceEngine
     private val translationEngine = TranslationEngine()
-
     init {
         if (useGemmaForAll) {
             log("Modalità Solo Gemma ATTIVA.")
@@ -86,6 +90,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             playerEngine = LlamaCppEngine()
         }
     }
+    // --- 👇 INCOLLA QUESTO BLOCCO DI CODICE QUI SOTTO 👇 ---
+    val activeTokenInfo: StateFlow<TokenInfo> = conversationTargetId.flatMapLatest { targetId ->
+        val engineToUse = if (!useGemmaForAll && targetId.startsWith("Companion", true)) {
+            playerEngine
+        } else {
+            dmEngine
+        }
+        engineToUse.tokenInfo
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = dmEngine.tokenInfo.value
+    )
+// --- FINE BLOCCO DA INCOLLARE ---
+
 
     /**
      * NUOVA FUNZIONE: Carica la sessione di gioco (o ne crea una di default)
@@ -148,6 +167,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             log("Motori rilasciati.")
         }
     }
+
+
+
 
     fun loadEngines(dmModelPath: String?, playerModelPath: String?) {
         viewModelScope.launch {
@@ -325,5 +347,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun log(message: String) {
         _logMessages.update { it + message }
+    }
+
+    // --- 👇 AGGIUNGI QUESTA NUOVA FUNZIONE QUI 👇 ---
+    fun resetSession() {
+        viewModelScope.launch {
+            log("Avvio reset sessione per il motore attivo...")
+            val targetId = _conversationTargetId.value
+            // Determina quale motore resettare in base al target attuale
+            val engineToUse = if (!useGemmaForAll && targetId.startsWith("Companion", true)) {
+                playerEngine
+            } else {
+                dmEngine
+            }
+            // Chiama la funzione di reset sull'engine corretto
+            engineToUse.resetSession(null)
+            log("Reset della sessione completato per ${engineToUse::class.simpleName}.")
+        }
     }
 }
