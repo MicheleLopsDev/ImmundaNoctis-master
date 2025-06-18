@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoFixHigh
-import androidx.compose.material.icons.filled.Casino
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.MenuBook
@@ -37,7 +36,6 @@ fun PlayerActionsBar(hero: GameCharacter) {
     var showCunningDialog by remember { mutableStateOf(false) }
     var showKnowledgeDialog by remember { mutableStateOf(false) }
     var showSpellDialog by remember { mutableStateOf(false) }
-    var showDiceDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     if (showStrengthDialog) {
@@ -68,9 +66,7 @@ fun PlayerActionsBar(hero: GameCharacter) {
             onDismiss = { showSpellDialog = false }
         )
     }
-    if (showDiceDialog) {
-        DiceDialog(onDismiss = { showDiceDialog = false })
-    }
+
 
     Row(
         modifier = Modifier
@@ -93,7 +89,6 @@ fun PlayerActionsBar(hero: GameCharacter) {
         ActionIcon(icon = Icons.Default.Lightbulb, label = "Astuzia", onClick = { showCunningDialog = true })
         ActionIcon(icon = Icons.Default.MenuBook, label = "Sapere", onClick = { showKnowledgeDialog = true })
         ActionIcon(icon = Icons.Default.AutoFixHigh, label = "Magia", onClick = { showSpellDialog = true })
-        ActionIcon(icon = Icons.Default.Casino, label = "Dadi", onClick = { showDiceDialog = true })
     }
 }
 

@@ -101,31 +101,3 @@ fun RatingStars(currentLevel: Int, maxLevel: Int) {
         }
     }
 }
-
-@Composable
-fun DiceDialog(onDismiss: () -> Unit) {
-    var diceCount by remember { mutableStateOf("2") }
-    var modifier by remember { mutableStateOf("0") }
-    Dialog(onDismissRequest = onDismiss) {
-        Card(shape = RoundedCornerShape(16.dp)) {
-            Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(text = "Lancia i Dadi", style = MaterialTheme.typography.headlineSmall)
-                Spacer(modifier = Modifier.height(16.dp))
-                Row {
-                    Icon(Icons.Default.Casino, contentDescription = "Dado", modifier = Modifier.size(64.dp))
-                    Icon(Icons.Default.Casino, contentDescription = "Dado", modifier = Modifier.size(64.dp))
-                }
-                Spacer(modifier = Modifier.height(16.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedTextField(value = diceCount, onValueChange = { diceCount = it }, label = { Text("N. Dadi") }, modifier = Modifier.weight(1f))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    OutlinedTextField(value = modifier, onValueChange = { modifier = it }, label = { Text("Modificatore") }, modifier = Modifier.weight(1f))
-                }
-                Spacer(modifier = Modifier.height(24.dp))
-                Button(onClick = { /* Logica da aggiungere */ }, modifier = Modifier.fillMaxWidth()) {
-                    Text("TIRA")
-                }
-            }
-        }
-    }
-}
