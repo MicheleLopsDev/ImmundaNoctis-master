@@ -142,30 +142,3 @@ fun TokenInputSection(
         }
     }
 }
-
-@Composable
-fun AddUrlDialog(onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
-    val urlText = remember { mutableStateOf("") }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Imposta URL del Modello") },
-        text = {
-            OutlinedTextField(
-                value = urlText.value,
-                onValueChange = { urlText.value = it },
-                label = { Text("URL diretto del modello") },
-                placeholder = { Text("https://huggingface.co/...") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-        },
-        confirmButton = {
-            TextButton(onClick = { if (urlText.value.isNotBlank()) onConfirm(urlText.value) }) {
-                Text("Conferma")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Annulla") }
-        }
-    )
-}

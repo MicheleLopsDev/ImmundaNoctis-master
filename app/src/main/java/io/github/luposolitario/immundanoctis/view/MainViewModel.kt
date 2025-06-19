@@ -46,6 +46,9 @@ import io.github.luposolitario.immundanoctis.engine.TokenInfo // Aggiungi questo
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val tag: String? = this::class.simpleName
 
+    // --- 👇 AGGIUNGI QUESTA RIGA QUI 👇 ---
+    var isPickingForDm: Boolean = false
+    // --- FINE RIGA DA AGGIUNGERE ---
     // --- 1. AGGIUNGI QUESTO STATEFLOW SOTTO GLI ALTRI ---
     private val _sessionName = MutableStateFlow("Immunda Noctis")
     val sessionName: StateFlow<String> = _sessionName.asStateFlow()
