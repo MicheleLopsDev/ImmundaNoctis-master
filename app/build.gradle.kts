@@ -63,6 +63,8 @@ dependencies {
     implementation(libs.gson)
     implementation(libs.translate)
     implementation(project(":llama"))
+	implementation(project(":stdf"))
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
