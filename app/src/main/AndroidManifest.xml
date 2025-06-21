@@ -49,6 +49,12 @@
             android:exported="false"
             android:label="Gestione Motori"
             android:theme="@style/Theme.ImmundaNoctis" />
+
+        <activity
+            android:name=".ModelActivity"
+            android:exported="false"
+            android:label="Gestione Modelli"
+            android:theme="@style/Theme.ImmundaNoctis" />
         <!-- 👇 Aggiunto questo blocco -->
         <service
             android:name="androidx.work.impl.foreground.SystemForegroundService"

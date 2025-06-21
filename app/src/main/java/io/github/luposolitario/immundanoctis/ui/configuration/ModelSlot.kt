@@ -92,14 +92,11 @@ fun ModelSlotView(
     title: String,
     subtitle: String,
     model: Downloadable,
-    token: String,
-    viewModel: MainViewModel,
     workManager: WorkManager,
     onSetUrlClick: () -> Unit,
     onDownloadClick: () -> Unit,
     onSelectFileClick: () -> Unit,
     onDeleteClick: () -> Unit,
-    onDownloadComplete: (Downloadable) -> Unit,
     enabled: Boolean
 ) {
     // --- Osservazione dello stato del Worker (corretta per gestire la lista) ---
