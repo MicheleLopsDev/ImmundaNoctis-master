@@ -5,6 +5,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -23,6 +25,7 @@ import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.Save
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -50,6 +53,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import io.github.luposolitario.immundanoctis.data.CharacterID
@@ -70,6 +74,7 @@ import io.github.luposolitario.immundanoctis.util.ThemePreferences
 import io.github.luposolitario.immundanoctis.util.TtsPreferences
 import io.github.luposolitario.immundanoctis.view.MainViewModel
 import io.github.luposolitario.immundanoctis.util.SavePreferences // <-- 1. Aggiungi questo import
+import io.github.luposolitario.immundanoctis.view.MainViewModel.EngineLoadingState
 
 
 class AdventureActivity : ComponentActivity() {
@@ -102,84 +107,109 @@ class AdventureActivity : ComponentActivity() {
         setContent {
             val useDarkTheme = themePreferences.useDarkTheme(isSystemInDarkTheme())
             ImmundaNoctisTheme(darkTheme = useDarkTheme) {
-                val view = LocalView.current
-                if (!view.isInEditMode) {
-                    SideEffect {
-                        val window = (view.context as Activity).window
-                        window.statusBarColor = Color.Black.toArgb()
-                        WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
+
+                // Raccogliamo il nuovo stato di caricamento
+                val loadingState by viewModel.engineLoadingState.collectAsState()
+
+                // Usiamo un 'when' per decidere cosa mostrare
+                when (loadingState) {
+                    is EngineLoadingState.Loading -> {
+                        LoadingScreen()
                     }
-                }
-
-                val sessionName by viewModel.sessionName.collectAsState()
-                val characters by viewModel.gameCharacters.collectAsState()
-                val chatMessages by viewModel.chatMessages.collectAsState()
-                val streamingText by viewModel.streamingText.collectAsState()
-                val isGenerating by viewModel.isGenerating.collectAsState()
-                val conversationTargetId by viewModel.conversationTargetId.collectAsState()
-                val respondingCharacterId by viewModel.respondingCharacterId.collectAsState()
-                val isAutoReadEnabled = ttsPreferences.isAutoReadEnabled()
-                val isAutoSaveEnabled = savePreferences.isAutoSaveEnabled // Leggiamo il valore
-                val tokenInfo by viewModel.activeTokenInfo.collectAsState()
-
-
-                // Effetto per la lettura automatica dei nuovi messaggi
-                LaunchedEffect(chatMessages) {
-                    if (isAutoReadEnabled) {
-                        chatMessages.lastOrNull()?.let { lastMessage ->
-                            val author = characters.find { it.id == lastMessage.authorId }
-                            // Leggi solo se il messaggio non è dell'eroe e non è un messaggio vuoto
-                            if (author != null && author.id != CharacterID.HERO && lastMessage.text.isNotBlank()) {
-                                ttsService?.speak(lastMessage.text, author)
+                    is EngineLoadingState.Success -> {
+                        val view = LocalView.current
+                        if (!view.isInEditMode) {
+                            SideEffect {
+                                val window = (view.context as Activity).window
+                                window.statusBarColor = Color.Black.toArgb()
+                                WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
                             }
                         }
-                    }
-                }
-                DisposableEffect(Unit) {
-                    onDispose {
-                        ttsService?.shutdown()
-                    }
-                }
 
-                if (characters.isEmpty()) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
-                    }
-                } else {
-                    AdventureChatScreen(
-                        isAutoSaveEnabled = isAutoSaveEnabled, // Passiamo il valore alla UI
-                        sessionName = sessionName,
-                        characters = characters,
-                        messages = chatMessages,
-                        streamingText = streamingText,
-                        isGenerating = isGenerating,
-                        selectedCharacterId = conversationTargetId,
-                        respondingCharacterId = respondingCharacterId,
-                        tokenInfo = tokenInfo, // <-- NUOVO PARAMETRO
-                        onMessageSent = { messageText ->
-                            viewModel.sendMessage(messageText,conversationTargetId)
-                        },
-                        onCharacterSelected = { characterId ->
-                            viewModel.setConversationTarget(characterId)
-                        },
-                        onStopGeneration = {
-                            viewModel.stopGeneration()
-                        },
-                        onSaveChat = {
-                            viewModel.onSaveChatClicked()
-                        },
-                        onTranslateMessage = { messageId ->
-                            viewModel.translateMessage(messageId)
-                        },
-                        onPlayMessage = { message ->
-                            val author = characters.find { it.id == message.authorId }
-                            if (author != null) {
-                                ttsService?.speak(message.text, author)
+                        val sessionName by viewModel.sessionName.collectAsState()
+                        val characters by viewModel.gameCharacters.collectAsState()
+                        val chatMessages by viewModel.chatMessages.collectAsState()
+                        val streamingText by viewModel.streamingText.collectAsState()
+                        val isGenerating by viewModel.isGenerating.collectAsState()
+                        val conversationTargetId by viewModel.conversationTargetId.collectAsState()
+                        val respondingCharacterId by viewModel.respondingCharacterId.collectAsState()
+                        val isAutoReadEnabled = ttsPreferences.isAutoReadEnabled()
+                        val isAutoSaveEnabled = savePreferences.isAutoSaveEnabled // Leggiamo il valore
+                        val tokenInfo by viewModel.activeTokenInfo.collectAsState()
+
+
+                        // Effetto per la lettura automatica dei nuovi messaggi
+                        LaunchedEffect(chatMessages) {
+                            if (isAutoReadEnabled) {
+                                chatMessages.lastOrNull()?.let { lastMessage ->
+                                    val author = characters.find { it.id == lastMessage.authorId }
+                                    // Leggi solo se il messaggio non è dell'eroe e non è un messaggio vuoto
+                                    if (author != null && author.id != CharacterID.HERO && lastMessage.text.isNotBlank()) {
+                                        ttsService?.speak(lastMessage.text, author)
+                                    }
+                                }
                             }
-                        },
-                        // --- 👇 AGGIUNGI QUESTO NUOVO PARAMETRO 👇 ---
-                        onResetSession = { viewModel.resetSession() }
-                    )
+                        }
+                        DisposableEffect(Unit) {
+                            onDispose {
+                                ttsService?.shutdown()
+                            }
+                        }
+
+                        if (characters.isEmpty()) {
+                            LoadingScreen()
+                        } else {
+                            AdventureChatScreen(
+                                isAutoSaveEnabled = isAutoSaveEnabled, // Passiamo il valore alla UI
+                                sessionName = sessionName,
+                                characters = characters,
+                                messages = chatMessages,
+                                streamingText = streamingText,
+                                isGenerating = isGenerating,
+                                selectedCharacterId = conversationTargetId,
+                                respondingCharacterId = respondingCharacterId,
+                                tokenInfo = tokenInfo, // <-- NUOVO PARAMETRO
+                                onMessageSent = { messageText ->
+                                    viewModel.sendMessage(messageText,conversationTargetId)
+                                },
+                                onCharacterSelected = { characterId ->
+                                    viewModel.setConversationTarget(characterId)
+                                },
+                                onStopGeneration = {
+                                    viewModel.stopGeneration()
+                                },
+                                onSaveChat = {
+                                    viewModel.onSaveChatClicked()
+                                },
+                                onTranslateMessage = { messageId ->
+                                    viewModel.translateMessage(messageId)
+                                },
+                                onPlayMessage = { message ->
+                                    val author = characters.find { it.id == message.authorId }
+                                    if (author != null) {
+                                        ttsService?.speak(message.text, author)
+                                    }
+                                },
+                                // --- 👇 AGGIUNGI QUESTO NUOVO PARAMETRO 👇 ---
+                                onResetSession = { viewModel.resetSession() }
+                            )
+                        }
+                    }
+                    is EngineLoadingState.Error -> {
+                        val errorMessage = (loadingState as EngineLoadingState.Error).message
+                        ErrorScreen(
+                            errorMessage = errorMessage ?: "Errore sconosciuto",
+                            onRetry = {
+                                // Rilancia il caricamento dei modelli
+                                val dmModel = modelPreferences.getDmModel()
+                                val playerModel = modelPreferences.getPlayerModel()
+                                viewModel.loadEngines(
+                                    dmModelPath = dmModel?.destination?.path,
+                                    playerModelPath = playerModel?.destination?.path
+                                )
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -188,6 +218,58 @@ class AdventureActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         ttsService?.shutdown()
+    }
+}
+
+// In AdventureActivity.kt
+
+@Composable
+fun LoadingScreen(text: String = "Caricamento motori AI...") {
+    Box(
+        // 👇 MODIFICA SOLO QUESTA RIGA 👇
+        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+    }
+}
+
+// In AdventureActivity.kt
+
+@Composable
+fun ErrorScreen(errorMessage: String, onRetry: () -> Unit) {
+    Box(
+        // 👇 MODIFICA SOLO QUESTA RIGA 👇
+        modifier = Modifier.fillMaxSize().padding(16.dp).background(MaterialTheme.colorScheme.background),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            // ... il resto del codice rimane invariato
+            Text(
+                "Errore Critico",
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.error
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                errorMessage,
+                textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(onClick = onRetry) {
+                Text("Riprova")
+            }
+        }
     }
 }
 

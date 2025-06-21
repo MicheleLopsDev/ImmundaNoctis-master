@@ -46,6 +46,18 @@ import io.github.luposolitario.immundanoctis.engine.TokenInfo // Aggiungi questo
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val tag: String? = this::class.simpleName
 
+    // In MainViewModel.kt (fuori dalla classe)
+    sealed interface EngineLoadingState {
+        data object Loading : EngineLoadingState
+        data object Success : EngineLoadingState
+        data class Error(val message: String?) : EngineLoadingState
+    }
+
+    // In MainViewModel.kt (dentro la classe)
+    private val _engineLoadingState = MutableStateFlow<EngineLoadingState>(EngineLoadingState.Loading)
+    val engineLoadingState: StateFlow<EngineLoadingState> = _engineLoadingState.asStateFlow()
+
+
     // --- 👇 AGGIUNGI QUESTA RIGA QUI 👇 ---
     var isPickingForDm: Boolean = false
     // --- FINE RIGA DA AGGIUNGERE ---
@@ -174,22 +186,35 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
 
 
+    // In MainViewModel.kt
     fun loadEngines(dmModelPath: String?, playerModelPath: String?) {
-        viewModelScope.launch {
-            dmModelPath?.let {
-                log("Tentativo di caricamento modello DM (Gemma)...")
-                dmEngine.load(it)
-            } ?: log("Nessun percorso per il modello DM.")
+        _engineLoadingState.value = EngineLoadingState.Loading // 1. Imposta lo stato su Caricamento
 
-            if (!useGemmaForAll) {
-                playerModelPath?.let {
-                    log("Tentativo di caricamento modello PG (GGUF)...")
-                    playerEngine.load(it)
-                } ?: log("Nessun percorso per il modello PG.")
-            } else {
-                log("Modalità Solo Gemma attiva, caricamento modello GGUF saltato.")
+        viewModelScope.launch(Dispatchers.IO) { // Esegui sempre in background
+            try {
+                if (dmModelPath == null && playerModelPath == null) {
+                    throw IllegalStateException("Nessun modello configurato.")
+                }
+
+                dmModelPath?.let {
+                    log("Tentativo di caricamento modello DM (Gemma) su thread IO...")
+                    dmEngine.load(it)
+                }
+
+                if (!useGemmaForAll) {
+                    playerModelPath?.let {
+                        log("Tentativo di caricamento modello PG (GGUF) su thread IO...")
+                        playerEngine.load(it)
+                    }
+                }
+                log("Processo di caricamento motori in background completato.")
+                _engineLoadingState.value = EngineLoadingState.Success // 2. Se tutto va bene, imposta Successo
+
+            } catch (e: Exception) {
+                Log.e(tag, "Errore critico durante il caricamento degli engine", e)
+                log("ERRORE CARICAMENTO: ${e.message}")
+                _engineLoadingState.value = EngineLoadingState.Error(e.message) // 3. Se c'è un errore, imposta Errore
             }
-            log("Processo di caricamento motori completato.")
         }
     }
 
