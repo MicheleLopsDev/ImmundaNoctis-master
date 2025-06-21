@@ -77,13 +77,13 @@ class ConfigurationActivity : ComponentActivity() {
 
         val dmModelDefault = Downloadable(
             "gemma-3n-E4B-it-int4",
-            Uri.parse("https://huggingface.co/?download=true"),
+            Uri.parse("https://huggingface.co/google/gemma-3n-E4B-it-litert-preview/resolve/main/gemma-3n-E4B-it-int4.task?download=true"),
             File(dmDirectory, "gemma-3n-E4B-it-int4.task")
         )
         val playerModelDefault = Downloadable(
-            "llama-3.1-8b-instruct-fei-v1-uncensored-q6_k",
-            Uri.parse("https://huggingface.co/?download=true"),
-            File(plDirectory, "llama-3.1-8b-instruct-fei-v1-uncensored-q6_k.gguf")
+            "Roleplay-9B-lora-800-porn.i1-Q4_K_S",
+            Uri.parse("https://huggingface.co/mradermacher/Roleplay-9B-lora-800-porn-i1-GGUF/resolve/main/Roleplay-9B-lora-800-porn.i1-Q4_K_S.gguf"),
+            File(plDirectory, "Roleplay-9B-lora-800-porn.i1-Q4_K_S.gguf")
         )
 
         val dmModel = modelPreferences.getDmModel() ?: dmModelDefault
@@ -262,6 +262,7 @@ class ConfigurationActivity : ComponentActivity() {
                 .addTag(model.name)
                 .build()
             workManager.enqueue(workRequest)
+            modelPrefs.saveDmModel(model)
             Toast.makeText(context, "Download di ${model.name} avviato...", Toast.LENGTH_SHORT).show()
         }
 // --- FINE BLOCCO DA AGGIUNGERE ---
