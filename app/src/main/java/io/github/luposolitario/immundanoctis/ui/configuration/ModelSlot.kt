@@ -184,7 +184,7 @@ fun ModelSlotView(
                     ) {
                         Icon(Icons.Default.Download, contentDescription = null)
                         Spacer(Modifier.size(ButtonDefaults.IconSpacing))
-                        Text("Scarica Modello")
+                        Text("Scarica Modello: " + model.name)
                     }
                 }
             }
