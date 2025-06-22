@@ -41,8 +41,22 @@ class LlamaCppEngine(private val context: Context) : InferenceEngine {
         llama.nlen = llamaPreferences.nLen
         Log.i(tag, "Llama GGUF configurato con nLen (max tokens): ${llama.nlen}")
 
-        llama.load(modelPath)
+        llama.load(
+            pathToModel = modelPath,
+            temperature = llamaPreferences.temperature,
+            repeatPenalty = llamaPreferences.repeatP,
+            topK = llamaPreferences.topK,
+            topP = llamaPreferences.topP
+        )
         Log.d(tag, "Modello LlamaCpp caricato: $modelPath")
+    }
+
+    // Funzione helper per loggare i parametri
+    private fun logParameters() {
+        Log.i(tag, "LlamaEngine configurato con i seguenti parametri:")
+        Log.i(tag, " - Temperatura: ${llamaPreferences.temperature}")
+        Log.i(tag, " - Top-K: ${llamaPreferences.topK}")
+        Log.i(tag, " - Top-P: ${llamaPreferences.topP}")
     }
 
     override fun sendMessage(text: String): Flow<String> {
@@ -74,45 +88,13 @@ class LlamaCppEngine(private val context: Context) : InferenceEngine {
 
                 // Unload e reload per un reset completo
                 llama.unload()
-                llama.load(modelPath)
-
-                // Reset del contatore token
-                totalTokensUsed = 0
-
-                // Iniezione del System Prompt (se presente)
-                if (!systemPrompt.isNullOrBlank()) {
-                    // Per llama.cpp, il system prompt viene gestito formattando la chat,
-                    // quindi lo aggiungiamo al conteggio dei token iniziali.
-                    totalTokensUsed += estimateTokens(systemPrompt)
-                    Log.d(tag, "System prompt considerato nel nuovo conteggio token.")
-                }
-
-                updateTokenCount() // Aggiorna la UI
-                Log.d(tag, "Sessione LlamaCpp resettata con successo")
-            } ?: run {
-                Log.w(tag, "Impossibile resettare la sessione: percorso del modello non disponibile")
-                totalTokensUsed = 0
-                updateTokenCount()
-            }
-        } catch (e: Exception) {
-            Log.e(tag, "Errore durante il reset della sessione LlamaCpp", e)
-            totalTokensUsed = 0
-            updateTokenCount()
-        }
-    }
-
-    /**
-     * Resetta la sessione. Per llama.cpp, il modo più sicuro è ricaricare il modello.
-     * Gestisce anche l'iniezione di un system prompt.
-     */
-    override suspend fun resetSession(systemPrompt: String?) {
-        try {
-            currentModelPath?.let { modelPath ->
-                Log.d(tag, "Reset sessione LlamaCpp in corso...")
-
-                // Unload e reload per un reset completo
-                llama.unload()
-                llama.load(modelPath)
+                llama.load(
+                    pathToModel = modelPath,
+                    temperature = llamaPreferences.temperature,
+                    repeatPenalty = llamaPreferences.repeatP,
+                    topK = llamaPreferences.topK,
+                    topP = llamaPreferences.topP
+                )
 
                 // Reset del contatore token
                 totalTokensUsed = 0

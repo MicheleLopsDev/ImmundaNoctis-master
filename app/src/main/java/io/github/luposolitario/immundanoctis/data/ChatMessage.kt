@@ -7,7 +7,7 @@ import java.util.UUID
  * @param authorId L'ID del personaggio che ha scritto il messaggio. Questo campo collega il messaggio a un GameCharacter.
  * @param text Il contenuto effettivo del messaggio.
  */
- data class ChatMessage(
+data class ChatMessage(
     val authorId: String,
     val text: String,
     val position: Long,

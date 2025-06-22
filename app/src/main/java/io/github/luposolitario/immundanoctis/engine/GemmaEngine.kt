@@ -42,6 +42,7 @@ class GemmaEngine(private val context: Context) : InferenceEngine {
     }
 
     override suspend fun load(modelPath: String) {
+        currentModelPath = modelPath
         try {
             if (!File(modelPath).exists()) {
                 Log.e(tag, "Modello Gemma non trovato: $modelPath")
@@ -51,11 +52,12 @@ class GemmaEngine(private val context: Context) : InferenceEngine {
             // 1. Crea le opzioni per il motore principale
             val inferenceOptions = LlmInference.LlmInferenceOptions.builder()
                 .setModelPath(modelPath)
+                .setMaxTokens(gemmaPreferences.nLen)
                 .build()
             llmInference = LlmInference.createFromOptions(context, inferenceOptions)
 
             // 2. Crea le opzioni per la sessione di chat
-            val sessionOptions = LlmInferenceSession.LlmInferenceSessionOptions.builder()
+            sessionOptions = LlmInferenceSession.LlmInferenceSessionOptions.builder()
                 .setTopK(gemmaPreferences.topK)
                 .setTemperature(gemmaPreferences.temperature)
                 .setTopP(gemmaPreferences.topP)
@@ -66,7 +68,6 @@ class GemmaEngine(private val context: Context) : InferenceEngine {
 
             // 3. Crea la sessione usando sia il motore che le sue opzioni
             session = LlmInferenceSession.createFromOptions(llmInference, sessionOptions)
-
             Log.d(tag, "Motore e sessione Gemma caricati con successo.")
         } catch (e: Exception) {
             Log.e(tag, "Errore durante il caricamento del modello o della sessione Gemma.", e)
@@ -145,6 +146,7 @@ class GemmaEngine(private val context: Context) : InferenceEngine {
             Log.e(tag, "Errore durante la chiamata a generateResponseAsync", e)
             close(e)
         }
+
         awaitClose {
             Log.d(tag, "Flow per sendMessage chiuso.")
         }
@@ -185,4 +187,3 @@ class GemmaEngine(private val context: Context) : InferenceEngine {
         return totalTokensUsed
     }
 }
-
