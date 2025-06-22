@@ -73,7 +73,6 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-// In MainActivity.kt, sostituisci solo questa funzione
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainMenuScreen(isDarkTheme: Boolean, onThemeToggle: () -> Unit) {
@@ -120,6 +119,14 @@ fun MainMenuScreen(isDarkTheme: Boolean, onThemeToggle: () -> Unit) {
             }) {
                 Text("Impostazioni Generali")
             }
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(onClick = {
+                val intent = Intent(context, ModelActivity::class.java)
+                context.startActivity(intent)
+            }) {
+                Text("Gestione Modelli")
+            }
+
 
         }
     }

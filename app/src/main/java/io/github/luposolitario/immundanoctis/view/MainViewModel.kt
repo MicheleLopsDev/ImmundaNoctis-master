@@ -175,17 +175,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             // Reimposta il contatore all'ultimo valore salvato + 1 per evitare ID duplicati
                             val maxPosition = loadedMessages.maxOfOrNull { it.position } ?: -1L
                             messageCounter.set(maxPosition + 1)
-                            Log.d(
-                                tag,
-                                "Chat caricata con successo (${loadedMessages.size} messaggi)."
-                            )
+                            log("Chat caricata con successo (${loadedMessages.size} messaggi).")
                         }
                     }
                 } else {
-                    log( "Nessun file di auto-salvataggio valido trovato.")
+                    log("Nessun file di auto-salvataggio valido trovato.")
                 }
             } catch (e: Exception) {
-                log( "Errore durante il caricamento della chat: ${e.message}")
+                log("Errore durante il caricamento della chat: ${e.message}")
                 Log.e(tag, "Errore caricamento chat", e)
             }
         }
@@ -195,12 +192,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     override fun onCleared() {
         super.onCleared()
         viewModelScope.launch {
-            log( "Rilascio risorse motori...")
+            log("Rilascio risorse motori...")
             stopGeneration()
             dmEngine.unload()
             playerEngine.unload()
             translationEngine.close()
-            log( "Motori rilasciati.")
+            log("Motori rilasciati.")
         }
     }
 
@@ -316,11 +313,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
-        val userMessage = ChatMessage(
-            authorId = CharacterID.HERO,
-            position = messageCounter.getAndIncrement(),
-            text = text
-        )
+        val userMessage = ChatMessage(authorId = CharacterID.HERO,position = messageCounter.getAndIncrement(), text = text)
         _chatMessages.update { it + userMessage }
         autoSaveChatIfEnabled()
 
@@ -351,11 +344,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             } finally {
                 log( "Generazione per '$targetId' completata o interrotta.")
                 if (_streamingText.value.isNotBlank()) {
-                    val finalMessage = ChatMessage(
-                        position = messageCounter.getAndIncrement(),
-                        authorId = targetId,
-                        text = _streamingText.value
-                    )
+                    val finalMessage = ChatMessage(position = messageCounter.getAndIncrement(), authorId = targetId, text = _streamingText.value)
                     _chatMessages.update { it + finalMessage }
                     autoSaveChatIfEnabled()
                 }
@@ -366,35 +355,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun stopGeneration() {
-        if (generationJob?.isActive == true) {
-            log( "Cancellazione del task di generazione in corso...")
-            generationJob?.cancel()
-        }
-    }
-
-    fun setConversationTarget(characterId: String) {
-        _conversationTargetId.value = characterId
-        log( "Ora stai parlando con: $characterId")
-    }
-
-    // --- 👇 AGGIUNGI QUESTA NUOVA FUNZIONE QUI 👇 ---
-    fun resetSession() {
-        viewModelScope.launch {
-            log( "Avvio reset sessione per il motore attivo...")
-            val targetId = _conversationTargetId.value
-            // Determina quale motore resettare in base al target attuale
-            val engineToUse = if (!useGemmaForAll && targetId.startsWith("Companion", true)) {
-                playerEngine
-            } else {
-                dmEngine
-            }
-            // Chiama la funzione di reset sull'engine corretto
-            engineToUse.resetSession(null)
-            log( "Reset della sessione completato per ${engineToUse::class.simpleName}.")
-        }
-    }
-    
     // --- FUNZIONE PER L'AUTOSALVATAGGIO CORRETTA ---
     private fun autoSaveChatIfEnabled() {
         if (!savePreferences.isAutoSaveEnabled) return
@@ -426,8 +386,36 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun stopGeneration() {
+        if (generationJob?.isActive == true) {
+            log("Cancellazione del task di generazione in corso...")
+            generationJob?.cancel()
+        }
+    }
+
+    fun setConversationTarget(characterId: String) {
+        _conversationTargetId.value = characterId
+        log("Ora stai parlando con: $characterId")
+    }
+
     fun log( message: String) {
         _logMessages.update { it + message }
     }
-    
+
+    // --- 👇 AGGIUNGI QUESTA NUOVA FUNZIONE QUI 👇 ---
+    fun resetSession() {
+        viewModelScope.launch {
+            log("Avvio reset sessione per il motore attivo...")
+            val targetId = _conversationTargetId.value
+            // Determina quale motore resettare in base al target attuale
+            val engineToUse = if (!useGemmaForAll && targetId.startsWith("Companion", true)) {
+                playerEngine
+            } else {
+                dmEngine
+            }
+            // Chiama la funzione di reset sull'engine corretto
+            engineToUse.resetSession(null)
+            log("Reset della sessione completato per ${engineToUse::class.simpleName}.")
+        }
+    }
 }
