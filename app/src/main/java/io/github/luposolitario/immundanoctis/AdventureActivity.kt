@@ -163,9 +163,7 @@ class AdventureActivity : ComponentActivity() {
                 }
 
                 if (characters.isEmpty()) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
-                    }
+                    LoadingScreen()
                 } else {
                     AdventureChatScreen(
                         sessionName = sessionName,
@@ -176,7 +174,7 @@ class AdventureActivity : ComponentActivity() {
                         selectedCharacterId = conversationTargetId,
                         respondingCharacterId = respondingCharacterId,
                         onMessageSent = { messageText ->
-                            viewModel.sendMessage(messageText)
+                            viewModel.sendMessage(messageText,respondingCharacterId.toString())
                         },
                         onCharacterSelected = { characterId ->
                             viewModel.setConversationTarget(characterId)
@@ -205,6 +203,58 @@ class AdventureActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         ttsService?.shutdown()
+    }
+}
+
+// In AdventureActivity.kt
+
+@Composable
+fun LoadingScreen(text: String = "Caricamento motori AI...") {
+    Box(
+        // 👇 MODIFICA SOLO QUESTA RIGA 👇
+        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+    }
+}
+
+// In AdventureActivity.kt
+
+@Composable
+fun ErrorScreen(errorMessage: String, onRetry: () -> Unit) {
+    Box(
+        // 👇 MODIFICA SOLO QUESTA RIGA 👇
+        modifier = Modifier.fillMaxSize().padding(16.dp).background(MaterialTheme.colorScheme.background),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            // ... il resto del codice rimane invariato
+            Text(
+                "Errore Critico",
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.error
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                errorMessage,
+                textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(onClick = onRetry) {
+                Text("Riprova")
+            }
+        }
     }
 }
 
@@ -286,7 +336,7 @@ fun AdventureChatScreen(
                         ) {
                             if (isGenerating && streamingText.isNotBlank() && respondingCharacterId != null) {
                                 item {
-                                    val streamingMessage = ChatMessage(respondingCharacterId, streamingText)
+                                    val streamingMessage = ChatMessage(position = -1L,authorId=respondingCharacterId, text=streamingText)
                                     MessageBubble(message = streamingMessage, characters = characters, onTranslateClicked = {}, onPlayClicked = { onPlayMessage(streamingMessage) })
                                 }
                             }
