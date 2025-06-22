@@ -41,8 +41,22 @@ class LlamaCppEngine(private val context: Context) : InferenceEngine {
         llama.nlen = llamaPreferences.nLen
         Log.i(tag, "Llama GGUF configurato con nLen (max tokens): ${llama.nlen}")
 
-        llama.load(modelPath)
+        llama.load(
+            pathToModel = modelPath,
+            temperature = llamaPreferences.temperature,
+            repeatPenalty = llamaPreferences.repeatP,
+            topK = llamaPreferences.topK,
+            topP = llamaPreferences.topP
+        )
         Log.d(tag, "Modello LlamaCpp caricato: $modelPath")
+    }
+
+    // Funzione helper per loggare i parametri
+    private fun logParameters() {
+        Log.i(tag, "LlamaEngine configurato con i seguenti parametri:")
+        Log.i(tag, " - Temperatura: ${llamaPreferences.temperature}")
+        Log.i(tag, " - Top-K: ${llamaPreferences.topK}")
+        Log.i(tag, " - Top-P: ${llamaPreferences.topP}")
     }
 
     override fun sendMessage(text: String): Flow<String> {
@@ -74,7 +88,13 @@ class LlamaCppEngine(private val context: Context) : InferenceEngine {
 
                 // Unload e reload per un reset completo
                 llama.unload()
-                llama.load(modelPath)
+                llama.load(
+                    pathToModel = modelPath,
+                    temperature = llamaPreferences.temperature,
+                    repeatPenalty = llamaPreferences.repeatP,
+                    topK = llamaPreferences.topK,
+                    topP = llamaPreferences.topP
+                )
 
                 // Reset del contatore token
                 totalTokensUsed = 0

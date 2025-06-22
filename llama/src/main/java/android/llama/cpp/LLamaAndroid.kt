@@ -44,7 +44,14 @@ class LLamaAndroid private constructor() { // Costruttore privato per forzare il
     private external fun backend_free()
     private external fun new_batch(nTokens: Int, embd: Int, nSeqMax: Int): Long
     private external fun free_batch(batch: Long)
-    private external fun new_sampler(): Long
+
+    // Sostituisci la vecchia dichiarazione di new_sampler con questa
+    private external fun new_sampler(
+        temperature: Float,
+        repeat_penalty: Float,
+        top_k: Int,
+        top_p: Float
+    ): Long
     private external fun free_sampler(sampler: Long)
     private external fun bench_model(context: Long, model: Long, batch: Long, pp: Int, tg: Int, pl: Int, nr: Int): String
     private external fun system_info(): String
@@ -52,7 +59,13 @@ class LLamaAndroid private constructor() { // Costruttore privato per forzare il
     private external fun completion_loop(context: Long, batch: Long, sampler: Long, nLen: Int, ncur: IntVar): String?
     private external fun kv_cache_clear(context: Long)
 
-    suspend fun load(pathToModel: String) {
+    suspend fun load(
+        pathToModel: String,
+        temperature: Float,
+        repeatPenalty: Float,
+        topK: Int,
+        topP: Float
+    ) {
         withContext(runLoop) {
             if (!isLoad) {
                 val model = load_model(pathToModel)
@@ -64,7 +77,8 @@ class LLamaAndroid private constructor() { // Costruttore privato per forzare il
                 val batch = new_batch(512, 0, 1)
                 if (batch == 0L) throw IllegalStateException("new_batch() failed")
 
-                val sampler = new_sampler()
+                // Adesso usa i parametri passati dall'esterno!
+                val sampler = new_sampler(temperature, repeatPenalty, topK, topP)
                 if (sampler == 0L) throw IllegalStateException("new_sampler() failed")
 
                 Log.i(tag, "Loaded model $pathToModel")
@@ -84,6 +98,32 @@ class LLamaAndroid private constructor() { // Costruttore privato per forzare il
                 free_sampler(loadedState.sampler);
                 isLoad = false
                 state = State.Idle
+            }
+        }
+    }
+
+    // Aggiungi questa nuova funzione pubblica alla classe LLamaAndroid
+    suspend fun setSamplingParams(
+        temperature: Float,
+        repeatPenalty: Float,
+        topK: Int,
+        topP: Float
+    ) {
+        withContext(runLoop) {
+            val currentState = state
+            if (currentState is State.Loaded) {
+                // Liberiamo il vecchio campionatore per evitare memory leak
+                free_sampler(currentState.sampler)
+
+                // Creiamo quello nuovo con i parametri corretti passati dalla UI
+                val newSampler = new_sampler(temperature, repeatPenalty, topK, topP)
+                if (newSampler == 0L) throw IllegalStateException("new_sampler() with params failed")
+
+                // Aggiorniamo lo stato con il nuovo campionatore
+                state = currentState.copy(sampler = newSampler)
+                Log.i(tag, "Sampling parameters updated: temp=$temperature, penalty=$repeatPenalty")
+            } else {
+                Log.w(tag, "Model not loaded, cannot set sampling params.")
             }
         }
     }

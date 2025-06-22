@@ -16,7 +16,7 @@ import java.io.File
 
 /**
  * Implementazione di InferenceEngine che usa la libreria MediaPipe per i modelli Gemma.
- * QUESTA VERSIONE È COMPATIBILE CON LA NUOVA INTERFACCIA E GESTISCE INTERNAMENTE I TOKEN.
+ * AGGIORNATA per usare il corretto flusso con LlmInferenceSession.
  */
 class GemmaEngine(private val context: Context) : InferenceEngine {
     private val tag = "GemmaEngine"
@@ -49,13 +49,14 @@ class GemmaEngine(private val context: Context) : InferenceEngine {
                 return
             }
 
+            // 1. Crea le opzioni per il motore principale
             val inferenceOptions = LlmInference.LlmInferenceOptions.builder()
                 .setModelPath(modelPath)
                 .setMaxTokens(gemmaPreferences.nLen)
                 .build()
             llmInference = LlmInference.createFromOptions(context, inferenceOptions)
 
-            // --- 3. Carica le impostazioni dalle preferenze ---
+            // 2. Crea le opzioni per la sessione di chat
             sessionOptions = LlmInferenceSession.LlmInferenceSessionOptions.builder()
                 .setTopK(gemmaPreferences.topK)
                 .setTemperature(gemmaPreferences.temperature)
@@ -64,11 +65,12 @@ class GemmaEngine(private val context: Context) : InferenceEngine {
 
             logParameters() // Logghiamo i parametri usati
 
-            resetSession(null) // Crea la prima sessione
 
-            Log.d(tag, "Motore Gemma caricato con successo.")
+            // 3. Crea la sessione usando sia il motore che le sue opzioni
+            session = LlmInferenceSession.createFromOptions(llmInference, sessionOptions)
+            Log.d(tag, "Motore e sessione Gemma caricati con successo.")
         } catch (e: Exception) {
-            Log.e(tag, "Errore durante il caricamento del modello Gemma.", e)
+            Log.e(tag, "Errore durante il caricamento del modello o della sessione Gemma.", e)
         }
     }
 
@@ -81,7 +83,7 @@ class GemmaEngine(private val context: Context) : InferenceEngine {
     }
 
     override suspend fun resetSession(systemPrompt: String?) {
-        if (llmInference == null || sessionOptions == null) {
+        if (llmInference == null ) {
             Log.e(tag, "Il motore non è inizializzato, impossibile resettare la sessione.")
             return
         }
@@ -105,7 +107,9 @@ class GemmaEngine(private val context: Context) : InferenceEngine {
 
     override fun sendMessage(text: String): Flow<String> = callbackFlow {
         if (session == null) {
-            trySend("[ERRORE: Sessione non inizializzata]").isSuccess
+            val errorMessage = "[ERRORE: Sessione di chat con Gemma non inizializzata]"
+            Log.e(tag, errorMessage)
+            trySend(errorMessage)
             close()
             return@callbackFlow
         }
@@ -114,6 +118,11 @@ class GemmaEngine(private val context: Context) : InferenceEngine {
         val fullResponse = StringBuilder()
 
         try {
+            // MODIFICA CHIAVE: La chiamata ora avviene in due passaggi
+            // 1. Aggiungi il prompt alla conversazione attuale della sessione
+            session!!.addQueryChunk(text)
+
+            // 2. Chiama generateResponseAsync solo con il listener per ricevere la risposta
             session!!.generateResponseAsync { partialResponse, done ->
                 if (isActive) {
                     partialResponse?.let {

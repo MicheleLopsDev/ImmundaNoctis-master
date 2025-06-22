@@ -321,7 +321,7 @@ fun AdventureChatScreen(
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(sessionName)
                     }
-                        },
+                },
                 actions = {
                     Box {
                         IconButton(onClick = { showMenu = true }) {
