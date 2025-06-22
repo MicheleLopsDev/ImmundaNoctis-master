@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "android.llama.cpp"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         minSdk = 33
@@ -15,6 +15,7 @@ android {
         ndk {
             // Add NDK properties if wanted, e.g.
             //abiFilters += listOf("arm64-v8a")
+            abiFilters.add("arm64-v8a")
         }
         externalNativeBuild {
             cmake {
@@ -22,10 +23,20 @@ android {
                 arguments += "-DLLAMA_BUILD_COMMON=ON"
                 arguments += "-DGGML_LLAMAFILE=OFF"
                 arguments += "-DCMAKE_BUILD_TYPE=Release"
-                cppFlags += listOf()
-                arguments += listOf()
 
-                cppFlags("")
+                // Argomenti per OpenCL che abbiamo aggiunto prima
+                arguments += "-DLLAMA_CLBLAST=ON"
+                arguments += "-DGGML_OPENCL_F16=1"
+
+                // --- NUOVI ARGOMENTI PER OTTIMIZZAZIONE ANDROID/SNAPDRAGON ---
+
+                // Incorpora i kernel OpenCL direttamente nella libreria .so
+                // (Fortemente raccomandato per Android)
+                arguments += "-DGGML_OPENCL_EMBED_KERNELS=ON"
+
+                // Usa i kernel specifici e ottimizzati per le GPU Adreno (Snapdragon)
+                // (Fondamentale per le performance su Snapdragon)
+                arguments += "-DGGML_OPENCL_USE_ADRENO_KERNELS=ON"
             }
         }
     }

@@ -18,7 +18,9 @@ import java.io.FileWriter
 class GameStateManager(private val context: Context) {
 
     private val gson: Gson = GsonBuilder().setPrettyPrinting().create()
-    private val sessionFile = File(context.filesDir, SESSION_FILE_NAME)
+    val savesDir = getAppSpecificDirectory(context, "saves")
+    private val sessionFile = File(savesDir, SESSION_FILE_NAME)
+    private val chatFile = File(savesDir, CHAT_FILE_NAME)
 
     fun saveSession(sessionData: SessionData) {
         FileWriter(sessionFile).use { writer ->
@@ -48,6 +50,9 @@ class GameStateManager(private val context: Context) {
      * @return `true` se il file è stato cancellato con successo o non esisteva, `false` altrimenti.
      */
     fun deleteSession(): Boolean {
+        if (chatFile.exists() )
+        {    chatFile.delete()
+        }
         return if (sessionFile.exists()) {
             sessionFile.delete()
         } else {
@@ -111,5 +116,7 @@ class GameStateManager(private val context: Context) {
 
     companion object {
         private const val SESSION_FILE_NAME = "game_session.json"
+        private const val CHAT_FILE_NAME = "autosave_chat.json"
+
     }
 }

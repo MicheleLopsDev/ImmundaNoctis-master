@@ -58,10 +58,13 @@ dependencies {
     implementation(libs.tasks.genai)
     implementation(libs.androidx.concurrent.futures.ktx)
     implementation(libs.androidx.work.runtime.ktx) // O la versione più recente
+
     implementation(libs.androidx.lifecycle.viewmodel.compose) // O la versione più recente
     implementation(libs.gson)
     implementation(libs.translate)
     implementation(project(":llama"))
+	implementation(project(":stdf"))
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

@@ -1,5 +1,6 @@
 package io.github.luposolitario.immundanoctis.worker
 
+import android.R
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -63,6 +64,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
     }
 
 
+    // Sostituisci l'intera funzione doWork() in DownloadWorker.kt
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         val urlString = inputData.getString(KEY_URL) ?: return@withContext Result.failure()
         val destinationPath = inputData.getString(KEY_DESTINATION) ?: return@withContext Result.failure()
@@ -70,9 +72,12 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
         val totalDownloaded = AtomicLong(0L)
         val url = URL(urlString)
 
+        // --- MODIFICA 1: Definiamo i percorsi del file finale e di quello temporaneo ---
+        val finalFile = File(destinationPath)
+        val tempFile = File(destinationPath + ".tmp")
 
         try {
-            setForeground(createForegroundInfo()) // <-- fondamentale
+            setForeground(createForegroundInfo())
             val headConnection = (url.openConnection() as HttpURLConnection).apply {
                 setRequestProperty("Authorization", "Bearer $accessToken")
                 setRequestProperty("Accept-Encoding", "identity")
@@ -95,10 +100,9 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
 
             Log.d("Downloader", "Total size: $totalSize")
 
-            // Prepara il file
-            val file = File(destinationPath)
-            file.parentFile?.mkdirs()
-            RandomAccessFile(file, "rw").setLength(totalSize)
+            // --- MODIFICA 2: Prepariamo e scriviamo sempre sul file temporaneo ---
+            tempFile.parentFile?.mkdirs()
+            RandomAccessFile(tempFile, "rw").setLength(totalSize)
 
             val numParts = 8
             val partSize = totalSize / numParts
@@ -117,7 +121,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
 
                         val buffer = ByteArray(1024 * 1024)
                         val input = partConn.inputStream
-                        val raf = RandomAccessFile(file, "rw").apply { seek(start) }
+                        val raf = RandomAccessFile(tempFile, "rw").apply { seek(start) } // Usa tempFile
 
                         var bytes = input.read(buffer)
                         while (bytes != -1) {
@@ -141,10 +145,18 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
                 }.awaitAll()
             }
 
+            // --- MODIFICA 3: Se tutto è andato bene, rinominiamo il file temporaneo ---
+            finalFile.delete() // Cancella il file vecchio, se esiste
+            if (!tempFile.renameTo(finalFile)) {
+                Log.e("DownloadWorker", "Impossibile rinominare il file temporaneo.")
+                return@withContext Result.failure()
+            }
+
             Result.success()
         } catch (e: Exception) {
-            Log.e("DownloadWorker", "Errore: ${e.message}",e)
-            File(destinationPath).delete()
+            Log.e("DownloadWorker", "Errore: ${e.message}", e)
+            // --- MODIFICA 4: In caso di errore, cancelliamo il file temporaneo ---
+            tempFile.delete()
             Result.failure()
         }
     }

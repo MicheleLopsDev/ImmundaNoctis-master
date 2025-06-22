@@ -28,7 +28,7 @@ enum class TokenStatus {
 
 /**
  * Un'interfaccia generica che definisce le capacità di un motore di inferenza LLM.
- * Qualsiasi motore (Llama.cpp, Gemma, ecc.) dovrà implementare questo "contratto".
+ * VERSIONE FINALE CORRETTA.
  */
 interface InferenceEngine {
     /**

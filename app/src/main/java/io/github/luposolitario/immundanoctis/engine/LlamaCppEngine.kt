@@ -14,6 +14,7 @@ import kotlin.math.roundToInt
 
 /**
  * Implementazione di InferenceEngine che usa il modulo :llama (llama.cpp).
+ * QUESTA VERSIONE INTEGRA LA NUOVA INTERFACCIA E IL SEMAFORO DEI TOKEN.
  */
 class LlamaCppEngine(private val context: Context) : InferenceEngine {
     private val llama: LLamaAndroid = LLamaAndroid.instance()
@@ -45,9 +46,59 @@ class LlamaCppEngine(private val context: Context) : InferenceEngine {
     }
 
     override fun sendMessage(text: String): Flow<String> {
-        // Il tuo LLamaAndroid.send formatta già come chat? Se no, dovremmo passare true.
-        // Per ora lo lascio a false come nel codice originale.
+        val inputTokens = estimateTokens(text)
+        val fullResponse = StringBuilder()
+
         return llama.send(message = text, formatChat = false)
+            .onEach { partialResponse ->
+                // Accumula la risposta parziale per il conteggio finale
+                fullResponse.append(partialResponse)
+            }
+            .onCompletion {
+                // Quando il flusso è completato, calcola i token totali
+                val outputTokens = estimateTokens(fullResponse.toString())
+                totalTokensUsed += (inputTokens + outputTokens)
+                updateTokenCount() // Aggiorna il semaforo per la UI
+                Log.d(tag, "Token utilizzati in questo messaggio: input=$inputTokens, output=$outputTokens, totale sessione=$totalTokensUsed")
+            }
+    }
+
+    /**
+     * Resetta la sessione. Per llama.cpp, il modo più sicuro è ricaricare il modello.
+     * Gestisce anche l'iniezione di un system prompt.
+     */
+    override suspend fun resetSession(systemPrompt: String?) {
+        try {
+            currentModelPath?.let { modelPath ->
+                Log.d(tag, "Reset sessione LlamaCpp in corso...")
+
+                // Unload e reload per un reset completo
+                llama.unload()
+                llama.load(modelPath)
+
+                // Reset del contatore token
+                totalTokensUsed = 0
+
+                // Iniezione del System Prompt (se presente)
+                if (!systemPrompt.isNullOrBlank()) {
+                    // Per llama.cpp, il system prompt viene gestito formattando la chat,
+                    // quindi lo aggiungiamo al conteggio dei token iniziali.
+                    totalTokensUsed += estimateTokens(systemPrompt)
+                    Log.d(tag, "System prompt considerato nel nuovo conteggio token.")
+                }
+
+                updateTokenCount() // Aggiorna la UI
+                Log.d(tag, "Sessione LlamaCpp resettata con successo")
+            } ?: run {
+                Log.w(tag, "Impossibile resettare la sessione: percorso del modello non disponibile")
+                totalTokensUsed = 0
+                updateTokenCount()
+            }
+        } catch (e: Exception) {
+            Log.e(tag, "Errore durante il reset della sessione LlamaCpp", e)
+            totalTokensUsed = 0
+            updateTokenCount()
+        }
     }
 
     /**
