@@ -50,10 +50,17 @@ data class Downloadable(val name: String, val source: Uri, val destination: File
                 // --- MODIFICA 2: Usiamo la nostra nuova variabile 'isClickable' ---
                 Button(onClick = onClick, enabled = isClickable) {
                     val text = when (status) {
-                        is State.Downloading -> "Annulla"
-                        is State.Downloaded -> "Ricarica"
-                        is State.Ready -> "Download"
-                        is State.Error -> "Riprova"
+                        is State.Downloading -> {
+                            val progressText = if (status.totalBytes > 0) {
+                                "${((status.bytesDownloaded.toDouble() / status.totalBytes) * 100).toInt()}%"
+                            } else {
+                                Formatter.formatShortFileSize(context, status.bytesDownloaded)
+                            }
+                            "Annulla: " + item.name + " ($progressText)"
+                        }
+                        is State.Downloaded -> "Ricarica: " + item.name
+                        is State.Ready -> "Download: " + item.name
+                        is State.Error -> "Riprova: " + item.name
                     }
                     Text(text)
                 }

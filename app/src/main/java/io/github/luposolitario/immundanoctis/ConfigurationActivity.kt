@@ -66,8 +66,8 @@ class ConfigurationActivity : ComponentActivity() {
         val dmDirectory = getDownloadDirectory("dm")
         val plDirectory = getDownloadDirectory("pl")
 
-        val dmModelDefault = Downloadable("gemma-2b-it-quant.bin", Uri.parse(""), File(dmDirectory, "gemma-2b-it-quant.bin"))
-        val playerModelDefault = Downloadable("llama-3-8b-instruct.Q4_K_M.gguf", Uri.parse(""), File(plDirectory, "llama-3-8b-instruct.Q4_K_M.gguf"))
+        val dmModelDefault = Downloadable("gemma-3n-E4B-it-int4", Uri.parse("https://huggingface.co/google/gemma-3n-E4B-it-litert-preview/resolve/main/gemma-3n-E4B-it-int4.task?download=true"), File(dmDirectory, "gemma-3n-E4B-it-int4.task"))
+        val playerModelDefault = Downloadable("Roleplay-9B-lora-800-porn.i1-Q4_K_S", Uri.parse("https://huggingface.co/mradermacher/Roleplay-9B-lora-800-porn-i1-GGUF/resolve/main/Roleplay-9B-lora-800-porn.i1-Q4_K_S.gguf"), File(plDirectory, "Roleplay-9B-lora-800-porn.i1-Q4_K_S.gguf"))
 
         val dmModel = modelPreferences.getDmModel() ?: dmModelDefault
         val playerModel = modelPreferences.getPlayerModel() ?: playerModelDefault
@@ -161,6 +161,8 @@ fun MainEngineScreen(
 
     var isMaleDropdownExpanded by remember { mutableStateOf(false) }
     var isFemaleDropdownExpanded by remember { mutableStateOf(false) }
+    val isGgufEnabled = selectedEngine == EngineOption.MIXED
+    val enabledModel  = !hfToken.isEmpty()
 
     DisposableEffect(context) {
         var ttsService: TtsService? = null
@@ -221,13 +223,122 @@ fun MainEngineScreen(
     }
 
     Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp)
     ) {
+
+
+        Spacer(Modifier.weight(1f, fill = false))
+        Spacer(Modifier.height(24.dp))
+        TokenInputSection(
+            token = hfToken,
+            onTokenChange = { hfToken = it },
+            onSaveClick = {
+                themePrefs.saveToken(hfToken)
+                viewModel.log("Token Hugging Face salvato.")
+            }
+        )
+        Spacer(Modifier.weight(1f, fill = false))
+        Spacer(Modifier.height(24.dp))
+
+        Column (modifier = Modifier.alpha(if (enabledModel) 1f else 0.5f)) {
+
+            Text("Modalità Motore AI", style = MaterialTheme.typography.titleLarge)
+            Text(
+                "Scegli come l'IA gestirà i personaggi. Richiede un riavvio dell'app per avere effetto.",
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            Column {
+                EngineRadioButton(
+                    text = "Modalità Solo Gemma (Consigliata)",
+                    description = "Usa Gemma per tutti i personaggi. Qualità alta, più esigente.",
+                    selected = selectedEngine == EngineOption.GEMMA_ONLY,
+                    onClick = {
+                        selectedEngine = EngineOption.GEMMA_ONLY
+                        enginePreferences.useGemmaForAll = true
+                    },
+                    enabledModel = enabledModel
+                )
+                EngineRadioButton(
+                    text = "Modalità Mista ",
+                    description = "Usa Gemma per il DM e GGUF per i PG. Puoi sperimentare piu motori.",
+                    selected = selectedEngine == EngineOption.MIXED,
+                    onClick = {
+                        selectedEngine = EngineOption.MIXED
+                        enginePreferences.useGemmaForAll = false
+                    },
+                    enabledModel = enabledModel
+                )
+            }
+            Spacer(Modifier.height(16.dp))
+            Divider()
+            Spacer(Modifier.height(16.dp))
+            Column {
+
+                ModelSlotView(
+                    title = "Motore del Dungeon Master (Gemma)",
+                    subtitle = "Modello per narrazione e ambiente.Consigliato: Gemma",
+                    model = dmModelState,
+                    token = hfToken,
+                    viewModel = viewModel,
+                    workManager = workManager,
+                    onSetUrlClick = { showUrlDialogFor = "DM" },
+                    onDownloadComplete = { modelPrefs.saveDmModel(it) },
+                    onDeleteClick = {
+                        workManager.cancelAllWorkByTag(dmModelState.name)
+                        dmModelState.destination.delete()
+                        modelPrefs.clearDmModel()
+                        (context as? Activity)?.recreate()
+                    },
+                    enabled = enabledModel
+                )
+
+            }
+            Spacer(Modifier.height(16.dp))
+            Divider()
+            Spacer(Modifier.height(16.dp))
+
+            Column(modifier = Modifier.alpha(if (isGgufEnabled) 1f else 0.5f)) {
+                ModelSlotView(
+                    title = "Motore dei Personaggi (GGUF)",
+                    subtitle = "Modello per le risposte dei PG. Disabilitato in modalità 'Solo Gemma'.",
+                    model = playerModelState,
+                    token = hfToken,
+                    viewModel = viewModel,
+                    workManager = workManager,
+                    onSetUrlClick = { if (isGgufEnabled) showUrlDialogFor = "PLAYER" },
+                    onDeleteClick = {
+                        workManager.cancelAllWorkByTag(playerModelState.name)
+                        playerModelState.destination.delete()
+                        modelPrefs.clearPlayerModel()
+                        (context as? Activity)?.recreate()
+                    },
+                    onDownloadComplete = { modelPrefs.savePlayerModel(it) },
+                    enabled = isGgufEnabled && enabledModel
+                )
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+        Divider()
+        Spacer(Modifier.height(16.dp))
+        // --- MENU PER VOCE MASCHILE ---
+
 
         Text("Impostazioni Audio e Voce", style = MaterialTheme.typography.titleLarge)
 
-        Row(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), /*...*/) {
-            Column(modifier = Modifier.weight(1f)) { Text("Lettura Automatica", style = MaterialTheme.typography.bodyLarge) }
+        Row(modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp), /*...*/) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    "Lettura Automatica",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
             Switch(checked = autoReadEnabled, onCheckedChange = {
                 autoReadEnabled = it
                 ttsPrefs.saveAutoRead(it)
@@ -237,87 +348,23 @@ fun MainEngineScreen(
         Divider()
         Spacer(Modifier.height(16.dp))
 
-        Text("Modalità Motore AI", style = MaterialTheme.typography.titleLarge)
-        Text(
-            "Scegli come l'IA gestirà i personaggi. Richiede un riavvio dell'app per avere effetto.",
-            style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-        Column {
-            EngineRadioButton(
-                text = "Modalità Solo Gemma (Consigliata)",
-                description = "Usa Gemma per tutti i personaggi. Qualità alta, più esigente.",
-                selected = selectedEngine == EngineOption.GEMMA_ONLY,
-                onClick = {
-                    selectedEngine = EngineOption.GEMMA_ONLY
-                    enginePreferences.useGemmaForAll = true
-                }
-            )
-            EngineRadioButton(
-                text = "Modalità Mista ",
-                description = "Usa Gemma per il DM e GGUF per i PG. Puoi sperimentare piu motori.",
-                selected = selectedEngine == EngineOption.MIXED,
-                onClick = {
-                    selectedEngine = EngineOption.MIXED
-                    enginePreferences.useGemmaForAll = false
-                }
-            )
-        }
-        Spacer(Modifier.height(16.dp))
-        val isGgufEnabled = selectedEngine == EngineOption.MIXED
 
-        ModelSlotView(
-            title = "Motore del Dungeon Master (Gemma)",
-            subtitle = "Modello per narrazione e ambiente.Consigliato: Gemma",
-            model = dmModelState,
-            token = hfToken,
-            viewModel = viewModel,
-            workManager = workManager,
-            onSetUrlClick = { showUrlDialogFor = "DM" },
-            onDownloadComplete = { modelPrefs.saveDmModel(it) },
-            onDeleteClick = {
-                workManager.cancelAllWorkByTag(dmModelState.name)
-                dmModelState.destination.delete()
-                modelPrefs.clearDmModel()
-                (context as? Activity)?.recreate()
-            },
-            enabled = true
-        )
-
-        Spacer(Modifier.height(16.dp))
-        Divider()
-        Spacer(Modifier.height(16.dp))
-
-        Column(modifier = Modifier.alpha(if (isGgufEnabled) 1f else 0.5f)) {
-            ModelSlotView(
-                title = "Motore dei Personaggi (GGUF)",
-                subtitle = "Modello per le risposte dei PG. Disabilitato in modalità 'Solo Gemma'.",
-                model = playerModelState,
-                token = hfToken,
-                viewModel = viewModel,
-                workManager = workManager,
-                onSetUrlClick = { if (isGgufEnabled) showUrlDialogFor = "PLAYER" },
-                onDeleteClick = {
-                    workManager.cancelAllWorkByTag(playerModelState.name)
-                    playerModelState.destination.delete()
-                    modelPrefs.clearPlayerModel()
-                    (context as? Activity)?.recreate()
-                },
-                onDownloadComplete = { modelPrefs.savePlayerModel(it) },
-                enabled = isGgufEnabled
-            )
-        }
-
-        Spacer(Modifier.height(16.dp))
-        Divider()
-        Spacer(Modifier.height(16.dp))
-        // --- MENU PER VOCE MASCHILE ---
         Spacer(Modifier.height(16.dp))
         Text("Velocità Voce", style = MaterialTheme.typography.bodyLarge)
-        Slider(value = speechRate, onValueChange = { speechRate = it }, onValueChangeFinished = { ttsPrefs.saveSpeechRate(speechRate) }, valueRange = 0.5f..2.0f)
+        Slider(
+            value = speechRate,
+            onValueChange = { speechRate = it },
+            onValueChangeFinished = { ttsPrefs.saveSpeechRate(speechRate) },
+            valueRange = 0.5f..2.0f
+        )
         Spacer(Modifier.height(16.dp))
         Text("Tono Voce", style = MaterialTheme.typography.bodyLarge)
-        Slider(value = pitch, onValueChange = { pitch = it }, onValueChangeFinished = { ttsPrefs.savePitch(pitch) }, valueRange = 0.5f..2.0f)
+        Slider(
+            value = pitch,
+            onValueChange = { pitch = it },
+            onValueChangeFinished = { ttsPrefs.savePitch(pitch) },
+            valueRange = 0.5f..2.0f
+        )
 
         Text("Voce Maschile", style = MaterialTheme.typography.bodyLarge)
         VoiceDropdown(
@@ -364,23 +411,17 @@ fun MainEngineScreen(
             colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.error) // Corretto
         ) {
-            Icon(Icons.Filled.DeleteForever, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+            Icon(
+                Icons.Filled.DeleteForever,
+                contentDescription = null,
+                modifier = Modifier.size(ButtonDefaults.IconSize)
+            )
             Spacer(Modifier.size(ButtonDefaults.IconSpacing))
             Text("Cancella Sessione di Gioco")
         }
-
-
-        Spacer(Modifier.weight(1f, fill = false))
-        Spacer(Modifier.height(24.dp))
-        TokenInputSection(
-            token = hfToken,
-            onTokenChange = { hfToken = it },
-            onSaveClick = {
-                themePrefs.saveToken(hfToken)
-                viewModel.log("Token Hugging Face salvato.")
-            }
-        )
     }
+
+
 }
 
 /**
@@ -404,7 +445,9 @@ fun VoiceDropdown(
             onValueChange = {},
             readOnly = true,
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier.menuAnchor().fillMaxWidth(),
+            modifier = Modifier
+                .menuAnchor()
+                .fillMaxWidth(),
             colors = ExposedDropdownMenuDefaults.textFieldColors()
         )
         ExposedDropdownMenu(
@@ -580,69 +623,13 @@ fun android.content.ContentResolver.getFileName(uri: Uri): String? {
     return name
 }
 
-@Preview(showBackground = true, name = "Gestione Motori (Chiaro)")
-@Composable
-private fun MainEngineScreenPreview() {
-    ImmundaNoctisTheme(darkTheme = false) {
-        Surface {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(24.dp)
-            ) {
-                ModelSlotViewPreview(
-                    title = "Motore del Dungeon Master",
-                    subtitle = "Modello Gemma (caricato localmente)",
-                    modelName = "gemma-2b-it-Q4_K_M.gguf",
-                    isDownloaded = true
-                )
-                Divider()
-                ModelSlotViewPreview(
-                    title = "Motore dei Personaggi",
-                    subtitle = "Consigliato: Llama/Mistral (formato GGUF)",
-                    modelName = "Llama-3.1-8B-Q6_K.gguf",
-                    isDownloaded = false
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun ModelSlotViewPreview(
-    title: String,
-    subtitle: String,
-    modelName: String,
-    isDownloaded: Boolean
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(text = title, style = MaterialTheme.typography.titleLarge)
-        Text(text = subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Button(onClick = {}, enabled = !isDownloaded) {
-                Text(if (isDownloaded) "Load $modelName" else "Download $modelName")
-            }
-            Row {
-                IconButton(onClick = {}) { Icon(Icons.Default.AddLink, contentDescription = "URL") }
-                if (isDownloaded) {
-                    IconButton(onClick = {}) { Icon(Icons.Default.Delete, "Cancella", tint = MaterialTheme.colorScheme.error) }
-                }
-            }
-        }
-    }
-}
-
 @Composable
 fun EngineRadioButton(
     text: String,
     description: String,
     selected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    enabledModel: Boolean // La nostra variabile di controllo principale
 ) {
     Row(
         modifier = Modifier
@@ -650,12 +637,27 @@ fun EngineRadioButton(
             .selectable(
                 selected = selected,
                 onClick = onClick,
+                // --- LA SOLUZIONE PRINCIPALE È QUI ---
+                // Diciamo all'intera riga di disabilitarsi se il modello non è abilitato.
+                // Questo bloccherà l'esecuzione di onClick.
+                enabled = enabledModel,
                 role = Role.RadioButton
             )
+            // Ho corretto la logica dell'alpha per un feedback visivo più standard
+            // (1f = opaco, 0.5f = semi-trasparente quando disabilitato)
+            .alpha(if (enabledModel) 1f else 0.5f)
             .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        RadioButton(selected = selected, onClick = onClick)
+        // La tua logica interna ora funziona come previsto, perché se enabledModel è false,
+        // il click viene bloccato a monte dalla Row e non arriva mai qui.
+        val enabledButton = !selected && enabledModel
+
+        RadioButton(
+            selected = selected,
+            onClick = onClick,
+            enabled = enabledButton
+        )
         Spacer(modifier = Modifier.width(16.dp))
         Column {
             Text(text, style = MaterialTheme.typography.bodyMedium)
