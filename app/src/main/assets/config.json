@@ -1,0 +1,174 @@
+{
+  "tags": [
+    {
+      "id": "e963b8d1-7c9f-4e0a-b1e7-c1a9d0f4e6b2",
+      "type": "text_substitution",
+      "regex": "\\{object\\}",
+      "replacement": "un antico tomo rilegato in pelle",
+      "parameters": [],
+      "actor": "DM",
+      "command": null,
+      "replace": true
+    },
+    {
+      "id": "f5a2c1b0-8d3e-4f7c-9a2b-1c3d4e5f6a7b",
+      "type": "text_substitution",
+      "regex": "\\{action\\}",
+      "replacement": "il personaggio si muove furtivamente tra le ombre",
+      "parameters": [],
+      "actor": "PLAYER",
+      "command": null,
+      "replace": true
+    },
+    {
+      "id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+      "type": "prompt_description",
+      "regex": "\\{prompt\\[(\\d+)\\]\\}",
+      "replacement": null,
+      "parameters": [
+        {
+          "name": "param_index",
+          "description": "Indice del parametro all'interno del tag prompt",
+          "default_value": 0
+        },
+        {
+          "name": "prompt_value_0",
+          "description": "Il primo valore per il prompt parametrizzato",
+          "value": "un maestoso drago che vola sopra montagne innevate"
+        },
+        {
+          "name": "prompt_value_1",
+          "description": "Il secondo valore per il prompt parametrizzato",
+          "value": "un eroe che brandisce una spada fiammeggiante"
+        },
+        {
+          "name": "prompt_value_2",
+          "description": "Il terzo valore per il prompt parametrizzato",
+          "value": "un misterioso manufatto antico avvolto in un'aura magica"
+        }
+      ],
+      "actor": "DM",
+      "command": null,
+      "replace": true
+    },
+    {
+      "id": "b2c3d4e5-f6a7-8901-2345-67890abcdef0",
+      "type": "dnd_environment_description",
+      "regex": "\\{ambiente_dnd\\[([^\\]]+)\\]\\}",
+      "replacement": null,
+      "parameters": [
+        {
+          "name": "environment_type",
+          "description": "Il tipo di ambiente da descrivere (es. 'foresta', 'caverna', 'città')",
+          "default_value": "generico"
+        },
+        {
+          "name": "dettagli_aggiuntivi",
+          "description": "Dettagli specifici per l'ambiente",
+          "default_value": ""
+        },
+        {
+          "name": "description_forest",
+          "value": "Ti trovi in una fitta foresta, alberi secolari si ergono imponenti e la luce filtra a stento tra le fronde, creando giochi d'ombra misteriosi. L'aria è umida e si sente il fruscio delle foglie sotto i tuoi piedi."
+        },
+        {
+          "name": "description_cave",
+          "value": "L'oscurità ti avvolge mentre entri nella caverna. L'eco dei tuoi passi si disperde nel silenzio, interrotto solo dal gocciolio dell'acqua. Un leggero odore di umidità e muschio pervade l'aria."
+        }
+      ],
+      "actor": "DM",
+      "command": null,
+      "replace": true
+    },
+    {
+      "id": "c3d4e5f6-a7b8-9012-3456-7890abcdef1",
+      "type": "chat_bot_saluto",
+      "regex": "\\{greeting\\}",
+      "replacement": "Ciao! Sono qui per aiutarti. Come posso assisterti oggi?",
+      "parameters": [],
+      "actor": "NPC",
+      "command": null,
+      "replace": true
+    },
+    {
+      "id": "d4e5f6a7-b8c9-0123-4567-890abcdef2",
+      "type": "game_mechanic",
+      "regex": "\\{strength\\[(base|medium|advanced|master)\\]\\}",
+      "replacement": null,
+      "parameters": [
+        {
+          "name": "challenge_level",
+          "description": "The challenge level for Strength check",
+          "default_value": "base"
+        },
+        {
+          "name": "strength_base_desc",
+          "value": "Perform a basic physical feat, like pushing a small crate."
+        },
+        {
+          "name": "strength_medium_desc",
+          "value": "Attempt to open a rusty, stuck door."
+        },
+        {
+          "name": "strength_advanced_desc",
+          "value": "Try to lift a fallen stone pillar to clear a path."
+        },
+        {
+          "name": "strength_master_desc",
+          "value": "Exert immense power to break free from magical restraints."
+        }
+      ],
+      "actor": "DM",
+      "command": "game_challenge",
+      "replace": true
+    },
+    {
+      "id": "e5f6a7b8-c9d0-1234-5678-90abcdef3",
+      "type": "trigger_audio",
+      "regex": "\\{play_audio\\[([^\\]]+)\\]\\}",
+      "replacement": null,
+      "parameters": [
+        {
+          "name": "audio_file",
+          "description": "The name of the audio file to play",
+          "default_value": "default.mp3"
+        }
+      ],
+      "actor": "DM",
+      "command": "play_audio",
+      "replace": false
+    },
+    {
+      "id": "f6a7b8c9-d0e1-2345-6789-0abcdef4",
+      "type": "generate_image",
+      "regex": "\\{generate_image\\[([^\\]]+)\\]\\}",
+      "replacement": null,
+      "parameters": [
+        {
+          "name": "prompt",
+          "description": "The prompt to send to the stable diffusion model",
+          "default_value": "a default image"
+        }
+      ],
+      "actor": "DM",
+      "command": "generate_image",
+      "replace": false
+    },
+    {
+      "id": "a7b8c9d0-e1f2-3456-7890-abcdef5",
+      "type": "trigger_graphic_effect",
+      "regex": "\\{graphic_effect\\[([^\\]]+)\\]\\}",
+      "replacement": null,
+      "parameters": [
+        {
+          "name": "effect_name",
+          "description": "The name of the graphic effect to trigger",
+          "default_value": "default_effect"
+        }
+      ],
+      "actor": "DM",
+      "command": "trigger_graphic_effect",
+      "replace": false
+    }
+  ]
+}

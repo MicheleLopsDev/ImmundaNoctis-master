@@ -26,7 +26,7 @@ class LlamaPreferences(context: Context) {
         set(value) = prefs.edit().putFloat(KEY_TOP_P, value).apply()
 
     var repeatP: Float
-        get() = prefs.getFloat(KEY_REPEAT_P, 1.15f)
+        get() = prefs.getFloat(KEY_REPEAT_P, 1.75f)
         set(value) = prefs.edit().putFloat(KEY_REPEAT_P, value).apply()
 
     companion object {

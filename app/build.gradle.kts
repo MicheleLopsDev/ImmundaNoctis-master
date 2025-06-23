@@ -62,13 +62,33 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose) // O la versione più recente
     implementation(libs.gson)
     implementation(libs.translate)
+
+    implementation(libs.jackson.module.kotlin) // Ultima versione stabile
+    implementation(libs.jackson.databind)
+
+    implementation(libs.language.id)
+
+
     implementation(project(":llama"))
 
     testImplementation(libs.junit)
+    testImplementation(libs.mockito.core)
+    testImplementation(libs.mockito.kotlin)
+
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+    testImplementation(kotlin("test"))
+
+    // AGGIUNGI QUESTA LINEA per assicurare che le asserzioni JUnit siano disponibili nei test di strumentazione
+    // libs.junit si riferisce a junit:junit:4.13.2 tramite il tuo file version catalogs.
+    androidTestImplementation(libs.junit)
+
+    // Opzionale: Se userai Mockito nei test di strumentazione per mockare classi Android.
+    // Se non intendi mockare Context/AssetManager o altre classi Android in AssetLoadingTest, non è strettamente necessaria.
+    // In caso contrario, aggiungila:
+    // androidTestImplementation(libs.mockito.android) // Assicurati di averla definita in libs.versions.toml
 }
