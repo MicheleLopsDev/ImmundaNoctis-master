@@ -1,26 +1,21 @@
 package io.github.luposolitario.immundanoctis
 
 import android.app.Activity
-import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import android.speech.tts.Voice
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
@@ -30,12 +25,10 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.work.WorkManager
-import io.github.luposolitario.immundanoctis.service.TtsService
 import io.github.luposolitario.immundanoctis.ui.configuration.AddUrlDialog
 import io.github.luposolitario.immundanoctis.ui.configuration.EngineRadioButton
 import io.github.luposolitario.immundanoctis.ui.configuration.ModelSlotView
 import io.github.luposolitario.immundanoctis.ui.configuration.TokenInputSection
-import io.github.luposolitario.immundanoctis.ui.configuration.VoiceDropdown
 import io.github.luposolitario.immundanoctis.ui.theme.ImmundaNoctisTheme
 import io.github.luposolitario.immundanoctis.util.*
 import io.github.luposolitario.immundanoctis.view.MainViewModel
@@ -50,7 +43,6 @@ import androidx.compose.ui.text.style.TextAlign
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.io.FileOutputStream
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.workDataOf
 import io.github.luposolitario.immundanoctis.worker.DownloadWorker
@@ -149,11 +141,19 @@ class ModelActivity : ComponentActivity() {
 
 
 
-        var nLen1 by remember { mutableStateOf(gemmaPrefs.nLen.toString()) }
-        var nLen2 by remember { mutableStateOf(llamaPrefs.nLen.toString()) }
+        var nLen by remember { mutableStateOf(gemmaPrefs.nLen.toString()) }
         var temperature by remember { mutableStateOf(gemmaPrefs.temperature) }
         var topP by remember { mutableStateOf(gemmaPrefs.topP) }
         var topK by remember { mutableStateOf(gemmaPrefs.topK.toString()) }
+
+
+        var nLen_llama by remember { mutableStateOf(llamaPrefs.nLen.toString()) }
+        var temperature_llama by remember { mutableStateOf(gemmaPrefs.temperature) }
+        var topP_llama by remember { mutableStateOf(llamaPrefs.topP) }
+        var topK_llama by remember { mutableStateOf(llamaPrefs.topK.toString()) }
+        var repeatP_llama by remember { mutableStateOf(llamaPrefs.repeatP) }
+
+
 
         // --- NUOVO: Gestore per la selezione di file ---
         val scope = rememberCoroutineScope()
@@ -286,7 +286,6 @@ class ModelActivity : ComponentActivity() {
             }
             Spacer(Modifier.height(16.dp))
             val isGgufEnabled = selectedEngine == EngineOption.MIXED
-
             Column() {
                 // --- MODIFICA: Aggiunti i nuovi parametri a ModelSlotView ---
                 ModelSlotView(
@@ -326,10 +325,10 @@ class ModelActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 OutlinedTextField(
-                    value = nLen1,
+                    value = nLen,
                     onValueChange = { newValue ->
                         if (newValue.all { it.isDigit() }) {
-                            nLen1 = newValue
+                            nLen = newValue
                             newValue.toIntOrNull()?.let { gemmaPrefs.nLen = it }
                         }
                     },
@@ -406,6 +405,7 @@ class ModelActivity : ComponentActivity() {
 
             }
 
+
             Spacer(Modifier.height(16.dp))
             Divider()
             Spacer(Modifier.height(16.dp))
@@ -443,10 +443,10 @@ class ModelActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 OutlinedTextField(
-                    value = nLen2,
+                    value = nLen_llama,
                     onValueChange = { newValue ->
                         if (newValue.all { it.isDigit() }) {
-                            nLen2 = newValue
+                            nLen_llama = newValue
                             newValue.toIntOrNull()?.let { llamaPrefs.nLen = it }
                         }
                     },
@@ -455,6 +455,94 @@ class ModelActivity : ComponentActivity() {
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     enabled = isGgufEnabled
                 )
+
+                Spacer(Modifier.height(16.dp))
+                Divider()
+                Spacer(Modifier.height(16.dp))
+
+                Text("Temperatura (Creatività)", style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    "Valori più alti (es. 0.9) rendono le risposte più creative, valori bassi (es. 0.2) le rendono più coerenti. Impatto su CPU/Memoria: Nullo.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Slider(
+                    value = temperature_llama,
+                    onValueChange = { temperature_llama = it },
+                    onValueChangeFinished = { llamaPrefs.temperature = temperature_llama },
+                    valueRange = 0.0f..1.0f
+                )
+                Text(
+                    String.format("%.2f", temperature_llama),
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.End
+                )
+
+                Spacer(Modifier.height(16.dp))
+
+                Text("Top-P (Campionamento Nucleo)", style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    "Un valore alto (es. 0.95) considera più parole, uno basso è più restrittivo. Impatto su CPU/Memoria: Basso.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Slider(
+                    value = topP_llama,
+                    onValueChange = { topP_llama = it },
+                    onValueChangeFinished = { llamaPrefs.topP = topP_llama },
+                    valueRange = 0.0f..1.0f
+                )
+                Text(
+                    String.format("%.2f", topP_llama),
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.End
+                )
+
+                Spacer(Modifier.height(16.dp))
+
+                Text("Repeat-p (Penalita di ripetizione)", style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    "Il parametro Repeat-P (Repeat Penalty) riduce la tendenza del modello a ripetere frasi o parole, con un range efficace tra 1.0 (nessuna penalità) e 2.0 (forte penalità) su CPU/Memoria : impatto trascurabile.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Slider(
+                    value = repeatP_llama,
+                    onValueChange = { repeatP_llama = it },
+                    onValueChangeFinished = { llamaPrefs.repeatP = repeatP_llama },
+                    valueRange = 0.0f..2.0f
+                )
+                Text(
+                    String.format("%.2f", repeatP_llama),
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.End
+                )
+
+                Spacer(Modifier.height(16.dp))
+
+                Text(
+                    "Top-K (Campionamento Vocabolario)",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                Text(
+                    "Considera solo le K parole più probabili. Un valore alto (es. 50) offre più varietà, uno basso (es. 10) è più sicuro. Impatto su CPU/Memoria: Basso.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                OutlinedTextField(
+                    value = topK_llama,
+                    onValueChange = { newValue ->
+                        if (newValue.all { it.isDigit() }) {
+                            topK_llama = newValue
+                            newValue.toIntOrNull()?.let { gemmaPrefs.topK = it }
+                        }
+                    },
+                    label = { Text("Valore di Top-K") },
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                )
+
+
             }
 
             Spacer(Modifier.height(16.dp))
