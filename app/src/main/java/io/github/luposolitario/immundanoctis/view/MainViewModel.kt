@@ -18,7 +18,7 @@ import io.github.luposolitario.immundanoctis.util.EnginePreferences
 import io.github.luposolitario.immundanoctis.util.GameStateManager
 import io.github.luposolitario.immundanoctis.util.SavePreferences
 import io.github.luposolitario.immundanoctis.util.getAppSpecificDirectory
-import kotlinx.coroutines.Deferred // AGGIUNGI QUESTA LINEA
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -41,7 +41,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicLong
-
+import io.github.luposolitario.immundanoctis.util.ThemePreferences // Importa ThemePreferences
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val tag: String? = this::class.simpleName
@@ -63,6 +63,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val gameStateManager = GameStateManager(application)
     private val enginePreferences = EnginePreferences(application)
+    private val themePreferences = ThemePreferences(application) // Istanzia ThemePreferences
 
     private val savePreferences = SavePreferences(application)
     private val _chatMessages = MutableStateFlow<List<ChatMessage>>(emptyList())
@@ -83,7 +84,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _logMessages = MutableStateFlow<List<String>>(listOf("ViewModel Inizializzato."))
     val logMessages: StateFlow<List<String>> = _logMessages.asStateFlow()
 
-    private val _conversationTargetId = MutableStateFlow(CharacterID.DM)
+    // Inizializza _conversationTargetId con l'ultimo personaggio selezionato, se esiste
+    private val _conversationTargetId = MutableStateFlow(
+        themePreferences.getLastSelectedCharacterId() ?: CharacterID.DM
+    )
     val conversationTargetId: StateFlow<String> = _conversationTargetId.asStateFlow()
 
     private val _saveChatEvent = MutableSharedFlow<String>()
@@ -132,6 +136,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         if (savePreferences.isAutoSaveEnabled) {
             loadChatFromAutoSave()
+        }
+        // NUOVO: Imposta il target di conversazione al caricamento della sessione se l'ID salvato è valido
+        val lastSavedId = themePreferences.getLastSelectedCharacterId()
+        if (lastSavedId != null && session.characters.any { it.id == lastSavedId }) {
+            _conversationTargetId.value = lastSavedId
+            log("Ripristinato target di conversazione: $lastSavedId")
+        } else {
+            // Se non c'è un ID salvato o non è valido, usa il default (DM)
+            _conversationTargetId.value = CharacterID.DM
+            log("Nessun target di conversazione salvato valido. Impostato su DM.")
         }
     }
 
@@ -227,14 +241,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val originalMessage = _chatMessages.value.find { it.id == messageId } ?: return@launch
             updateMessage(messageId) { it.copy(isTranslating = true) }
             try {
-                // Non controlliamo più isModelReady qui, translate() gestirà l'eccezione se non è pronto.
                 val lines = originalMessage.text.split('\n')
-                // Passiamo la lingua di destinazione, che per ora è sempre l'italiano per la UI
                 val translatedLines = lines.map { line ->
                     if (line.isBlank()) {
                         async { "" }
                     } else {
-                        async { translationEngine.translate(line, targetLang = Locale.ITALIAN.language) } // Chiamata aggiornata
+                        async { translationEngine.translate(line, targetLang = Locale.ITALIAN.language) }
                     }
                 }.awaitAll()
                 val finalTranslation = translatedLines.joinToString("\n")
@@ -366,8 +378,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    // MODIFICATA: Ora salva l'ID del personaggio selezionato nelle preferenze
     fun setConversationTarget(characterId: String) {
         _conversationTargetId.value = characterId
+        themePreferences.saveLastSelectedCharacterId(characterId) // Salva l'ID
         log("Ora stai parlando con: $characterId")
     }
 
