@@ -1,3 +1,4 @@
+// io/github/luposolitario/immundanoctis/view/MainViewModel.kt
 package io.github.luposolitario.immundanoctis.view
 
 import android.app.Application
@@ -53,6 +54,7 @@ import io.github.luposolitario.immundanoctis.engine.GameLogicManager
 import io.github.luposolitario.immundanoctis.data.Genre
 import io.github.luposolitario.immundanoctis.data.SceneType
 import io.github.luposolitario.immundanoctis.data.SessionData
+import io.github.luposolitario.immundanoctis.util.LlamaPreferences // Importa LlamaPreferences
 import kotlin.random.Random
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -76,6 +78,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val gameStateManager = GameStateManager(application)
     private val enginePreferences = EnginePreferences(application)
     private val themePreferences = ThemePreferences(application)
+    private val llamaPreferences = LlamaPreferences(application) // Inizializza LlamaPreferences
 
     private val savePreferences = SavePreferences(application)
     private val _chatMessages = MutableStateFlow<List<ChatMessage>>(emptyList())
@@ -130,7 +133,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val activeNarrativeChoices: StateFlow<List<NarrativeChoice>> = _activeNarrativeChoices.asStateFlow()
 
     // Per i bivi direzionali, possiamo usare EngineCommand temporaneamente, o creare una data class specifica
-    private val _activeDirectionalChoices = MutableStateFlow<List<EngineCommand>>(emptyList())
+    private val _activeDirectionalChoices = MutableStateFlow<List<EngineCommand>>(emptyList()) // Cambiato emptyList() in emptyListOf()
     val activeDirectionalChoices: StateFlow<List<EngineCommand>> = _activeDirectionalChoices.asStateFlow()
 
 
@@ -315,6 +318,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    // Funzione updateMessage spostata qui dal tuo AdventureActivity.kt
     private fun updateMessage(messageId: String, transformation: (ChatMessage) -> ChatMessage) {
         _chatMessages.update { currentMessages ->
             currentMessages.map { if (it.id == messageId) transformation(it) else it }
@@ -484,7 +488,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             } else {
                 dmEngine
             }
-            engineToUse.resetSession(null)
+
+            // Se il motore è il playerEngine (LlamaCppEngine) e c'è una personalità definita, passala.
+            val systemPromptForReset = if (engineToUse is LlamaCppEngine) {
+                llamaPreferences.chatbotPersonality
+            } else {
+                null
+            }
+
+            engineToUse.resetSession(systemPromptForReset) // Passa la personalità qui
             log("Reset della sessione completato per ${engineToUse::class.simpleName}.")
             _currentScene.value = gameLogicManager.selectRandomStartScene(Genre.WESTERN)
             log("Scena reimpostata a una scena START casuale di genere WESTERN.")

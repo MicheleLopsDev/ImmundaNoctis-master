@@ -1,3 +1,4 @@
+// io/github/luposolitario/immundanoctis/util/LlamaPreferences.kt
 package io.github.luposolitario.immundanoctis.util
 
 import android.content.Context
@@ -29,6 +30,12 @@ class LlamaPreferences(context: Context) {
         get() = prefs.getFloat(KEY_REPEAT_P, 1.25f)
         set(value) = prefs.edit().putFloat(KEY_REPEAT_P, value).apply()
 
+    // NUOVO: Personalità del chatbot Llama/GGUF
+    var chatbotPersonality: String?
+        get() = prefs.getString(KEY_CHATBOT_PERSONALITY, null)
+        set(value) = prefs.edit().putString(KEY_CHATBOT_PERSONALITY, value).apply()
+
+
     companion object {
         private const val PREFS_NAME = "llama_preferences"
         private const val KEY_N_LEN = "llama_n_len"
@@ -36,5 +43,7 @@ class LlamaPreferences(context: Context) {
         private const val KEY_TOP_K = "llama_top_k"
         private const val KEY_TOP_P = "llama_top_p"
         private const val KEY_REPEAT_P = "llama_repeat_p"
+        // NUOVA CHIAVE:
+        private const val KEY_CHATBOT_PERSONALITY = "llama_chatbot_personality"
     }
 }
