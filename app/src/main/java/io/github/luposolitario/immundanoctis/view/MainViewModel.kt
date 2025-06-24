@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
 import io.github.luposolitario.immundanoctis.data.CharacterID
+import io.github.luposolitario.immundanoctis.data.CharacterType
 import io.github.luposolitario.immundanoctis.data.ChatMessage
 import io.github.luposolitario.immundanoctis.data.GameCharacter
 import io.github.luposolitario.immundanoctis.engine.GemmaEngine
@@ -41,7 +42,9 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicLong
-import io.github.luposolitario.immundanoctis.util.ThemePreferences // Importa ThemePreferences
+import io.github.luposolitario.immundanoctis.util.ThemePreferences
+import io.github.luposolitario.immundanoctis.util.StringTagParser // <-- Importa il parser
+import io.github.luposolitario.immundanoctis.data.EngineCommand // <-- Importa EngineCommand
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val tag: String? = this::class.simpleName
@@ -63,7 +66,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val gameStateManager = GameStateManager(application)
     private val enginePreferences = EnginePreferences(application)
-    private val themePreferences = ThemePreferences(application) // Istanzia ThemePreferences
+    private val themePreferences = ThemePreferences(application)
 
     private val savePreferences = SavePreferences(application)
     private val _chatMessages = MutableStateFlow<List<ChatMessage>>(emptyList())
@@ -84,7 +87,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _logMessages = MutableStateFlow<List<String>>(listOf("ViewModel Inizializzato."))
     val logMessages: StateFlow<List<String>> = _logMessages.asStateFlow()
 
-    // Inizializza _conversationTargetId con l'ultimo personaggio selezionato, se esiste
     private val _conversationTargetId = MutableStateFlow(
         themePreferences.getLastSelectedCharacterId() ?: CharacterID.DM
     )
@@ -103,6 +105,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val playerEngine: InferenceEngine
     private val translationEngine = TranslationEngine()
 
+    // PASSO 1 ATOMICO: Istanziazione del Parser
+    private lateinit var stringTagParser: StringTagParser // Dichiarazione
+
     init {
         if (useGemmaForAll) {
             log("Modalità Solo Gemma ATTIVA.")
@@ -113,6 +118,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             dmEngine = GemmaEngine(application.applicationContext)
             playerEngine = LlamaCppEngine(application.applicationContext)
         }
+        stringTagParser = StringTagParser(application.applicationContext) // Inizializzazione
     }
 
     val activeTokenInfo: StateFlow<TokenInfo> = conversationTargetId.flatMapLatest { targetId ->
@@ -137,13 +143,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (savePreferences.isAutoSaveEnabled) {
             loadChatFromAutoSave()
         }
-        // NUOVO: Imposta il target di conversazione al caricamento della sessione se l'ID salvato è valido
         val lastSavedId = themePreferences.getLastSelectedCharacterId()
         if (lastSavedId != null && session.characters.any { it.id == lastSavedId }) {
             _conversationTargetId.value = lastSavedId
             log("Ripristinato target di conversazione: $lastSavedId")
         } else {
-            // Se non c'è un ID salvato o non è valido, usa il default (DM)
             _conversationTargetId.value = CharacterID.DM
             log("Nessun target di conversazione salvato valido. Impostato su DM.")
         }
@@ -299,15 +303,31 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    // PASSO 2 & 3 ATOMICO: Parsing Input Giocatore e Output LLM
     fun sendMessage(text: String, conversationTargetId: String) {
         if (_isGenerating.value) {
             log("Generazione già in corso, richiesta ignorata.")
             return
         }
 
-        val userMessage = ChatMessage(authorId = CharacterID.HERO, position = messageCounter.getAndIncrement(), text = text)
+        val heroCharacter = _gameCharacters.value.find { it.id == CharacterID.HERO }
+        val playerLanguage = heroCharacter?.language ?: Locale.ENGLISH.language // Lingua del giocatore
+
+        // Parsing dell'input del giocatore
+        val (parsedPlayerText, playerCommands) = stringTagParser.parseAndReplaceWithCommands(
+            inputString = text,
+            currentActor = CharacterType.PLAYER,
+            lang = playerLanguage
+        )
+
+        val userMessage = ChatMessage(authorId = CharacterID.HERO, position = messageCounter.getAndIncrement(), text = parsedPlayerText)
         _chatMessages.update { it + userMessage }
         autoSaveChatIfEnabled()
+
+        // PASSO 4 ATOMICO: Gestione Comandi Iniziale (Stub) per comandi del giocatore
+        viewModelScope.launch {
+            processCommands(playerCommands)
+        }
 
         val targetId = _conversationTargetId.value
         var engineToUse = dmEngine
@@ -324,7 +344,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _streamingText.value = ""
             _respondingCharacterId.value = targetId
             try {
-                engineToUse.sendMessage(text)
+                // Invia il testo PARSATO all'engine
+                engineToUse.sendMessage(parsedPlayerText)
                     .collect { token ->
                         _streamingText.update { it + token }
                     }
@@ -333,11 +354,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 log("Errore: ${e.message}")
             } finally {
                 log("Generazione per '$targetId' completata o interrotta.")
-                if (_streamingText.value.isNotBlank()) {
-                    val finalMessage = ChatMessage(position = messageCounter.getAndIncrement(), authorId = targetId, text = _streamingText.value)
+
+                // PASSO 3 ATOMICO: Parsing Output LLM
+                val rawLLMResponse = _streamingText.value
+                val respondingCharacter = _gameCharacters.value.find { it.id == targetId }
+                val llmLanguage = respondingCharacter?.language ?: Locale.ITALIAN.language // Lingua dell'LLM (DM/NPC)
+
+                val (parsedLLMText, llmCommands) = stringTagParser.parseAndReplaceWithCommands(
+                    inputString = rawLLMResponse,
+                    currentActor = respondingCharacter?.type, // Passa il tipo di attore corretto
+                    lang = llmLanguage
+                )
+
+                if (parsedLLMText.isNotBlank()) {
+                    val finalMessage = ChatMessage(position = messageCounter.getAndIncrement(), authorId = targetId, text = parsedLLMText)
                     _chatMessages.update { it + finalMessage }
                     autoSaveChatIfEnabled()
                 }
+
+                // PASSO 4 ATOMICO: Gestione Comandi Iniziale (Stub) per comandi dell'LLM
+                viewModelScope.launch {
+                    processCommands(llmCommands)
+                }
+
                 _isGenerating.value = false
                 _streamingText.value = ""
                 _respondingCharacterId.value = null
@@ -378,10 +417,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // MODIFICATA: Ora salva l'ID del personaggio selezionato nelle preferenze
     fun setConversationTarget(characterId: String) {
         _conversationTargetId.value = characterId
-        themePreferences.saveLastSelectedCharacterId(characterId) // Salva l'ID
+        themePreferences.saveLastSelectedCharacterId(characterId)
         log("Ora stai parlando con: $characterId")
     }
 
@@ -400,6 +438,49 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
             engineToUse.resetSession(null)
             log("Reset della sessione completato per ${engineToUse::class.simpleName}.")
+        }
+    }
+
+    // PASSO 4 ATOMICO: Gestione Comandi Iniziale (Stub)
+    private suspend fun processCommands(commands: List<io.github.luposolitario.immundanoctis.data.EngineCommand>) {
+        if (commands.isEmpty()) {
+            return
+        }
+        log("Processing commands: ${commands.map { it.commandName }}")
+        commands.forEach { command ->
+            Log.d(tag, "Comando ricevuto: ${command.commandName} con parametri: ${command.parameters}")
+            when (command.commandName) {
+                "play_audio" -> {
+                    val audioFile = command.parameters["captured_value_from_regex"] as? String
+                    log("DEBUG COMMAND: Riproduci audio: $audioFile")
+                    // Qui andrebbe la logica per riprodurre l'audio
+                }
+                "generate_image" -> {
+                    val prompt = command.parameters["captured_value_from_regex"] as? String
+                    log("DEBUG COMMAND: Genera immagine con prompt: $prompt")
+                    // Qui andrebbe la logica per generare un'immagine con Stable Diffusion
+                }
+                "trigger_graphic_effect" -> {
+                    val effectName = command.parameters["captured_value_from_regex"] as? String
+                    log("DEBUG COMMAND: Attiva effetto grafico: $effectName")
+                    // Qui andrebbe la logica per attivare un effetto grafico
+                }
+                "game_challenge" -> {
+                    val abilityType = command.parameters["ability_type"] as? String
+                    val challengeLevel = command.parameters["captured_value_from_regex"] as? String
+                    log("DEBUG COMMAND: Avvia sfida di gioco: Tipo=${abilityType}, Livello=${challengeLevel}")
+                    // Qui andrebbe la logica per gestire una prova di abilità
+                }
+                "narrative_choice" -> {
+                    val choiceId = command.parameters["captured_value_from_regex"] as? String
+                    val choiceText = command.parameters["choice_text"] as? String
+                    log("DEBUG COMMAND: Avvia scelta narrativa: ID=${choiceId}, Testo='${choiceText}'")
+                    // Qui andrebbe la logica per presentare una scelta narrativa
+                }
+                else -> {
+                    log("DEBUG COMMAND: Comando sconosciuto: ${command.commandName}")
+                }
+            }
         }
     }
 }

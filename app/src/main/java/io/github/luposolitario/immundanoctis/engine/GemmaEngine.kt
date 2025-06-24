@@ -38,7 +38,7 @@ class GemmaEngine(private val context: Context) : InferenceEngine {
     override val tokenInfo: StateFlow<TokenInfo> = _tokenInfo.asStateFlow()
 
     companion object {
-        const val TOKEN_LIMIT_REACHED_SIGNAL = "[TOKEN_LIMIT_REACHED]"
+        const val TOKEN_LIMIT_REACHED_SIGNAL = "{TOKEN_LIMIT_REACHED}"
     }
 
     override suspend fun load(modelPath: String) {

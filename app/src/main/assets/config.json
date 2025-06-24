@@ -6,7 +6,7 @@
       "regex": "\\{object\\}",
       "replacement": "un antico tomo rilegato in pelle",
       "parameters": [],
-      "actor": "DM",
+      "actor": "ANY",
       "command": null,
       "replace": true
     },
@@ -47,7 +47,7 @@
           "value": "un misterioso manufatto antico avvolto in un'aura magica"
         }
       ],
-      "actor": "DM",
+      "actor": "ANY",
       "command": null,
       "replace": true
     },
@@ -76,7 +76,7 @@
           "value": "L'oscurità ti avvolge mentre entri nella caverna. L'eco dei tuoi passi si disperde nel silenzio, interrotto solo dal gocciolio dell'acqua. Un leggero odore di umidità e muschio pervade l'aria."
         }
       ],
-      "actor": "DM",
+      "actor": "ANY",
       "command": null,
       "replace": true
     },
@@ -86,7 +86,7 @@
       "regex": "\\{greeting\\}",
       "replacement": "Ciao! Sono qui per aiutarti. Come posso assisterti oggi?",
       "parameters": [],
-      "actor": "NPC",
+      "actor": "ANY",
       "command": null,
       "replace": true
     },
@@ -118,7 +118,103 @@
           "value": "Exert immense power to break free from magical restraints."
         }
       ],
-      "actor": "DM",
+      "actor": "ANY",
+      "command": "game_challenge",
+      "replace": true
+    },
+    {
+      "id": "d4e5f6a7-b8c9-0123-4567-890abcdef_dexterity",
+      "type": "game_mechanic",
+      "regex": "\\{dexterity\\[(base|medium|advanced|master)\\]\\}",
+      "replacement": null,
+      "parameters": [
+        {
+          "name": "challenge_level",
+          "description": "The challenge level for Dexterity check",
+          "default_value": "base"
+        },
+        {
+          "name": "dexterity_base_desc",
+          "value": "Perform a basic agility feat, like balancing on a narrow ledge."
+        },
+        {
+          "name": "dexterity_medium_desc",
+          "value": "Attempt to pick a complex lock silently."
+        },
+        {
+          "name": "dexterity_advanced_desc",
+          "value": "Dodge a barrage of incoming arrows with incredible speed."
+        },
+        {
+          "name": "dexterity_master_desc",
+          "value": "Navigate a field of magical traps without triggering any."
+        }
+      ],
+      "actor": "ANY",
+      "command": "game_challenge",
+      "replace": true
+    },
+    {
+      "id": "d4e5f6a7-b8c9-0123-4567-890abcdef_intelligence",
+      "type": "game_mechanic",
+      "regex": "\\{intelligence\\[(base|medium|advanced|master)\\]\\}",
+      "replacement": null,
+      "parameters": [
+        {
+          "name": "challenge_level",
+          "description": "The challenge level for Intelligence check",
+          "default_value": "base"
+        },
+        {
+          "name": "intelligence_base_desc",
+          "value": "Recall a basic historical fact about the region."
+        },
+        {
+          "name": "intelligence_medium_desc",
+          "value": "Decipher a cryptic ancient riddle or puzzle."
+        },
+        {
+          "name": "intelligence_advanced_desc",
+          "value": "Unravel a complex magical enigma or obscure prophecy."
+        },
+        {
+          "name": "intelligence_master_desc",
+          "value": "Solve a multi-layered mystery with limited clues."
+        }
+      ],
+      "actor": "ANY",
+      "command": "game_challenge",
+      "replace": true
+    },
+    {
+      "id": "d4e5f6a7-b8c9-0123-4567-890abcdef_spellcraft",
+      "type": "game_mechanic",
+      "regex": "\\{spellcraft\\[(base|medium|advanced|master)\\]\\}",
+      "replacement": null,
+      "parameters": [
+        {
+          "name": "challenge_level",
+          "description": "The challenge level for Spellcraft check",
+          "default_value": "base"
+        },
+        {
+          "name": "spellcraft_base_desc",
+          "value": "Identify the basic magical aura of an item."
+        },
+        {
+          "name": "spellcraft_medium_desc",
+          "value": "Attempt to dispel a minor magical ward."
+        },
+        {
+          "name": "spellcraft_advanced_desc",
+          "value": "Counter a powerful enemy spell in the heat of battle."
+        },
+        {
+          "name": "spellcraft_master_desc",
+          "value": "Manipulate raw arcane energy to alter the fabric of reality."
+        }
+      ],
+      "actor": "ANY",
       "command": "game_challenge",
       "replace": true
     },
@@ -134,7 +230,7 @@
           "default_value": "default.mp3"
         }
       ],
-      "actor": "DM",
+      "actor": "ANY",
       "command": "play_audio",
       "replace": false
     },
@@ -150,7 +246,7 @@
           "default_value": "a default image"
         }
       ],
-      "actor": "DM",
+      "actor": "ANY",
       "command": "generate_image",
       "replace": false
     },
@@ -166,8 +262,83 @@
           "default_value": "default_effect"
         }
       ],
-      "actor": "DM",
+      "actor": "ANY",
       "command": "trigger_graphic_effect",
+      "replace": false
+    },
+    {
+      "id": "b8c8d1e1-f2g3-7890-8901-bcdefg6",
+      "type": "trigger_audio",
+      "regex": "\\{TOKEN_LIMIT_REACHED\\}",
+      "replacement": "",
+      "parameters": [
+        {
+          "name": "audio_file",
+          "value": "bell_chime.mp3"
+        }
+      ],
+      "actor": "ANY",
+      "command": "play_audio",
+      "replace": false
+    },
+    {
+      "id": "c1d2e3f4-a5b6-7890-1234-567890c01",
+      "type": "directional_choice",
+      "regex": "\\{left_choice\\[([^\\]]+)\\]\\}",
+      "replacement": null,
+      "parameters": [
+        { "name": "direction", "value": "LEFT" },
+        { "name": "color_hex", "value": "#FF0000" },
+        { "name": "choice_text", "value": "Vai a sinistra" },
+        { "name": "next_scene_id", "value": null }
+      ],
+      "actor": "DM",
+      "command": "display_directional_button",
+      "replace": false
+    },
+    {
+      "id": "c1d2e3f4-a5b6-7890-1234-567890c02",
+      "type": "directional_choice",
+      "regex": "\\{right_choice\\[([^\\]]+)\\]\\}",
+      "replacement": null,
+      "parameters": [
+        { "name": "direction", "value": "RIGHT" },
+        { "name": "color_hex", "value": "#008000" },
+        { "name": "choice_text", "value": "Vai a destra" },
+        { "name": "next_scene_id", "value": null }
+      ],
+      "actor": "DM",
+      "command": "display_directional_button",
+      "replace": false
+    },
+    {
+      "id": "c1d2e3f4-a5b6-7890-1234-567890c03",
+      "type": "directional_choice",
+      "regex": "\\{forward_choice\\[([^\\]]+)\\]\\}",
+      "replacement": null,
+      "parameters": [
+        { "name": "direction", "value": "FORWARD" },
+        { "name": "color_hex", "value": "#0000FF" },
+        { "name": "choice_text", "value": "Avanti" },
+        { "name": "next_scene_id", "value": null }
+      ],
+      "actor": "DM",
+      "command": "display_directional_button",
+      "replace": false
+    },
+    {
+      "id": "c1d2e3f4-a5b6-7890-1234-567890c04",
+      "type": "directional_choice",
+      "regex": "\\{back_choice\\[([^\\]]+)\\]\\}",
+      "replacement": null,
+      "parameters": [
+        { "name": "direction", "value": "BACK" },
+        { "name": "color_hex", "value": "#FFFF00" },
+        { "name": "choice_text", "value": "Indietro" },
+        { "name": "next_scene_id", "value": null }
+      ],
+      "actor": "DM",
+      "command": "display_directional_button",
       "replace": false
     }
   ]

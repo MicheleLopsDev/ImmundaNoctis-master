@@ -28,7 +28,7 @@ class StringTagParserTest {
               "regex": "\\{object\\}",
               "replacement": "un antico tomo rilegato in pelle",
               "parameters": [],
-              "actor": "DM",
+              "actor": "ANY",
               "command": null,
               "replace": true
             },
