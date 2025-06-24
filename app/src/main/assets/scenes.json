@@ -1,0 +1,196 @@
+{
+  "scenes": [
+    {
+      "id": "western_start_1",
+      "sceneType": "START",
+      "genre": "WESTERN",
+      "challengeLevel": "BASE",
+      "narrativeText": "Il sole del mattino ti acceca mentre metti piede a Redemption Gulch. L'aria è impregnata di polvere e la lontana melodia di un pianoforte da saloon ti accoglie. Un vecchio con la barba lunga ti osserva da sotto il cappello. {dexterity[base]}",
+      "challenges": [
+        {
+          "id": "ws1-c1-uuid",
+          "abilityType": "dexterity",
+          "description": "Evitare un carretto che deraglia pericolosamente",
+          "successText": "Con un salto agile, eviti il carretto per un soffio.",
+          "failureText": "Il carretto ti sfiora, facendoti perdere l'equilibrio."
+        }
+      ],
+      "choices": [],
+      "directionalChoicesTags": "{forward_choice[western_transition_1]}"
+    },
+    {
+      "id": "western_start_2",
+      "sceneType": "START",
+      "genre": "WESTERN",
+      "challengeLevel": "BASE",
+      "narrativeText": "Il fumo acre di un incendio lontano riempie l'orizzonte. Il tuo cavallo è stanco, e tu hai sete. Una fattoria brucia in lontananza. Sembra che i guai non manchino mai in queste terre. {intelligence[base]}",
+      "challenges": [
+        {
+          "id": "ws2-c1-uuid",
+          "abilityType": "intelligence",
+          "description": "Capire la direzione del vento per evitare il fumo",
+          "successText": "Analizzi la direzione del fumo e trovi un percorso più sicuro.",
+          "failureText": "Il fumo ti avvolge, facendoti tossire e rallentando il passo."
+        }
+      ],
+      "choices": [],
+      "directionalChoicesTags": "{right_choice[western_transition_3]}"
+    },
+    {
+      "id": "western_start_3",
+      "sceneType": "START",
+      "genre": "WESTERN",
+      "challengeLevel": "MEDIUM",
+      "narrativeText": "Sei sulle tracce di un gruppo di fuorilegge. Il sentiero è tortuoso e roccioso, perfetto per un'imboscata. Devi essere cauto. Il tuo fucile è carico, ma la prudenza è d'obbligo. {strength[medium]}",
+      "challenges": [
+        {
+          "id": "ws3-c1-uuid",
+          "abilityType": "strength",
+          "description": "Scalare una parete rocciosa per avere una visuale migliore",
+          "successText": "Raggiungi la cima senza fatica, ottenendo un vantaggio tattico.",
+          "failureText": "Scivoli a metà strada, perdendo tempo prezioso."
+        }
+      ],
+      "choices": [],
+      "directionalChoicesTags": "{forward_choice[western_transition_4]}"
+    },
+    {
+      "id": "western_transition_1",
+      "sceneType": "TRANSITION",
+      "genre": "WESTERN",
+      "challengeLevel": "MEDIUM",
+      "narrativeText": "Entri nel saloon di Redemption Gulch. La musica è chiassosa e l'aria densa di fumo di sigaro. Molti volti amichevoli, ma anche alcuni loschi figuri al tavolo da poker. {intelligence[medium]} {back_choice[western_start_1]} {left_choice[western_transition_2]} {right_choice[western_transition_3]}",
+      "challenges": [
+        {
+          "id": "wt1-c1-uuid",
+          "abilityType": "intelligence",
+          "description": "Capire chi comanda nel saloon",
+          "successText": "Osservi attentamente e individui subito il leader del gruppo.",
+          "failureText": "I volti si confondono, non riesci a capire le dinamiche."
+        }
+      ],
+      "choices": [],
+      "directionalChoicesTags": "{back_choice[western_start_1]} {left_choice[western_transition_2]} {right_choice[western_transition_3]}"
+    },
+    {
+      "id": "western_transition_2",
+      "sceneType": "TRANSITION",
+      "genre": "WESTERN",
+      "challengeLevel": "ADVANCED",
+      "narrativeText": "Ti ritrovi in un vicolo buio dietro il saloon. Un gatto nero attraversa la tua strada. Senti dei passi affrettati e un tonfo. Sembra che qualcuno abbia lasciato cadere qualcosa in fretta. {dexterity[advanced]} {back_choice[western_transition_1]} {forward_choice[western_ending_1]}",
+      "challenges": [
+        {
+          "id": "wt2-c1-uuid",
+          "abilityType": "dexterity",
+          "description": "Raccogliere l'oggetto senza fare rumore",
+          "successText": "Con un movimento fluido, afferri l'oggetto, una piccola borsa di monete.",
+          "failureText": "Il rumore dei tuoi stivali echeggia, allertando chiunque nelle vicinanze."
+        }
+      ],
+      "choices": [],
+      "directionalChoicesTags": "{back_choice[western_transition_1]} {forward_choice[western_ending_1]}"
+    },
+    {
+      "id": "western_transition_3",
+      "sceneType": "TRANSITION",
+      "genre": "WESTERN",
+      "challengeLevel": "MEDIUM",
+      "narrativeText": "La polvere si alza sulla strada mentre un cavallo imbizzarrito galoppa verso di te. La folla si disperde, ma una bambina è rimasta in mezzo alla strada. Devi agire in fretta! {strength[medium]} {back_choice[western_transition_1]} {forward_choice[western_transition_5]}",
+      "challenges": [
+        {
+          "id": "wt3-c1-uuid",
+          "abilityType": "strength",
+          "description": "Fermare il cavallo imbizzarrito",
+          "successText": "Con una presa ferrea, afferri le briglie e fermi il cavallo appena in tempo.",
+          "failureText": "Il cavallo ti travolge, ma la bambina è salva per un pelo."
+        }
+      ],
+      "choices": [],
+      "directionalChoicesTags": "{back_choice[western_transition_1]} {forward_choice[western_transition_5]}"
+    },
+    {
+      "id": "western_transition_4",
+      "sceneType": "TRANSITION",
+      "genre": "WESTERN",
+      "challengeLevel": "ADVANCED",
+      "narrativeText": "Sei di fronte all'ingresso di una vecchia miniera abbandonata. Si dice che sia infestata dagli spiriti degli antichi cercatori d'oro. Un vento gelido soffia dall'interno, portando un debole lamento. {spellcraft[advanced]} {back_choice[western_start_3]} {left_choice[western_ending_2]}",
+      "challenges": [
+        {
+          "id": "wt4-c1-uuid",
+          "abilityType": "spellcraft",
+          "description": "Percepire le presenze all'interno della miniera",
+          "successText": "La tua sensibilità magica ti permette di avvertire la natura e la posizione degli spiriti.",
+          "failureText": "Un'onda di terrore ti assale, accecando i tuoi sensi magici."
+        }
+      ],
+      "choices": [],
+      "directionalChoicesTags": "{back_choice[western_start_3]} {left_choice[western_ending_2]}"
+    },
+    {
+      "id": "western_transition_5",
+      "sceneType": "TRANSITION",
+      "genre": "WESTERN",
+      "challengeLevel": "MASTER",
+      "narrativeText": "Sei nel covo dei fuorilegge! Sono in tanti e ti hanno accerchiato. La situazione è disperata, ma non sei uno che si arrende. Il loro leader, Black Bart, ti punta la pistola. {spellcraft[master]} {back_choice[western_transition_3]} {forward_choice[western_ending_3]}",
+      "challenges": [
+        {
+          "id": "wt5-c1-uuid",
+          "abilityType": "spellcraft",
+          "description": "Lanciare un incantesimo illusorio per confonderli",
+          "successText": "Un'illusione abbagliante li disorienta, dandoti un vantaggio cruciale.",
+          "failureText": "L'incantesimo fallisce, e ti ritrovi in una posizione ancora più vulnerabile."
+        }
+      ],
+      "choices": [],
+      "directionalChoicesTags": "{back_choice[western_transition_3]} {forward_choice[western_ending_3]}"
+    },
+    {
+      "id": "western_transition_6",
+      "sceneType": "TRANSITION",
+      "genre": "WESTERN",
+      "challengeLevel": "ADVANCED",
+      "narrativeText": "Hai scoperto una cassa piena d'oro nascosta nel vecchio pozzo. Ma è protetta da un meccanismo complesso. Devi disattivarlo prima che qualcuno ti scopra. {intelligence[advanced]} {back_choice[western_transition_2]} {right_choice[western_ending_3]}",
+      "challenges": [
+        {
+          "id": "wt6-c1-uuid",
+          "abilityType": "intelligence",
+          "description": "Disattivare il meccanismo della cassa",
+          "successText": "I tuoi calcoli sono precisi e il meccanismo si disattiva senza intoppi.",
+          "failureText": "Il meccanismo si blocca, e un forte 'click' echeggia nel pozzo."
+        }
+      ],
+      "choices": [],
+      "directionalChoicesTags": "{back_choice[western_transition_2]} {right_choice[western_ending_3]}"
+    },
+    {
+      "id": "western_ending_1",
+      "sceneType": "ENDING",
+      "genre": "WESTERN",
+      "challengeLevel": "BASE",
+      "narrativeText": "Hai ristabilito l'ordine a Redemption Gulch. Gli abitanti ti acclamano come un eroe. È tempo di un nuovo viaggio, verso il tramonto, lasciandoti alle spalle polvere e leggende. La tua avventura qui è finita.",
+      "challenges": [],
+      "choices": [],
+      "directionalChoicesTags": null
+    },
+    {
+      "id": "western_ending_2",
+      "sceneType": "ENDING",
+      "genre": "WESTERN",
+      "challengeLevel": "MEDIUM",
+      "narrativeText": "Dopo aver decifrato il mistero della miniera, trovi un tesoro nascosto. La tua perspicacia ti ha reso ricco. Decidi di appendere la pistola al chiodo e vivere una vita tranquilla. Fine dell'avventura.",
+      "challenges": [],
+      "choices": [],
+      "directionalChoicesTags": null
+    },
+    {
+      "id": "western_ending_3",
+      "sceneType": "ENDING",
+      "genre": "WESTERN",
+      "challengeLevel": "ADVANCED",
+      "narrativeText": "Hai affrontato e sconfitto Black Bart e la sua banda, liberando la regione dalla loro tirannia. Il tuo nome sarà ricordato per generazioni. Ti attende una nuova chiamata all'avventura, ma per ora, la pace è ristabilita. Epilogo.",
+      "challenges": [],
+      "choices": [],
+      "directionalChoicesTags": null
+    }
+  ]
+}

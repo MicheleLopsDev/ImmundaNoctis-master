@@ -56,16 +56,13 @@ class StringTagParser(private val context: Context) {
                         commandParams["captured_value_from_regex"] = matchResult.groupValues[1]
                     }
 
-                    // NUOVO: Logica specifica per i tag di tipo game_mechanic e directional_choice
                     when (tagConfig.type) {
-                        "game_mechanic" -> {
+                        "gameMechanic" -> { // Convertito a camelCase
                             val abilityName = tagConfig.regex.substringAfter("\\{").substringBefore("\\[")
-                            commandParams["ability_type"] = abilityName // Aggiungi il tipo di abilità ai parametri del comando
+                            commandParams["abilityType"] = abilityName // Convertito a camelCase
                         }
-                        "directional_choice" -> {
-                            // matchResult.groupValues[1] CONTIENE IL next_scene_id CATTURATO DALLA REGEX
-                            commandParams["next_scene_id"] = matchResult.groupValues[1]
-                            // direction, color_hex, choice_text sono già copiati dai parameters del tagConfig
+                        "directionalChoice" -> { // Convertito a camelCase
+                            commandParams["nextSceneId"] = matchResult.groupValues[1] // Convertito a camelCase
                         }
                     }
 
@@ -75,37 +72,37 @@ class StringTagParser(private val context: Context) {
 
             if (tagConfig.replace) {
                 when (tagConfig.type) {
-                    "text_substitution", "chatbot_greeting" -> {
+                    "textSubstitution", "chatBotSaluto" -> { // Convertito a camelCase
                         resultString = resultString.replace(regex, tagConfig.replacement ?: "")
                     }
-                    "prompt_description" -> {
+                    "promptDescription" -> { // Convertito a camelCase
                         resultString = regex.replace(resultString) { matchResult ->
                             val indexStr = matchResult.groupValues[1]
                             val index = indexStr.toIntOrNull() ?: 0
-                            val paramName = "prompt_value_$index"
+                            val paramName = "promptValue$index" // Convertito a camelCase
                             tagConfig.parameters?.firstOrNull { it.name == paramName }?.value?.toString() ?: ""
                         }
                     }
-                    "dnd_environment_description" -> {
+                    "dndEnvironmentDescription" -> { // Convertito a camelCase
                         resultString = regex.replace(resultString) { matchResult ->
                             val environmentTypeRequested = matchResult.groupValues[1]
                             val paramName = "description_${environmentTypeRequested.lowercase()}"
                             tagConfig.parameters?.firstOrNull { it.name == paramName }?.value?.toString() ?: "Un ambiente generico non specificato."
                         }
                     }
-                    "game_mechanic" -> {
+                    "gameMechanic" -> { // Convertito a camelCase
                         resultString = regex.replace(resultString) { matchResult ->
                             val abilityName = tagConfig.regex.substringAfter("\\{").substringBefore("\\[")
                             val challengeLevelStr = matchResult.groupValues[1]
                             val challengeLevel = ChallengeLevel.fromString(challengeLevelStr)
-                            val descriptionParamName = "${abilityName}_${challengeLevelStr.lowercase()}_desc"
+                            val descriptionParamName = "${abilityName}BaseDesc" // Esempio, dovrai allinearlo ai nomi nel JSON
                             val description = tagConfig.parameters?.firstOrNull { it.name == descriptionParamName }?.value?.toString()
                             "SFIDA_${abilityName.uppercase()}_${challengeLevel?.name ?: "UNKNOWN"}: ${description ?: "Descrizione della sfida mancante."}"
                         }
                     }
-                    "trigger_audio", "generate_image", "trigger_graphic_effect",
-                    "directional_choice" -> { // AGGIUNTO: type "directional_choice" a quelli che non sostituiscono
-                        resultString = regex.replace(resultString, "") // Rimuove il tag dal testo
+                    "triggerAudio", "generateImage", "triggerGraphicEffect", // Convertito a camelCase
+                    "directionalChoice" -> { // Convertito a camelCase
+                        resultString = regex.replace(resultString, "")
                     }
                     else -> {
                         System.err.println("Tipo di tag sconosciuto: ${tagConfig.type} per ID: ${tagConfig.id}")
@@ -116,5 +113,14 @@ class StringTagParser(private val context: Context) {
             }
         }
         return Pair(resultString, commands)
+    }
+
+    /**
+     * Recupera una TagConfig specifica tramite il suo ID.
+     * @param tagId L'ID del tag da cercare.
+     * @return La TagConfig corrispondente, o null se non trovata.
+     */
+    fun getTagConfigById(tagId: String): TagConfig? {
+        return tagConfigurations.find { it.id == tagId }
     }
 }

@@ -10,6 +10,7 @@ import io.github.luposolitario.immundanoctis.data.CharacterID
 import io.github.luposolitario.immundanoctis.data.CharacterType
 import io.github.luposolitario.immundanoctis.data.ChatMessage
 import io.github.luposolitario.immundanoctis.data.GameCharacter
+import io.github.luposolitario.immundanoctis.data.Scene
 import io.github.luposolitario.immundanoctis.engine.GemmaEngine
 import io.github.luposolitario.immundanoctis.engine.InferenceEngine
 import io.github.luposolitario.immundanoctis.engine.LlamaCppEngine
@@ -31,6 +32,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -43,8 +45,15 @@ import java.util.Date
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicLong
 import io.github.luposolitario.immundanoctis.util.ThemePreferences
-import io.github.luposolitario.immundanoctis.util.StringTagParser // <-- Importa il parser
-import io.github.luposolitario.immundanoctis.data.EngineCommand // <-- Importa EngineCommand
+import io.github.luposolitario.immundanoctis.util.StringTagParser
+import io.github.luposolitario.immundanoctis.data.EngineCommand
+import io.github.luposolitario.immundanoctis.data.GameChallenge
+import io.github.luposolitario.immundanoctis.data.NarrativeChoice
+import io.github.luposolitario.immundanoctis.engine.GameLogicManager
+import io.github.luposolitario.immundanoctis.data.Genre
+import io.github.luposolitario.immundanoctis.data.SceneType
+import io.github.luposolitario.immundanoctis.data.SessionData
+import kotlin.random.Random
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val tag: String? = this::class.simpleName
@@ -87,6 +96,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _logMessages = MutableStateFlow<List<String>>(listOf("ViewModel Inizializzato."))
     val logMessages: StateFlow<List<String>> = _logMessages.asStateFlow()
 
+
     private val _conversationTargetId = MutableStateFlow(
         themePreferences.getLastSelectedCharacterId() ?: CharacterID.DM
     )
@@ -105,8 +115,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val playerEngine: InferenceEngine
     private val translationEngine = TranslationEngine()
 
-    // PASSO 1 ATOMICO: Istanziazione del Parser
-    private lateinit var stringTagParser: StringTagParser // Dichiarazione
+    private lateinit var stringTagParser: StringTagParser
+
+    private val _currentScene = MutableStateFlow<Scene?>(null)
+    val currentScene: StateFlow<Scene?> = _currentScene.asStateFlow()
+
+    private lateinit var gameLogicManager: GameLogicManager
+
+    // PASSO ATOMICO 1 (MACRO-ATTIVITÀ 3): Stati UI nel ViewModel
+    private val _activeChallenges = MutableStateFlow<List<GameChallenge>>(emptyList())
+    val activeChallenges: StateFlow<List<GameChallenge>> = _activeChallenges.asStateFlow()
+
+    private val _activeNarrativeChoices = MutableStateFlow<List<NarrativeChoice>>(emptyList())
+    val activeNarrativeChoices: StateFlow<List<NarrativeChoice>> = _activeNarrativeChoices.asStateFlow()
+
+    // Per i bivi direzionali, possiamo usare EngineCommand temporaneamente, o creare una data class specifica
+    private val _activeDirectionalChoices = MutableStateFlow<List<EngineCommand>>(emptyList())
+    val activeDirectionalChoices: StateFlow<List<EngineCommand>> = _activeDirectionalChoices.asStateFlow()
+
 
     init {
         if (useGemmaForAll) {
@@ -118,7 +144,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             dmEngine = GemmaEngine(application.applicationContext)
             playerEngine = LlamaCppEngine(application.applicationContext)
         }
-        stringTagParser = StringTagParser(application.applicationContext) // Inizializzazione
+        stringTagParser = StringTagParser(application.applicationContext)
+        gameLogicManager = GameLogicManager(application.applicationContext)
     }
 
     val activeTokenInfo: StateFlow<TokenInfo> = conversationTargetId.flatMapLatest { targetId ->
@@ -134,24 +161,46 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         initialValue = dmEngine.tokenInfo.value
     )
 
-    fun loadGameSession() {
-        val session = gameStateManager.loadSession() ?: gameStateManager.createDefaultSession()
-        _gameCharacters.value = session.characters
-        _sessionName.value = session.sessionName
-        log("Sessione di gioco caricata: ${session.sessionName}")
+    fun loadGameSession(startFresh: Boolean = false) {
+        val session = gameStateManager.loadSession()
+        val actualIsNewAdventure = (session == null || startFresh)
+
+        val currentSession = session ?: gameStateManager.createDefaultSession()
+        _gameCharacters.value = currentSession.characters
+        _sessionName.value = currentSession.sessionName
+        log("Sessione di gioco caricata: ${currentSession.sessionName}")
 
         if (savePreferences.isAutoSaveEnabled) {
             loadChatFromAutoSave()
         }
         val lastSavedId = themePreferences.getLastSelectedCharacterId()
-        if (lastSavedId != null && session.characters.any { it.id == lastSavedId }) {
+        if (lastSavedId != null && currentSession.characters.any { it.id == lastSavedId }) {
             _conversationTargetId.value = lastSavedId
             log("Ripristinato target di conversazione: $lastSavedId")
         } else {
             _conversationTargetId.value = CharacterID.DM
             log("Nessun target di conversazione salvato valido. Impostato su DM.")
         }
+
+        if (actualIsNewAdventure) {
+            _currentScene.value = gameLogicManager.selectRandomStartScene(Genre.WESTERN)
+            log("Scena iniziale NUOVA AVVENTURA impostata da GameLogicManager: ${_currentScene.value?.id ?: "Nessuna scena iniziale"}")
+            viewModelScope.launch {
+                sendInitialDmPrompt(currentSession, _currentScene.value)
+            }
+            _currentScene.value?.let { currentSession.usedScenes.add(it.id) }
+            gameStateManager.saveSession(currentSession)
+        } else {
+            val lastSceneId = currentSession.usedScenes.lastOrNull()
+            _currentScene.value = if (lastSceneId != null) {
+                gameLogicManager.getSceneById(lastSceneId)
+            } else {
+                gameLogicManager.selectRandomStartScene(Genre.WESTERN)
+            }
+            log("Scena sessione esistente impostata a: ${_currentScene.value?.id ?: "Nessuna scena valida trovata. Riprovo con casuale START."}")
+        }
     }
+
 
     private fun loadChatFromAutoSave() {
         viewModelScope.launch(Dispatchers.IO) {
@@ -303,7 +352,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // PASSO 2 & 3 ATOMICO: Parsing Input Giocatore e Output LLM
     fun sendMessage(text: String, conversationTargetId: String) {
         if (_isGenerating.value) {
             log("Generazione già in corso, richiesta ignorata.")
@@ -313,7 +361,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val heroCharacter = _gameCharacters.value.find { it.id == CharacterID.HERO }
         val playerLanguage = heroCharacter?.language ?: Locale.ENGLISH.language // Lingua del giocatore
 
-        // Parsing dell'input del giocatore
         val (parsedPlayerText, playerCommands) = stringTagParser.parseAndReplaceWithCommands(
             inputString = text,
             currentActor = CharacterType.PLAYER,
@@ -324,7 +371,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _chatMessages.update { it + userMessage }
         autoSaveChatIfEnabled()
 
-        // PASSO 4 ATOMICO: Gestione Comandi Iniziale (Stub) per comandi del giocatore
         viewModelScope.launch {
             processCommands(playerCommands)
         }
@@ -344,7 +390,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _streamingText.value = ""
             _respondingCharacterId.value = targetId
             try {
-                // Invia il testo PARSATO all'engine
+                // AGGIUNTO: Attesa che i motori siano pronti prima di inviare messaggi regolari
+                _engineLoadingState.first { it is EngineLoadingState.Success }
+                log("DEBUG: Motori pronti per sendMessage. Invio testo del giocatore.")
+
+                // Il prompt per la scena iniziale è gestito ora da sendInitialDmPrompt()
                 engineToUse.sendMessage(parsedPlayerText)
                     .collect { token ->
                         _streamingText.update { it + token }
@@ -355,24 +405,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             } finally {
                 log("Generazione per '$targetId' completata o interrotta.")
 
-                // PASSO 3 ATOMICO: Parsing Output LLM
                 val rawLLMResponse = _streamingText.value
                 val respondingCharacter = _gameCharacters.value.find { it.id == targetId }
-                val llmLanguage = respondingCharacter?.language ?: Locale.ITALIAN.language // Lingua dell'LLM (DM/NPC)
+                val llmLanguage = respondingCharacter?.language ?: Locale.ITALIAN.language
 
                 val (parsedLLMText, llmCommands) = stringTagParser.parseAndReplaceWithCommands(
                     inputString = rawLLMResponse,
-                    currentActor = respondingCharacter?.type, // Passa il tipo di attore corretto
+                    currentActor = respondingCharacter?.type,
                     lang = llmLanguage
                 )
 
                 if (parsedLLMText.isNotBlank()) {
-                    val finalMessage = ChatMessage(position = messageCounter.getAndIncrement(), authorId = targetId, text = parsedLLMText)
+                    val finalMessage = ChatMessage(authorId = targetId, position = messageCounter.getAndIncrement(), text = parsedLLMText)
                     _chatMessages.update { it + finalMessage }
                     autoSaveChatIfEnabled()
                 }
 
-                // PASSO 4 ATOMICO: Gestione Comandi Iniziale (Stub) per comandi dell'LLM
                 viewModelScope.launch {
                     processCommands(llmCommands)
                 }
@@ -438,10 +486,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
             engineToUse.resetSession(null)
             log("Reset della sessione completato per ${engineToUse::class.simpleName}.")
+            _currentScene.value = gameLogicManager.selectRandomStartScene(Genre.WESTERN)
+            log("Scena reimpostata a una scena START casuale di genere WESTERN.")
+            gameLogicManager.resetUsedScenes()
+            val currentSession = gameStateManager.loadSession() ?: gameStateManager.createDefaultSession()
+            if (_currentScene.value?.sceneType == SceneType.START) {
+                sendInitialDmPrompt(currentSession, _currentScene.value)
+            }
         }
     }
 
-    // PASSO 4 ATOMICO: Gestione Comandi Iniziale (Stub)
+    private fun rollDice(numDice: Int, sides: Int): Int {
+        var totalRoll = 0
+        repeat(numDice) {
+            totalRoll += Random.nextInt(1, sides + 1)
+        }
+        return totalRoll
+    }
+
     private suspend fun processCommands(commands: List<io.github.luposolitario.immundanoctis.data.EngineCommand>) {
         if (commands.isEmpty()) {
             return
@@ -450,37 +512,164 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         commands.forEach { command ->
             Log.d(tag, "Comando ricevuto: ${command.commandName} con parametri: ${command.parameters}")
             when (command.commandName) {
-                "play_audio" -> {
-                    val audioFile = command.parameters["captured_value_from_regex"] as? String
+                "playAudio" -> { // CORRETTO: da play_audio
+                    val audioFile = command.parameters["audioFile"] as? String // CORRETTO: da captured_value_from_regex
                     log("DEBUG COMMAND: Riproduci audio: $audioFile")
                     // Qui andrebbe la logica per riprodurre l'audio
                 }
-                "generate_image" -> {
-                    val prompt = command.parameters["captured_value_from_regex"] as? String
+                "generateImage" -> { // CORRETTO: da generate_image
+                    val prompt = command.parameters["prompt"] as? String // CORRETTO: da captured_value_from_regex
                     log("DEBUG COMMAND: Genera immagine con prompt: $prompt")
                     // Qui andrebbe la logica per generare un'immagine con Stable Diffusion
                 }
-                "trigger_graphic_effect" -> {
-                    val effectName = command.parameters["captured_value_from_regex"] as? String
+                "triggerGraphicEffect" -> { // CORRETTO: da trigger_graphic_effect
+                    val effectName = command.parameters["effectName"] as? String // CORRETTO: da captured_value_from_regex
                     log("DEBUG COMMAND: Attiva effetto grafico: $effectName")
                     // Qui andrebbe la logica per attivare un effetto grafico
                 }
-                "game_challenge" -> {
-                    val abilityType = command.parameters["ability_type"] as? String
-                    val challengeLevel = command.parameters["captured_value_from_regex"] as? String
-                    log("DEBUG COMMAND: Avvia sfida di gioco: Tipo=${abilityType}, Livello=${challengeLevel}")
-                    // Qui andrebbe la logica per gestire una prova di abilità
+                "gameChallenge" -> { // CORRETTO: da game_challenge
+                    val heroCharacter = _gameCharacters.value.find { it.id == CharacterID.HERO }
+                    if (heroCharacter == null || heroCharacter.stats == null) {
+                        log("ATTENZIONE: Personaggio Eroe o sue statistiche non disponibili per la sfida!")
+                        return@forEach
+                    }
+
+                    val abilityType = command.parameters["abilityType"] as? String // CORRETTO: da ability_type
+                    val challengeLevelStr = command.parameters["challengeLevel"] as? String // CORRETTO: da captured_value_from_regex
+                    val currentSceneChallengeLevel = _currentScene.value?.challengeLevel // Livello della scena
+                    val descriptionForLog = command.parameters["description"] as? String ?: "Descrizione non disponibile"
+
+                    log("DEBUG COMMAND: Inizio sfida di gioco: Tipo=${abilityType}, Livello Richiesto (tag)=${challengeLevelStr}, Livello Scena=${currentSceneChallengeLevel?.name}, Descrizione='${descriptionForLog}'")
+
+                    val abilityBonus = when (abilityType) {
+                        "strength" -> heroCharacter.stats.strength.div(2) - 5
+                        "dexterity" -> heroCharacter.stats.dexterity.div(2) - 5
+                        "intelligence" -> heroCharacter.stats.intelligence.div(2) - 5
+                        "spellcraft" -> heroCharacter.stats.wisdom.div(2) - 5
+                        else -> 0
+                    }
+                    val objectBonus = 0
+
+                    val diceRollSum = rollDice(2, 6)
+                    val finalRoll = diceRollSum + abilityBonus + objectBonus
+
+                    var resultMessage = ""
+                    if (diceRollSum == 12) {
+                        resultMessage = "{CRTI_OK} 12"
+                        log("DEBUG COMMAND: Successo Critico! Tiro: 12")
+                    } else if (diceRollSum == 2) {
+                        resultMessage = "{CRTI_K0} 2"
+                        log("DEBUG COMMAND: Fallimento Critico! Tiro: 2")
+                    } else {
+                        resultMessage = "Hai lanciato ${diceRollSum} + Bonus(${abilityBonus} + ${objectBonus}) = ${finalRoll}."
+                        log("DEBUG COMMAND: Tiro Normale: ${diceRollSum}, Totale: ${finalRoll}")
+                    }
+
+                    val resultChatMessage = ChatMessage(
+                        authorId = CharacterID.HERO,
+                        position = messageCounter.getAndIncrement(),
+                        text = resultMessage
+                    )
+                    _chatMessages.update { it + resultChatMessage }
+                    autoSaveChatIfEnabled()
                 }
-                "narrative_choice" -> {
-                    val choiceId = command.parameters["captured_value_from_regex"] as? String
-                    val choiceText = command.parameters["choice_text"] as? String
+                "narrativeChoice" -> { // CORRETTO: da narrative_choice
+                    val choiceId = command.parameters["nextSceneId"] as? String // CORRETTO: da captured_value_from_regex (se questo è l'ID)
+                    val choiceText = command.parameters["choiceText"] as? String // CORRETTO: da choice_text
                     log("DEBUG COMMAND: Avvia scelta narrativa: ID=${choiceId}, Testo='${choiceText}'")
                     // Qui andrebbe la logica per presentare una scelta narrativa
+                }
+                "displayDirectionalButton" -> { // CORRETTO: da display_directional_button
+                    val direction = command.parameters["direction"] as? String
+                    val colorHex = command.parameters["colorHex"] as? String // CORRETTO: da color_hex
+                    val choiceText = command.parameters["choiceText"] as? String // CORRETTO: da choice_text
+                    val nextSceneId = command.parameters["nextSceneId"] as? String // CORRETTO: da next_scene_id
+                    log("DEBUG COMMAND: Mostra pulsante direzionale: Dir=${direction}, Colore=${colorHex}, Testo='${choiceText}', ProssimaScena=${nextSceneId}")
+                    // Qui andrebbe la logica per esporre questi dati alla UI per mostrare il pulsante
                 }
                 else -> {
                     log("DEBUG COMMAND: Comando sconosciuto: ${command.commandName}")
                 }
             }
+        }
+    }
+
+    // NUOVA FUNZIONE: Invia il prompt iniziale del DM all'avvio di una nuova avventura
+    public suspend fun sendInitialDmPrompt(
+        sessionData: SessionData,
+        currentScene1: Scene?
+    ) {
+        // Impedisce l'invio multiplo se la sessione è già stata avviata con questo prompt
+        if (sessionData.isStarted) {
+            log("DEBUG: La sessione è già iniziata, non invio prompt iniziale DM.")
+            return
+        }
+
+        _isGenerating.value = true
+        _streamingText.value = ""
+        _respondingCharacterId.value = CharacterID.DM // Sempre DM per il prompt iniziale
+
+        try {
+            // AGGIUNTO: Attendiamo che i motori siano caricati prima di inviare il prompt
+            log("DEBUG: Attendendo caricamento motori prima di inviare prompt iniziale DM...")
+            _engineLoadingState.first { it is EngineLoadingState.Success }
+            log("DEBUG: Motori pronti, invio prompt iniziale DM.")
+
+            val scene = currentScene1
+            if (scene == null || scene.sceneType != SceneType.START) {
+                log("ATTENZIONE: Impossibile inviare prompt iniziale DM. Scena non START o non caricata.")
+                _isGenerating.value = false // Assicurati di resettare lo stato di generazione
+                return
+            }
+
+            // --- INIZIO NUOVA LOGICA: Costruzione del prompt dal tag config.json ---
+            val startPromptTag = stringTagParser.getTagConfigById("start_adventure_prompt")
+            if (startPromptTag == null || startPromptTag.parameters == null) {
+                log("ERRORE: Tag 'start_adventure_prompt' non trovato o incompleto in config.json!")
+                _isGenerating.value = false
+                return
+            }
+
+            // Estrai i parametri dal tag
+            val baseText = startPromptTag.parameters.firstOrNull { it.name == "baseText" }?.value as? String ?: "Sei il DM per un gioco di ruolo."
+            val genreTextTemplate = startPromptTag.parameters.firstOrNull { it.name == "genreText" }?.value as? String ?: "Il genere della storia è: {genre}."
+            val sceneTextTemplate = startPromptTag.parameters.firstOrNull { it.name == "sceneText" }?.value as? String ?: "Inizia la narrazione dalla seguente scena: {scene_narrative_text}."
+            val continuationText = startPromptTag.parameters.firstOrNull { it.name == "continuationText" }?.value as? String ?: "Ti prego di iniziare a narrare la storia basandoti su questa scena."
+
+            val genre = Genre.WESTERN.name // Genere hardcoded per ora, poi dalla campagna
+            val sceneNarrativeText = scene.narrativeText
+
+            // Costruisci il prompt finale sostituendo i placeholder
+            val secretPrompt = """
+                $baseText
+                ${genreTextTemplate.replace("{genre}", genre)}
+                ${sceneTextTemplate.replace("{scene_narrative_text}", sceneNarrativeText)}
+                $continuationText
+            """.trimIndent()
+            // --- FINE NUOVA LOGICA ---
+
+            log("DEBUG: Invio prompt iniziale DM: Genere=${genre}, Scena ID=${scene.id}")
+
+            dmEngine.sendMessage(secretPrompt)
+                .collect { token ->
+                    _streamingText.update { it + token }
+                }
+            val updatedSession = sessionData.copy(isStarted = true)
+            gameStateManager.saveSession(updatedSession)
+            log("DEBUG: Sessione marcata come avviata.")
+
+        } catch (e: Exception) {
+            Log.e(tag, "Errore durante l'invio del prompt iniziale al DM: ${e.message}", e)
+            log("ERRORE: Impossibile avviare la narrazione del DM. ${e.message}")
+        } finally {
+            if (_streamingText.value.isNotBlank()) {
+                val finalMessage = ChatMessage(authorId = CharacterID.DM, position = messageCounter.getAndIncrement(), text = _streamingText.value)
+                _chatMessages.update { it + finalMessage }
+                autoSaveChatIfEnabled()
+            }
+            _isGenerating.value = false
+            _streamingText.value = ""
+            _respondingCharacterId.value = null
         }
     }
 }

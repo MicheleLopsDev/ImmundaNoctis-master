@@ -22,16 +22,13 @@ class GemmaEngine(private val context: Context) : InferenceEngine {
     private val tag = "GemmaEngine"
     private var llmInference: LlmInference? = null
     private var session: LlmInferenceSession? = null
-    // --- 1. Rimuovi la creazione diretta qui
     private var sessionOptions: LlmInferenceSession.LlmInferenceSessionOptions? = null
     private val maxTokens = 4096
     private var totalTokensUsed: Int = 0
     private var currentModelPath: String? = null
 
-    // --- 2. Inizializza le preferenze
     private val gemmaPreferences = GemmaPreferences(context)
 
-    // --- StateFlow per esporre le informazioni sui token alla UI (richiesto dall'interfaccia) ---
     private val _tokenInfo = MutableStateFlow(
         TokenInfo(0, maxTokens, TokenStatus.GREEN, 0)
     )
@@ -45,36 +42,36 @@ class GemmaEngine(private val context: Context) : InferenceEngine {
         currentModelPath = modelPath
         try {
             if (!File(modelPath).exists()) {
-                Log.e(tag, "Modello Gemma non trovato: $modelPath")
-                return
+                val errorMessage = "Modello Gemma non trovato: $modelPath"
+                Log.e(tag, errorMessage)
+                throw IllegalStateException(errorMessage) // RILANCIA L'ECCEZIONE
             }
 
-            // 1. Crea le opzioni per il motore principale
             val inferenceOptions = LlmInference.LlmInferenceOptions.builder()
                 .setModelPath(modelPath)
                 .setMaxTokens(gemmaPreferences.nLen)
                 .build()
             llmInference = LlmInference.createFromOptions(context, inferenceOptions)
 
-            // 2. Crea le opzioni per la sessione di chat
             sessionOptions = LlmInferenceSession.LlmInferenceSessionOptions.builder()
                 .setTopK(gemmaPreferences.topK)
                 .setTemperature(gemmaPreferences.temperature)
                 .setTopP(gemmaPreferences.topP)
                 .build()
 
-            logParameters() // Logghiamo i parametri usati
+            logParameters()
 
-
-            // 3. Crea la sessione usando sia il motore che le sue opzioni
             session = LlmInferenceSession.createFromOptions(llmInference, sessionOptions)
             Log.d(tag, "Motore e sessione Gemma caricati con successo.")
         } catch (e: Exception) {
             Log.e(tag, "Errore durante il caricamento del modello o della sessione Gemma.", e)
+            session = null
+            llmInference = null
+            currentModelPath = null
+            throw e // RILANCIA L'ECCEZIONE
         }
     }
 
-    // Funzione helper per loggare i parametri
     private fun logParameters() {
         Log.i(tag, "GemmaEngine configurato con i seguenti parametri:")
         Log.i(tag, " - Temperatura: ${gemmaPreferences.temperature}")
@@ -91,8 +88,7 @@ class GemmaEngine(private val context: Context) : InferenceEngine {
         try {
             session?.close()
             session = LlmInferenceSession.createFromOptions(llmInference!!, sessionOptions!!)
-            totalTokensUsed = 0 // Azzera il contatore dei token
-
+            totalTokensUsed = 0
             if (!systemPrompt.isNullOrBlank()) {
                 session?.addQueryChunk(systemPrompt)
                 totalTokensUsed += session?.sizeInTokens(systemPrompt) ?: 0
@@ -102,6 +98,7 @@ class GemmaEngine(private val context: Context) : InferenceEngine {
             Log.d(tag, "Sessione resettata con successo.")
         } catch (e: Exception) {
             Log.e(tag, "Errore durante il reset della sessione.", e)
+            throw e // RILANCIA L'ECCEZIONE
         }
     }
 
@@ -118,11 +115,8 @@ class GemmaEngine(private val context: Context) : InferenceEngine {
         val fullResponse = StringBuilder()
 
         try {
-            // MODIFICA CHIAVE: La chiamata ora avviene in due passaggi
-            // 1. Aggiungi il prompt alla conversazione attuale della sessione
             session!!.addQueryChunk(text)
 
-            // 2. Chiama generateResponseAsync solo con il listener per ricevere la risposta
             session!!.generateResponseAsync { partialResponse, done ->
                 if (isActive) {
                     partialResponse?.let {
@@ -135,8 +129,8 @@ class GemmaEngine(private val context: Context) : InferenceEngine {
                     totalTokensUsed += inputTokens + outputTokens
                     updateTokenCount()
 
-                    if (partialResponse.isNullOrEmpty()) {
-                        Log.w(tag, "Limite token raggiunto. Invio segnale di reset.")
+                    if (fullResponse.isEmpty() || totalTokensUsed >= maxTokens) {
+                        Log.w(tag, "Limite token raggiunto o risposta vuota. Invio segnale di reset.")
                         trySend(TOKEN_LIMIT_REACHED_SIGNAL)
                     }
                     close()
@@ -159,7 +153,7 @@ class GemmaEngine(private val context: Context) : InferenceEngine {
         val newStatus = when {
             percentage >= 95 -> TokenStatus.CRITICAL
             percentage > 60 -> TokenStatus.RED
-            percentage > 33 -> TokenStatus.YELLOW
+            percentage >= 33 -> TokenStatus.YELLOW
             else -> TokenStatus.GREEN
         }
 
@@ -178,7 +172,7 @@ class GemmaEngine(private val context: Context) : InferenceEngine {
             llmInference = null
             currentModelPath = null
             totalTokensUsed = 0
-            updateTokenCount() // Resetta la UI
+            updateTokenCount()
             Log.d(tag, "Motore e sessione Gemma rilasciati.")
         }
     }

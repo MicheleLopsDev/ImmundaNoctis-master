@@ -2,6 +2,7 @@ package io.github.luposolitario.immundanoctis
 
 import android.app.Activity
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
@@ -60,6 +61,9 @@ import io.github.luposolitario.immundanoctis.data.CharacterID
 import io.github.luposolitario.immundanoctis.data.CharacterType
 import io.github.luposolitario.immundanoctis.data.ChatMessage
 import io.github.luposolitario.immundanoctis.data.GameCharacter
+import io.github.luposolitario.immundanoctis.data.Genre
+import io.github.luposolitario.immundanoctis.data.Scene
+import io.github.luposolitario.immundanoctis.data.SessionData
 import io.github.luposolitario.immundanoctis.engine.TokenInfo
 import io.github.luposolitario.immundanoctis.service.TtsService
 import io.github.luposolitario.immundanoctis.ui.adventure.AdventureHeader
@@ -69,24 +73,39 @@ import io.github.luposolitario.immundanoctis.ui.adventure.MessageInput
 import io.github.luposolitario.immundanoctis.ui.adventure.PlayerActionsBar
 import io.github.luposolitario.immundanoctis.ui.adventure.TokenSemaphoreIndicator
 import io.github.luposolitario.immundanoctis.ui.theme.ImmundaNoctisTheme
+import io.github.luposolitario.immundanoctis.util.GameStateManager
 import io.github.luposolitario.immundanoctis.util.ModelPreferences
 import io.github.luposolitario.immundanoctis.util.ThemePreferences
 import io.github.luposolitario.immundanoctis.util.TtsPreferences
 import io.github.luposolitario.immundanoctis.view.MainViewModel
 import io.github.luposolitario.immundanoctis.util.SavePreferences // <-- 1. Aggiungi questo import
 import io.github.luposolitario.immundanoctis.view.MainViewModel.EngineLoadingState
-
+import kotlinx.coroutines.launch
+import io.github.luposolitario.immundanoctis.engine.GameLogicManager
+import kotlinx.coroutines.flow.MutableStateFlow
+import androidx.lifecycle.lifecycleScope // <-- Importa lifecycleScope
+import kotlin.lazy
 
 class AdventureActivity : ComponentActivity() {
+    private val tag: String? = this::class.simpleName
     private val viewModel: MainViewModel by viewModels()
     private val modelPreferences by lazy { ModelPreferences(applicationContext) }
     private val themePreferences by lazy { ThemePreferences(applicationContext) }
     private val ttsPreferences by lazy { TtsPreferences(applicationContext) }
     private var ttsService: TtsService? = null
     private val savePreferences by lazy { SavePreferences(applicationContext) }
+    private lateinit var gameStateManager: GameStateManager
+    private lateinit var gameLogicManager: GameLogicManager
+    private val currentScene = MutableStateFlow<Scene?>(null)
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        gameStateManager = GameStateManager(applicationContext)
+        gameLogicManager = GameLogicManager(applicationContext)
+
+        val session = gameStateManager.loadSession() ?: gameStateManager.createDefaultSession()
         super.onCreate(savedInstanceState)
+
         viewModel.loadGameSession()
 
         ttsService = TtsService(this) { /* TTS Ready */ }
@@ -136,7 +155,6 @@ class AdventureActivity : ComponentActivity() {
                         val isAutoReadEnabled = ttsPreferences.isAutoReadEnabled()
                         val isAutoSaveEnabled = savePreferences.isAutoSaveEnabled // Leggiamo il valore
                         val tokenInfo by viewModel.activeTokenInfo.collectAsState()
-
 
                         // Effetto per la lettura automatica dei nuovi messaggi
                         LaunchedEffect(chatMessages) {
@@ -213,6 +231,35 @@ class AdventureActivity : ComponentActivity() {
                 }
             }
         }
+
+        // NUOVO: Gestione dell'inizio di una nuova avventura o ripresa di una esistente
+        if (!session.isStarted) {
+            currentScene.value = gameLogicManager.selectRandomStartScene(Genre.WESTERN) // Genere hardcoded per ora
+            Log.d(tag, "Scena iniziale NUOVA AVVENTURA impostata da GameLogicManager: ${currentScene.value?.id ?: "Nessuna scena iniziale"}")
+
+            lifecycleScope.launch {
+                viewModel.sendInitialDmPrompt(session,currentScene.value) // Passa la sessione per aggiornare isStarted
+            }
+            gameStateManager.saveSession(
+                SessionData(
+                    sessionName = "La Prova dell'Eroe",
+                    lastUpdate = System.currentTimeMillis(),
+                    characters = session.characters,
+                    isStarted = true // NUOVO: La sessione non è ancora "iniziata"
+                )
+            )
+            // gameLogicManager.resetUsedScenes() // Già resettato in sendInitialDmPrompt se si avvia
+        } else {
+            // Se è una sessione esistente E NON è un nuovo inizio forzato, prova a caricare l'ultima scena salvata
+            val lastSceneId = session.usedScenes.lastOrNull()
+            currentScene.value = if (lastSceneId != null) {
+                gameLogicManager.getSceneById(lastSceneId)
+            } else {
+                gameLogicManager.selectRandomStartScene(Genre.WESTERN) // Fallback a START casuale
+            }
+            Log.d(tag, "Scena sessione esistente impostata a: ${currentScene.value?.id ?: "Nessuna scena valida trovata. Riprovo con casuale START."}")
+            // Non inviamo prompt iniziale qui, si suppone che la storia sia già avviata
+        }
     }
 
     override fun onDestroy() {
@@ -272,6 +319,8 @@ fun ErrorScreen(errorMessage: String, onRetry: () -> Unit) {
         }
     }
 }
+
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

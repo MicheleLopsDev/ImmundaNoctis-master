@@ -44,14 +44,14 @@ class GameStateManager(private val context: Context) {
     }
 
     /**
-     * NUOVA FUNZIONE: Cancella il file della sessione di gioco.
-     * Utile per resettare lo stato in caso di dati corrotti.
+     * Cancella il file della sessione di gioco e la chat associata.
+     * Utile per resettare lo stato in caso di dati corrotti o per un nuovo inizio.
      *
-     * @return `true` se il file è stato cancellato con successo o non esisteva, `false` altrimenti.
+     * @return `true` se i file sono stati cancellati con successo o non esistevano, `false` altrimenti.
      */
     fun deleteSession(): Boolean {
-        if (chatFile.exists() )
-        {    chatFile.delete()
+        if (chatFile.exists()) {
+            chatFile.delete()
         }
         return if (sessionFile.exists()) {
             sessionFile.delete()
@@ -61,7 +61,6 @@ class GameStateManager(private val context: Context) {
     }
 
     fun createDefaultSession(): SessionData {
-        // --- LOGICA DI VISIBILITÀ APPLICATA QUI ---
         val defaultCharacters = listOf(
             GameCharacter(
                 "hero",
@@ -71,7 +70,9 @@ class GameStateManager(private val context: Context) {
                 R.drawable.portrait_hero_male,
                 "MALE",
                 "it",
-                isVisible = false
+                isVisible = false,
+                stats = null, // Inizializza con stats appropriate
+                details = null
             ),
             GameCharacter(
                 "dm",
@@ -83,7 +84,6 @@ class GameStateManager(private val context: Context) {
                 "it",
                 isVisible = true
             ),
-            // REQUISITO: Companion 1 è visibile di default
             GameCharacter(
                 "companion1",
                 "Elara",
@@ -94,7 +94,6 @@ class GameStateManager(private val context: Context) {
                 "it",
                 isVisible = true
             ),
-            // REQUISITO: Companion 2 è invisibile di default
             GameCharacter(
                 "companion2",
                 "Baldur",
@@ -106,17 +105,16 @@ class GameStateManager(private val context: Context) {
                 isVisible = false
             )
         )
-        // --- FINE MODIFICA ---
         return SessionData(
             sessionName = "La Prova dell'Eroe",
             lastUpdate = System.currentTimeMillis(),
-            characters = defaultCharacters
+            characters = defaultCharacters,
+            isStarted = false // NUOVO: La sessione non è ancora "iniziata"
         )
     }
 
     companion object {
         private const val SESSION_FILE_NAME = "game_session.json"
         private const val CHAT_FILE_NAME = "autosave_chat.json"
-
     }
 }

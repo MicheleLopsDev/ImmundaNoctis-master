@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onEach
 import kotlin.math.roundToInt
+import java.io.File
 
 /**
  * Implementazione di InferenceEngine che usa il modulo :llama (llama.cpp).
@@ -20,13 +21,10 @@ class LlamaCppEngine(private val context: Context) : InferenceEngine {
     private val llama: LLamaAndroid = LLamaAndroid.instance()
     private val tag = "LlamaCppEngine"
     private var currentModelPath: String? = null
-    // Definiamo un valore massimo di token per coerenza con GemmaEngine.
     private val maxTokens = 4096
     private var totalTokensUsed = 0
-    // Aggiungi questa riga
     private val llamaPreferences = LlamaPreferences(context)
 
-    // --- StateFlow per esporre le informazioni sui token alla UI (richiesto dall'interfaccia) ---
     private val _tokenInfo = MutableStateFlow(
         TokenInfo(0, maxTokens, TokenStatus.GREEN, 0)
     )
@@ -34,24 +32,36 @@ class LlamaCppEngine(private val context: Context) : InferenceEngine {
 
     override suspend fun load(modelPath: String) {
         currentModelPath = modelPath
-        totalTokensUsed = 0 // Reset del contatore quando si carica un nuovo modello
-        updateTokenCount() // Aggiorna la UI allo stato iniziale
+        totalTokensUsed = 0
+        updateTokenCount()
 
-        // Imposta il parametro nLen usando le preferenze
-        llama.nlen = llamaPreferences.nLen
-        Log.i(tag, "Llama GGUF configurato con nLen (max tokens): ${llama.nlen}")
+        try {
+            if (!File(modelPath).exists()) {
+                val errorMessage = "Modello Llama GGUF non trovato: $modelPath"
+                Log.e(tag, errorMessage)
+                throw IllegalStateException(errorMessage) // RILANCIA L'ECCEZIONE
+            }
 
-        llama.load(
-            pathToModel = modelPath,
-            temperature = llamaPreferences.temperature,
-            repeatPenalty = llamaPreferences.repeatP,
-            topK = llamaPreferences.topK,
-            topP = llamaPreferences.topP
-        )
-        Log.d(tag, "Modello LlamaCpp caricato: $modelPath")
+            llama.nlen = llamaPreferences.nLen
+            Log.i(tag, "Llama GGUF configurato con nLen (max tokens): ${llama.nlen}")
+
+            llama.load(
+                pathToModel = modelPath,
+                temperature = llamaPreferences.temperature,
+                repeatPenalty = llamaPreferences.repeatP,
+                topK = llamaPreferences.topK,
+                topP = llamaPreferences.topP
+            )
+            Log.d(tag, "Modello LlamaCpp caricato: $modelPath")
+        } catch (e: Exception) {
+            Log.e(tag, "Errore durante il caricamento del modello LlamaCpp.", e)
+            currentModelPath = null
+            totalTokensUsed = 0
+            updateTokenCount()
+            throw e // RILANCIA L'ECCEZIONE
+        }
     }
 
-    // Funzione helper per loggare i parametri
     private fun logParameters() {
         Log.i(tag, "LlamaEngine configurato con i seguenti parametri:")
         Log.i(tag, " - Temperatura: ${llamaPreferences.temperature}")
@@ -60,19 +70,22 @@ class LlamaCppEngine(private val context: Context) : InferenceEngine {
     }
 
     override fun sendMessage(text: String): Flow<String> {
+        if (currentModelPath == null) {
+            val errorMessage = "[ERRORE: Sessione di chat con Llama non inizializzata]"
+            Log.e(tag, errorMessage)
+            return kotlinx.coroutines.flow.flowOf(errorMessage)
+        }
         val inputTokens = estimateTokens(text)
         val fullResponse = StringBuilder()
 
         return llama.send(message = text, formatChat = false)
             .onEach { partialResponse ->
-                // Accumula la risposta parziale per il conteggio finale
                 fullResponse.append(partialResponse)
             }
             .onCompletion {
-                // Quando il flusso è completato, calcola i token totali
                 val outputTokens = estimateTokens(fullResponse.toString())
                 totalTokensUsed += (inputTokens + outputTokens)
-                updateTokenCount() // Aggiorna il semaforo per la UI
+                updateTokenCount()
                 Log.d(tag, "Token utilizzati in questo messaggio: input=$inputTokens, output=$outputTokens, totale sessione=$totalTokensUsed")
             }
     }
@@ -86,7 +99,6 @@ class LlamaCppEngine(private val context: Context) : InferenceEngine {
             currentModelPath?.let { modelPath ->
                 Log.d(tag, "Reset sessione LlamaCpp in corso...")
 
-                // Unload e reload per un reset completo
                 llama.unload()
                 llama.load(
                     pathToModel = modelPath,
@@ -96,37 +108,41 @@ class LlamaCppEngine(private val context: Context) : InferenceEngine {
                     topP = llamaPreferences.topP
                 )
 
-                // Reset del contatore token
                 totalTokensUsed = 0
 
-                // Iniezione del System Prompt (se presente)
                 if (!systemPrompt.isNullOrBlank()) {
-                    // Per llama.cpp, il system prompt viene gestito formattando la chat,
-                    // quindi lo aggiungiamo al conteggio dei token iniziali.
                     totalTokensUsed += estimateTokens(systemPrompt)
                     Log.d(tag, "System prompt considerato nel nuovo conteggio token.")
                 }
 
-                updateTokenCount() // Aggiorna la UI
+                updateTokenCount()
                 Log.d(tag, "Sessione LlamaCpp resettata con successo")
             } ?: run {
-                Log.w(tag, "Impossibile resettare la sessione: percorso del modello non disponibile")
+                val errorMessage = "Impossibile resettare la sessione: percorso del modello non disponibile"
+                Log.w(tag, errorMessage)
                 totalTokensUsed = 0
                 updateTokenCount()
+                throw IllegalStateException(errorMessage) // RILANCIA L'ECCEZIONE
             }
         } catch (e: Exception) {
             Log.e(tag, "Errore durante il reset della sessione LlamaCpp", e)
             totalTokensUsed = 0
             updateTokenCount()
+            throw e // RILANCIA L'ECCEZIONE
         }
     }
 
     override suspend fun unload() {
-        llama.unload()
-        currentModelPath = null
-        totalTokensUsed = 0
-        updateTokenCount() // Resetta la UI
-        Log.d(tag, "Modello LlamaCpp scaricato")
+        try {
+            llama.unload()
+        } catch (e: Exception) {
+            Log.e(tag, "Errore durante il rilascio delle risorse LlamaCpp.", e)
+        } finally {
+            currentModelPath = null
+            totalTokensUsed = 0
+            updateTokenCount()
+            Log.d(tag, "Modello LlamaCpp scaricato")
+        }
     }
 
     override fun getTokensUsed(): Int {
@@ -140,13 +156,8 @@ class LlamaCppEngine(private val context: Context) : InferenceEngine {
      */
     private fun estimateTokens(text: String): Int {
         if (text.isEmpty()) return 0
-
-        // Stima basata su caratteristiche del testo:
-        // - ~4 caratteri per token per testo inglese/latino
-        // - Aggiustamento per spazi e punteggiatura
         val baseTokens = (text.length / 4.0).roundToInt()
         val wordCount = text.split("\\s+".toRegex()).size
-
         return maxOf(1, (baseTokens + wordCount * 0.1).roundToInt())
     }
 
