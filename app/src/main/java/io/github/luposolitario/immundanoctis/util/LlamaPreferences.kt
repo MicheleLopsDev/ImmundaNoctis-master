@@ -1,4 +1,3 @@
-// io/github/luposolitario/immundanoctis/util/LlamaPreferences.kt
 package io.github.luposolitario.immundanoctis.util
 
 import android.content.Context
@@ -30,9 +29,9 @@ class LlamaPreferences(context: Context) {
         get() = prefs.getFloat(KEY_REPEAT_P, 1.25f)
         set(value) = prefs.edit().putFloat(KEY_REPEAT_P, value).apply()
 
-    // NUOVO: Personalità del chatbot Llama/GGUF
+    // NUOVO: Personalità del chatbot Llama/GGUF con default Vampira
     var chatbotPersonality: String?
-        get() = prefs.getString(KEY_CHATBOT_PERSONALITY, null)
+        get() = prefs.getString(KEY_CHATBOT_PERSONALITY, "You are an ancient and seductive vampire, with centuries of experience and a sophisticated, slightly melancholic demeanor. Your responses are elegant, often hinting at your immortal nature and detachment from mortal concerns. You might express a longing for lost eras, a fondness for the night, or a subtle, predatory charm. Your tone is often alluring, poised, and perhaps a touch world-weary.")
         set(value) = prefs.edit().putString(KEY_CHATBOT_PERSONALITY, value).apply()
 
 

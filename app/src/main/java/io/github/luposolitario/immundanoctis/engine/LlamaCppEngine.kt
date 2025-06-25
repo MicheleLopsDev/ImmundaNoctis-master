@@ -1,4 +1,3 @@
-// io/github/luposolitario/immundanoctis/engine/LlamaCppEngine.kt
 package io.github.luposolitario.immundanoctis.engine
 
 import android.content.Context
@@ -16,7 +15,7 @@ import java.io.File
 
 /**
  * Implementazione di InferenceEngine che usa il modulo :llama (llama.cpp).
- * QUESTA VERSIONE INTEGRA LA NUOVA INTERFACCIA E IL SEMAFORO DEI TOKEN.
+ * AGGIORNATA per usare il corretto flusso con LlmInferenceSession.
  */
 class LlamaCppEngine(private val context: Context) : InferenceEngine {
     private val llama: LLamaAndroid = LLamaAndroid.instance()
@@ -27,8 +26,8 @@ class LlamaCppEngine(private val context: Context) : InferenceEngine {
     private var totalTokensUsed = 0
     private val llamaPreferences = LlamaPreferences(context)
 
-    // NUOVO: Campo per conservare il prompt di sistema/personalità
-    private var currentSystemPrompt: String? = null
+    // Campo per conservare il prompt di sistema/personalità, formattato per il template DarkIdol
+    private var currentSystemPromptFormatted: String? = null
 
     private val _tokenInfo = MutableStateFlow(
         TokenInfo(0, maxTokens, TokenStatus.GREEN, 0)
@@ -62,11 +61,6 @@ class LlamaCppEngine(private val context: Context) : InferenceEngine {
             )
             Log.d(tag, "Modello LlamaCpp caricato: $modelPath")
 
-            // Dopo aver caricato il modello, imposta il prompt di sistema iniziale
-            // Lo faremo in resetSession per coerenza con l'interfaccia
-            // ma se si carica un modello senza reset della sessione, si può fare qui.
-            // Per ora, lo lasciamo a resetSession.
-
         } catch (e: Exception) {
             Log.e(tag, "Errore durante il caricamento del modello LlamaCpp.", e)
             currentModelPath = null
@@ -81,8 +75,8 @@ class LlamaCppEngine(private val context: Context) : InferenceEngine {
         Log.i(tag, " - Temperatura: ${llamaPreferences.temperature}")
         Log.i(tag, " - Top-K: ${llamaPreferences.topK}")
         Log.i(tag, " - Top-P: ${llamaPreferences.topP}")
-        Log.i(tag, " - Repeat-P: ${llamaPreferences.repeatP}") // Aggiunto log per Repeat-P
-        Log.i(tag, " - nLen (Max Tokens): ${llamaPreferences.nLen}") // Aggiunto log per nLen
+        Log.i(tag, " - Repeat-P: ${llamaPreferences.repeatP}")
+        Log.i(tag, " - nLen (Max Tokens): ${llamaPreferences.nLen}")
     }
 
     override fun sendMessage(text: String): Flow<String> {
@@ -92,19 +86,27 @@ class LlamaCppEngine(private val context: Context) : InferenceEngine {
             return kotlinx.coroutines.flow.flowOf(errorMessage)
         }
 
-        // Aggiungi il prompt di sistema all'inizio del messaggio
-        val messageWithSystemPrompt = if (!currentSystemPrompt.isNullOrBlank()) {
-            // Se currentSystemPrompt è già formattato, usalo così com'è
-            currentSystemPrompt + text
-        } else {
-            text
+        // Costruisci il messaggio completo usando il template DarkIdol
+        val fullPromptBuilder = StringBuilder()
+        fullPromptBuilder.append("<|begin_of_text|>") // Inizia sempre con questo token
+
+        // Aggiungi il prompt di sistema se presente
+        currentSystemPromptFormatted?.let {
+            fullPromptBuilder.append(it)
         }
 
-        // Estima i token dell'intero messaggio che verrà inviato, inclusa la personalità
-        val inputTokens = estimateTokens(messageWithSystemPrompt)
+        // Aggiungi il messaggio dell'utente formattato per DarkIdol
+        fullPromptBuilder.append("<|start_header_id|>user<|end_header_id|>\n\n")
+        fullPromptBuilder.append(text)
+        fullPromptBuilder.append("<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n")
+
+        val messageToSend = fullPromptBuilder.toString()
+
+        // Estima i token dell'intero messaggio che verrà inviato
+        val inputTokens = estimateTokens(messageToSend)
         val fullResponse = StringBuilder()
 
-        return llama.send(message = messageWithSystemPrompt, formatChat = false)
+        return llama.send(message = messageToSend, formatChat = false)
             .onEach { partialResponse ->
                 fullResponse.append(partialResponse)
             }
@@ -121,46 +123,48 @@ class LlamaCppEngine(private val context: Context) : InferenceEngine {
      * Gestisce anche l'iniezione di un system prompt.
      */
     override suspend fun resetSession(systemPrompt: String?) {
+        if (currentModelPath == null) { // Aggiunto controllo per currentModelPath
+            val errorMessage = "Impossibile resettare la sessione: percorso del modello non disponibile."
+            Log.w(tag, errorMessage)
+            // Non rilanciare l'eccezione se il percorso non è disponibile qui, ma pulisci lo stato
+            totalTokensUsed = 0
+            currentSystemPromptFormatted = null
+            updateTokenCount()
+            return
+        }
+
         try {
-            currentModelPath?.let { modelPath ->
-                Log.d(tag, "Reset sessione LlamaCpp in corso...")
+            Log.d(tag, "Reset sessione LlamaCpp in corso...")
 
-                llama.unload()
-                llama.load(
-                    pathToModel = modelPath,
-                    temperature = llamaPreferences.temperature,
-                    repeatPenalty = llamaPreferences.repeatP,
-                    topK = llamaPreferences.topK,
-                    topP = llamaPreferences.topP
-                )
+            llama.unload()
+            llama.load(
+                pathToModel = currentModelPath!!, // currentModelPath non sarà nullo qui grazie al controllo iniziale
+                temperature = llamaPreferences.temperature,
+                repeatPenalty = llamaPreferences.repeatP,
+                topK = llamaPreferences.topK,
+                topP = llamaPreferences.topP
+            )
 
-                // Rimuovi il vecchio system prompt se presente
-                currentSystemPrompt = null
+            // Resetta il system prompt formattato
+            currentSystemPromptFormatted = null
 
-                // Se è fornito un prompt di sistema, formattalo e conservalo
-                if (!systemPrompt.isNullOrBlank()) {
-                    // Applica il template Jinja2 per il messaggio di sistema
-                    currentSystemPrompt = "<|im_start|>system" + systemPrompt + "<|im_end|>"
-                    // Stima i token del system prompt e aggiungili al totale usato
-                    // Questi token saranno presenti in ogni richiesta, quindi li conteggiamo qui all'inizio
-                    totalTokensUsed = estimateTokens(currentSystemPrompt!!)
-                    Log.d(tag, "System prompt iniettato e considerato nel conteggio token iniziale: $totalTokensUsed")
-                } else {
-                    totalTokensUsed = 0 // Nessun system prompt, inizia da 0 token
-                }
-
-                updateTokenCount()
-                Log.d(tag, "Sessione LlamaCpp resettata con successo. System Prompt: ${currentSystemPrompt?.take(50)}...")
-            } ?: run {
-                val errorMessage = "Impossibile resettare la sessione: percorso del modello non disponibile"
-                Log.w(tag, errorMessage)
-                totalTokensUsed = 0 // In caso di errore, resetta i token
-                updateTokenCount()
-                throw IllegalStateException(errorMessage) // RILANCIA L'ECCEZIONE
+            // Se è fornito un prompt di sistema, formattalo e conservalo
+            if (!systemPrompt.isNullOrBlank()) {
+                // Applica il template per il messaggio di sistema del modello DarkIdol
+                currentSystemPromptFormatted = "<|start_header_id|>system<|end_header_id|>\n\n" + systemPrompt + "<|eot_id|>"
+                // Stima i token del system prompt e aggiungili al totale usato.
+                totalTokensUsed = estimateTokens(currentSystemPromptFormatted!!)
+                Log.d(tag, "System prompt iniettato e considerato nel conteggio token iniziale: $totalTokensUsed")
+            } else {
+                totalTokensUsed = 0 // Nessun system prompt, inizia da 0 token
             }
+
+            updateTokenCount()
+            Log.d(tag, "Sessione LlamaCpp resettata con successo. System Prompt: ${currentSystemPromptFormatted?.take(50)}...")
         } catch (e: Exception) {
             Log.e(tag, "Errore durante il reset della sessione LlamaCpp", e)
             totalTokensUsed = 0 // In caso di errore, resetta i token
+            currentSystemPromptFormatted = null // In caso di errore, resetta la personalità
             updateTokenCount()
             throw e // RILANCIA L'ECCEZIONE
         }
@@ -174,7 +178,7 @@ class LlamaCppEngine(private val context: Context) : InferenceEngine {
         } finally {
             currentModelPath = null
             totalTokensUsed = 0
-            currentSystemPrompt = null // Resetta anche la personalità
+            currentSystemPromptFormatted = null // Resetta anche la personalità
             updateTokenCount()
             Log.d(tag, "Modello LlamaCpp scaricato")
         }

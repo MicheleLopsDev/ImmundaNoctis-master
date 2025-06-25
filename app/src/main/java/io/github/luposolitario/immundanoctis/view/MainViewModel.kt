@@ -1,4 +1,3 @@
-// io/github/luposolitario/immundanoctis/view/MainViewModel.kt
 package io.github.luposolitario.immundanoctis.view
 
 import android.app.Application
@@ -54,7 +53,7 @@ import io.github.luposolitario.immundanoctis.engine.GameLogicManager
 import io.github.luposolitario.immundanoctis.data.Genre
 import io.github.luposolitario.immundanoctis.data.SceneType
 import io.github.luposolitario.immundanoctis.data.SessionData
-import io.github.luposolitario.immundanoctis.util.LlamaPreferences // Importa LlamaPreferences
+import io.github.luposolitario.immundanoctis.util.LlamaPreferences
 import kotlin.random.Random
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -78,7 +77,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val gameStateManager = GameStateManager(application)
     private val enginePreferences = EnginePreferences(application)
     private val themePreferences = ThemePreferences(application)
-    private val llamaPreferences = LlamaPreferences(application) // Inizializza LlamaPreferences
+    private val llamaPreferences = LlamaPreferences(application)
 
     private val savePreferences = SavePreferences(application)
     private val _chatMessages = MutableStateFlow<List<ChatMessage>>(emptyList())
@@ -125,15 +124,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private lateinit var gameLogicManager: GameLogicManager
 
-    // PASSO ATOMICO 1 (MACRO-ATTIVITÀ 3): Stati UI nel ViewModel
     private val _activeChallenges = MutableStateFlow<List<GameChallenge>>(emptyList())
     val activeChallenges: StateFlow<List<GameChallenge>> = _activeChallenges.asStateFlow()
 
     private val _activeNarrativeChoices = MutableStateFlow<List<NarrativeChoice>>(emptyList())
     val activeNarrativeChoices: StateFlow<List<NarrativeChoice>> = _activeNarrativeChoices.asStateFlow()
 
-    // Per i bivi direzionali, possiamo usare EngineCommand temporaneamente, o creare una data class specifica
-    private val _activeDirectionalChoices = MutableStateFlow<List<EngineCommand>>(emptyList()) // Cambiato emptyList() in emptyListOf()
+    private val _activeDirectionalChoices = MutableStateFlow<List<EngineCommand>>(emptyList())
     val activeDirectionalChoices: StateFlow<List<EngineCommand>> = _activeDirectionalChoices.asStateFlow()
 
 
@@ -479,6 +476,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _logMessages.update { it + message }
     }
 
+    // NUOVA FUNZIONE: per scaricare esplicitamente il motore DM (necessaria per la pulizia)
+    suspend fun unloadDmEngine() {
+        Log.d(tag, "Richiesta di unload del motore DM (Gemma).")
+        dmEngine.unload()
+        Log.d(tag, "Motore DM (Gemma) scaricato.")
+    }
+
     fun resetSession() {
         viewModelScope.launch {
             log("Avvio reset sessione per il motore attivo...")
@@ -496,7 +500,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 null
             }
 
-            engineToUse.resetSession(systemPromptForReset) // Passa la personalità qui
+            engineToUse.resetSession(systemPromptForReset)
             log("Reset della sessione completato per ${engineToUse::class.simpleName}.")
             _currentScene.value = gameLogicManager.selectRandomStartScene(Genre.WESTERN)
             log("Scena reimpostata a una scena START casuale di genere WESTERN.")
@@ -524,31 +528,31 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         commands.forEach { command ->
             Log.d(tag, "Comando ricevuto: ${command.commandName} con parametri: ${command.parameters}")
             when (command.commandName) {
-                "playAudio" -> { // CORRETTO: da play_audio
-                    val audioFile = command.parameters["audioFile"] as? String // CORRETTO: da captured_value_from_regex
+                "playAudio" -> {
+                    val audioFile = command.parameters["audioFile"] as? String
                     log("DEBUG COMMAND: Riproduci audio: $audioFile")
                     // Qui andrebbe la logica per riprodurre l'audio
                 }
-                "generateImage" -> { // CORRETTO: da generate_image
-                    val prompt = command.parameters["prompt"] as? String // CORRETTO: da captured_value_from_regex
+                "generateImage" -> {
+                    val prompt = command.parameters["prompt"] as? String
                     log("DEBUG COMMAND: Genera immagine con prompt: $prompt")
                     // Qui andrebbe la logica per generare un'immagine con Stable Diffusion
                 }
-                "triggerGraphicEffect" -> { // CORRETTO: da trigger_graphic_effect
-                    val effectName = command.parameters["effectName"] as? String // CORRETTO: da captured_value_from_regex
+                "triggerGraphicEffect" -> {
+                    val effectName = command.parameters["effectName"] as? String
                     log("DEBUG COMMAND: Attiva effetto grafico: $effectName")
                     // Qui andrebbe la logica per attivare un effetto grafico
                 }
-                "gameChallenge" -> { // CORRETTO: da game_challenge
+                "gameChallenge" -> {
                     val heroCharacter = _gameCharacters.value.find { it.id == CharacterID.HERO }
                     if (heroCharacter == null || heroCharacter.stats == null) {
                         log("ATTENZIONE: Personaggio Eroe o sue statistiche non disponibili per la sfida!")
                         return@forEach
                     }
 
-                    val abilityType = command.parameters["abilityType"] as? String // CORRETTO: da ability_type
-                    val challengeLevelStr = command.parameters["challengeLevel"] as? String // CORRETTO: da captured_value_from_regex
-                    val currentSceneChallengeLevel = _currentScene.value?.challengeLevel // Livello della scena
+                    val abilityType = command.parameters["abilityType"] as? String
+                    val challengeLevelStr = command.parameters["challengeLevel"] as? String
+                    val currentSceneChallengeLevel = _currentScene.value?.challengeLevel
                     val descriptionForLog = command.parameters["description"] as? String ?: "Descrizione non disponibile"
 
                     log("DEBUG COMMAND: Inizio sfida di gioco: Tipo=${abilityType}, Livello Richiesto (tag)=${challengeLevelStr}, Livello Scena=${currentSceneChallengeLevel?.name}, Descrizione='${descriptionForLog}'")
@@ -585,17 +589,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     _chatMessages.update { it + resultChatMessage }
                     autoSaveChatIfEnabled()
                 }
-                "narrativeChoice" -> { // CORRETTO: da narrative_choice
-                    val choiceId = command.parameters["nextSceneId"] as? String // CORRETTO: da captured_value_from_regex (se questo è l'ID)
-                    val choiceText = command.parameters["choiceText"] as? String // CORRETTO: da choice_text
+                "narrativeChoice" -> {
+                    val choiceId = command.parameters["nextSceneId"] as? String
+                    val choiceText = command.parameters["choiceText"] as? String
                     log("DEBUG COMMAND: Avvia scelta narrativa: ID=${choiceId}, Testo='${choiceText}'")
                     // Qui andrebbe la logica per presentare una scelta narrativa
                 }
-                "displayDirectionalButton" -> { // CORRETTO: da display_directional_button
+                "displayDirectionalButton" -> {
                     val direction = command.parameters["direction"] as? String
-                    val colorHex = command.parameters["colorHex"] as? String // CORRETTO: da color_hex
-                    val choiceText = command.parameters["choiceText"] as? String // CORRETTO: da choice_text
-                    val nextSceneId = command.parameters["nextSceneId"] as? String // CORRETTO: da next_scene_id
+                    val colorHex = command.parameters["colorHex"] as? String
+                    val choiceText = command.parameters["choiceText"] as? String
+                    val nextSceneId = command.parameters["nextSceneId"] as? String
                     log("DEBUG COMMAND: Mostra pulsante direzionale: Dir=${direction}, Colore=${colorHex}, Testo='${choiceText}', ProssimaScena=${nextSceneId}")
                     // Qui andrebbe la logica per esporre questi dati alla UI per mostrare il pulsante
                 }

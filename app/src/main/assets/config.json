@@ -387,6 +387,17 @@
       "actor": "ANY",
       "command": null,
       "replace": true
+    },
+    {
+      "id": "end_guff_tag",
+      "type": "textSubstitution",
+      "regex": "\\<\\|eot_id\\|",
+      "replacement": "",
+      "parameters": [],
+      "actor": "ANY",
+      "command": null,
+      "replace": true
     }
+
   ]
 }
