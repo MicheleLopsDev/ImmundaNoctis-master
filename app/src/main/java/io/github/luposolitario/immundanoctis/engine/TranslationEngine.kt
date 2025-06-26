@@ -161,6 +161,7 @@ class TranslationEngine {
             TranslateLanguage.CHINESE -> Log.d(tag, "Identificata lingua Cinese (zh). Tentativo di traduzione.")
             TranslateLanguage.SPANISH -> Log.d(tag, "Identificata lingua Spagnola (es). Tentativo di traduzione.")
             TranslateLanguage.FRENCH -> Log.d(tag, "Identificata lingua Francese (fr). Tentativo di traduzione.")
+            TranslateLanguage.DUTCH -> Log.d(tag, "Identificata lingua Tedesco (de). Tentativo di traduzione.")
             // Puoi aggiungere altri casi qui se necessario
             else -> Log.d(tag, "Identificata lingua '$sourceLang'. Tentativo di traduzione.")
         }

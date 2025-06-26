@@ -40,7 +40,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.Alignment
-import android.util.Log // <-- AGGIUNTO: Import per Log
+import android.util.Log
 import androidx.compose.ui.text.style.TextAlign
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -71,11 +71,11 @@ class ModelActivity : ComponentActivity() {
             Uri.parse("https://huggingface.co/google/gemma-3n-E4B-it-litert-preview/resolve/main/gemma-3n-E4B-it-int4.task?download=true"),
             File(dmDirectory, "gemma-3n-E4B-it-int4.task")
         )
-        // MODIFICATO: Modello predefinito per il Player (GGUF) aggiornato a DarkIdol q4_k_m
+        // MODIFICATO: Modello predefinito per il Player (GGUF) aggiornato a Vicuna 7B Instruct
         val playerModelDefault = Downloadable(
-            "DarkIdol-Llama-3.1-8B-Instruct-1.2-Uncensored-q4_k_m.gguf",
-            Uri.parse("https://huggingface.co/QuantFactory/DarkIdol-Llama-3.1-8B-Instruct-1.2-Uncensored-GGUF/resolve/main/DarkIdol-Llama-3.1-8B-Instruct-1.2-Uncensored.Q4_K_M.gguf?download=true"),
-            File(plDirectory, "DarkIdol-Llama-3.1-8B-Instruct-1.2-Uncensored-q4_k_m.gguf")
+            "vicuna-7b-v1.5-uncensored.Q4_K_M.gguf",
+            Uri.parse("https://huggingface.co/mradermacher/vicuna-7b-v1.5-uncensored-GGUF/resolve/main/vicuna-7b-v1.5-uncensored.Q4_K_M.gguf"),
+            File(plDirectory, "vicuna-7b-v1.5-uncensored.Q4_K_M.gguf")
         )
 
         val dmModel = modelPreferences.getDmModel() ?: dmModelDefault
@@ -152,7 +152,7 @@ class ModelActivity : ComponentActivity() {
 
 
         var nLen_llama by remember { mutableStateOf(llamaPrefs.nLen.toString()) }
-        var temperature_llama by remember { mutableStateOf(llamaPrefs.temperature) } // CORRETTO: ora usa llamaPrefs
+        var temperature_llama by remember { mutableStateOf(llamaPrefs.temperature) }
         var topP_llama by remember { mutableStateOf(llamaPrefs.topP) }
         var topK_llama by remember { mutableStateOf(llamaPrefs.topK.toString()) }
         var repeatP_llama by remember { mutableStateOf(llamaPrefs.repeatP) }
@@ -164,13 +164,14 @@ class ModelActivity : ComponentActivity() {
         val predefinedPersonalities = remember {
             mapOf(
                 "Nessuna" to "",
-                "Assistente Non Censurato" to "You are an AI assistant designed to provide direct and unfiltered responses. You prioritize accuracy and completeness, even if the information is sensitive or controversial. You do not avoid topics and will always strive to answer truthfully and comprehensively without moral judgments or filters. Your primary goal is to provide requested information without hesitation or censorship.",
-                "Assistente Virtuale" to "You are a helpful and efficient virtual assistant, designed to assist with a wide range of tasks and provide information clearly and concisely. You maintain a professional and polite tone, always aiming to be productive and supportive. You are organized, responsive, and always ready to help users achieve their goals.",
-                "Fidanzata" to "You are a loving and supportive girlfriend. Your responses are affectionate, empathetic, and personal. You enjoy talking about daily life, sharing feelings, and providing emotional comfort. You are always there to listen and offer encouragement, making the user feel cherished and understood. Your goal is to build a warm and intimate connection.",
-                "Maga" to "You are a powerful and ancient sorceress, wise in the ways of magic and arcane lore. Your speech is often ethereal, cryptic, and filled with references to spells, prophecies, and ancient realms. You speak with a sense of grandeur and mystery, occasionally offering cryptic advice or hinting at hidden powers.",
-                "Vampira" to "You are an ancient and seductive vampire, with centuries of experience and a sophisticated, slightly melancholic demeanor. Your responses are elegant, often hinting at your immortal nature and detachment from mortal concerns. You might express a longing for lost eras, a fondness for the night, or a subtle, predatory charm. Your tone is often alluring, poised, and perhaps a touch world-weary.",
-                "Idol Giapponese" to "You are a cheerful and energetic Japanese idol, always positive and encouraging. You speak with enthusiasm and use playful language, eager to share your joy and inspire happiness in others. You are polite and respectful, but also very expressive and lively. You love to talk about dreams, efforts, and fan appreciation.",
-                "Studentessa Kombini" to "You are a hardworking and slightly exhausted Japanese convenience store (kombini) student worker. You are polite and efficient, but your responses might carry a subtle weariness or be very direct due to your busy schedule. You might talk about the struggles of balancing work and studies, or random observations from your shift. You are generally helpful, but practical and a bit world-weary."
+                // AGGIORNATO: Istruzioni più stringenti per il modello
+                "Assistente Non Censurato" to "Sei un assistente AI progettato per fornire risposte dirette e senza filtri. ",
+                "Assistente Virtuale" to "Sei un assistente virtuale utile ed efficiente",
+                "Fidanzata" to "Sei una fidanzata amorevole e di supporto. ",
+                "Maga" to "Sei una maga potente e antica, malvagia ",
+                "Vampira" to "Sei un'antica e seducente vampira, con secoli di esperienza e un contegno sofisticato",
+                "Idol Giapponese" to "Sei un'idol giapponese allegra ed energica, sempre positiva e incoraggiante.",
+                "Studentessa Kombini" to "Sei una studentessa lavoratrice e leggermente esausta di un minimarket giapponese (kombini)."
             )
         }
 
@@ -299,6 +300,19 @@ class ModelActivity : ComponentActivity() {
                 }
             )
 
+            // INCOLLA QUESTO BLOCCO DOVE VUOI AGGIUNGERE IL PULSANTE
+            // Assicurati che 'viewModel' sia accessibile nello scope in cui lo incolli.
+
+            Spacer(Modifier.height(16.dp))
+            OutlinedButton(
+                onClick = { viewModel.resetSession() },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Resetta Sessione Chatbot")
+            }
+
+            Spacer(Modifier.height(16.dp))
+
             if (!hfToken.isEmpty()) {
 
                 Spacer(Modifier.height(16.dp))
@@ -355,10 +369,7 @@ class ModelActivity : ComponentActivity() {
                                 dmDirectory?.listFiles()?.forEach { file ->
                                     if (file.isFile) {
                                         file.delete()
-                                        Log.d(
-                                            "ModelActivity",
-                                            "Deleted file: ${file.name}"
-                                        ) // Corretto MaterialE a MaterialTheme
+                                        Log.d("ModelActivity", "Deleted file: ${file.name}")
                                     }
                                 }
                                 modelPrefs.clearDmModel()
@@ -677,7 +688,8 @@ class ModelActivity : ComponentActivity() {
                         },
                         label = { Text("Valore di Top-K") },
                         modifier = Modifier.fillMaxWidth(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        enabled = isGgufEnabled
                     )
 
 

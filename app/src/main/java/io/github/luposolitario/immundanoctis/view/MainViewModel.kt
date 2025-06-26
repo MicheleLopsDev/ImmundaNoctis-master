@@ -257,7 +257,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 dmModelPath?.let {
                     loadTasks.add(async {
                         log("Tentativo di caricamento modello DM (Gemma) su thread IO...")
-                        dmEngine.load(it)
+                        dmEngine.load(it, llamaPreferences.chatbotPersonality)
                     })
                 }
 
@@ -265,7 +265,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     playerModelPath?.let {
                         loadTasks.add(async {
                             log("Tentativo di caricamento modello PG (GGUF) su thread IO...")
-                            playerEngine.load(it)
+                            playerEngine.load(it,llamaPreferences.chatbotPersonality)
                         })
                     }
                 }

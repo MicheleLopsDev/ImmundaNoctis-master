@@ -43,7 +43,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -138,10 +137,12 @@ class AdventureActivity : ComponentActivity() {
                     is EngineLoadingState.Success -> {
                         val view = LocalView.current
                         if (!view.isInEditMode) {
-                            SideEffect {
-                                val window = (view.context as Activity).window
-                                window.statusBarColor = Color.Black.toArgb()
-                                WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
+                            LaunchedEffect(key1 = view) {
+                                val window = (view.context as? Activity)?.window
+                                if (window != null) {
+                                    window.statusBarColor = Color.Black.toArgb()
+                                    WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
+                                }
                             }
                         }
 

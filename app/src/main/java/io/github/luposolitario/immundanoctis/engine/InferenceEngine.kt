@@ -40,7 +40,7 @@ interface InferenceEngine {
     /**
      * Carica un modello da un percorso specifico.
      */
-    suspend fun load(modelPath: String)
+    suspend fun load(modelPath: String, chatbotPersonality: String?)
 
     /**
      * Invia un prompt al modello e restituisce la risposta come un flusso di token.

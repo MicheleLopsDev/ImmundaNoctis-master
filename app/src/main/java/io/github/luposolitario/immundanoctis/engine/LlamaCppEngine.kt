@@ -12,12 +12,17 @@ import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onEach
 import kotlin.math.roundToInt
 import java.io.File
+import java.util.LinkedList
 
 /**
  * Implementazione di InferenceEngine che usa il modulo :llama (llama.cpp).
  * AGGIORNATA per usare il corretto flusso con LlmInferenceSession.
  */
 class LlamaCppEngine(private val context: Context) : InferenceEngine {
+
+    // Questa è una data class di esempio per rappresentare un messaggio di chat.
+// Assicurati che corrisponda alla tua classe ChatMessage.
+    data class Message(val role: String, val content: String)
     private val llama: LLamaAndroid = LLamaAndroid.instance()
     private val tag = "LlamaCppEngine"
     private var currentModelPath: String? = null
@@ -25,6 +30,7 @@ class LlamaCppEngine(private val context: Context) : InferenceEngine {
     private var maxTokens: Int = 4096 // Valore predefinito, verrà aggiornato dal caricamento
     private var totalTokensUsed = 0
     private val llamaPreferences = LlamaPreferences(context)
+    private var chatHistory: LinkedList <Message> = LinkedList()
 
     // Campo per conservare il prompt di sistema/personalità, formattato per il template DarkIdol
     private var currentSystemPromptFormatted: String? = null
@@ -34,12 +40,20 @@ class LlamaCppEngine(private val context: Context) : InferenceEngine {
     )
     override val tokenInfo: StateFlow<TokenInfo> = _tokenInfo.asStateFlow()
 
-    override suspend fun load(modelPath: String) {
+    override suspend fun load(modelPath: String, chatbotPersonality: String?) {
         currentModelPath = modelPath
         // Aggiorna maxTokens qui basandosi su LlamaPreferences
         maxTokens = llamaPreferences.nLen // Usa nLen dalle preferenze come maxTokens
         totalTokensUsed = 0
         updateTokenCount()
+
+        if (!chatbotPersonality.isNullOrBlank()) {
+            // Applica il template per il messaggio di sistema del modello DarkIdol
+            currentSystemPromptFormatted =   chatbotPersonality
+            Log.d(tag, "Inizializzato template per chat con personality: $chatbotPersonality")
+        }
+
+        chatHistory.add(Message("system", currentSystemPromptFormatted ?: ""))
 
         try {
             if (!File(modelPath).exists()) {
@@ -86,21 +100,9 @@ class LlamaCppEngine(private val context: Context) : InferenceEngine {
             return kotlinx.coroutines.flow.flowOf(errorMessage)
         }
 
-        // Costruisci il messaggio completo usando il template DarkIdol
-        val fullPromptBuilder = StringBuilder()
-        fullPromptBuilder.append("<|begin_of_text|>") // Inizia sempre con questo token
-
-        // Aggiungi il prompt di sistema se presente
-        currentSystemPromptFormatted?.let {
-            fullPromptBuilder.append(it)
-        }
-
-        // Aggiungi il messaggio dell'utente formattato per DarkIdol
-        fullPromptBuilder.append("<|start_header_id|>user<|end_header_id|>\n\n")
-        fullPromptBuilder.append(text)
-        fullPromptBuilder.append("<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n")
-
-        val messageToSend = fullPromptBuilder.toString()
+        // Il modello genererà la risposta e poi </s>
+        var messageToSend =  buildPromptWithHistory(text)//fullPromptBuilder.toString()
+        Log.d(tag, "DEBUG_PROMPT: Prompt finale inviato a LLama (Llama 2): \n---\n${messageToSend}\n---")
 
         // Estima i token dell'intero messaggio che verrà inviato
         val inputTokens = estimateTokens(messageToSend)
@@ -112,9 +114,10 @@ class LlamaCppEngine(private val context: Context) : InferenceEngine {
             }
             .onCompletion {
                 val outputTokens = estimateTokens(fullResponse.toString())
+                chatHistory.add(Message("assistant", fullResponse.toString()))
                 totalTokensUsed += (inputTokens + outputTokens)
                 updateTokenCount()
-                Log.d(tag, "Token utilizzati in questo messaggio: input=$inputTokens, output=$outputTokens, totale sessione=$totalTokensUsed")
+            Log.d(tag, "DEBUG_FLOW: Token utilizzati in questo messaggio: input=$inputTokens, output=$outputTokens, totale sessione=$totalTokensUsed")
             }
     }
 
@@ -151,7 +154,7 @@ class LlamaCppEngine(private val context: Context) : InferenceEngine {
             // Se è fornito un prompt di sistema, formattalo e conservalo
             if (!systemPrompt.isNullOrBlank()) {
                 // Applica il template per il messaggio di sistema del modello DarkIdol
-                currentSystemPromptFormatted = "<|start_header_id|>system<|end_header_id|>\n\n" + systemPrompt + "<|eot_id|>"
+                currentSystemPromptFormatted =   systemPrompt
                 // Stima i token del system prompt e aggiungili al totale usato.
                 totalTokensUsed = estimateTokens(currentSystemPromptFormatted!!)
                 Log.d(tag, "System prompt iniettato e considerato nel conteggio token iniziale: $totalTokensUsed")
@@ -202,6 +205,43 @@ class LlamaCppEngine(private val context: Context) : InferenceEngine {
         val roughEstimate = maxOf(1, (charBasedTokens + wordCount * 0.2).roundToInt())
         return roughEstimate
     }
+
+    /**
+     * Costruisce una stringa di prompt completa includendo la cronologia della chat.
+     *
+     * @param messages La lista dei messaggi precedenti (cronologia).
+     * @param newUserInput Il nuovo messaggio dell'utente.
+     * @return Una singola stringa formattata secondo il template del modello, pronta per l'invio.
+     */
+    fun buildPromptWithHistory( newUserInput: String): String {
+        val promptBuilder = StringBuilder()
+        // Il template gestisce il messaggio di sistema solo se è il primo
+        val systemMessage = chatHistory.firstOrNull { it.role == "system" }
+        if (systemMessage != null) {
+            // Aggiungi il system prompt formattato
+            promptBuilder.append("SYSTEM: ${systemMessage.content}\n")
+        }
+
+        // Itera attraverso i messaggi precedenti e li formatta
+        for (message in chatHistory) {
+            when (message.role) {
+                "user" -> {
+                    // Il template aggiunge "ASSISTANT:" alla fine del turno Utente
+                    promptBuilder.append("USER: ${message.content} ASSISTANT:")
+                }
+                "assistant" -> {
+                    // Il template aggiunge "</s>" alla fine del turno Assistant
+                    promptBuilder.append("${message.content}</s>")
+                }
+            }
+        }
+
+        // Aggiungi il nuovo input dell'utente e il segnale per l'assistente
+        promptBuilder.append("USER: $newUserInput ASSISTANT:")
+
+        return promptBuilder.toString()
+    }
+
 
     /**
      * Calcola la stima dei token usati e aggiorna lo StateFlow.

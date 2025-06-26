@@ -38,7 +38,7 @@ class GemmaEngine(private val context: Context) : InferenceEngine {
         const val TOKEN_LIMIT_REACHED_SIGNAL = "{TOKEN_LIMIT_REACHED}"
     }
 
-    override suspend fun load(modelPath: String) {
+    override suspend fun load(modelPath: String, chatbotPersonality: String?) {
         currentModelPath = modelPath
         try {
             if (!File(modelPath).exists()) {
