@@ -94,6 +94,11 @@ class LlamaCppEngine(private val context: Context) : InferenceEngine {
     }
 
     override fun sendMessage(text: String): Flow<String> {
+
+        if (!llamaPreferences.isChatHistoryEnabled)
+            chatHistory.removeIf {  it -> it.role == "user" }
+            chatHistory.add(Message("user", text))
+
         if (currentModelPath == null) {
             val errorMessage = "[ERRORE: Sessione di chat con Llama non inizializzata]"
             Log.e(tag, errorMessage)
@@ -114,7 +119,12 @@ class LlamaCppEngine(private val context: Context) : InferenceEngine {
             }
             .onCompletion {
                 val outputTokens = estimateTokens(fullResponse.toString())
+
+
+                if (!llamaPreferences.isChatHistoryEnabled)
+                chatHistory.removeIf {  it -> it.role == "assistant" }
                 chatHistory.add(Message("assistant", fullResponse.toString()))
+
                 totalTokensUsed += (inputTokens + outputTokens)
                 updateTokenCount()
             Log.d(tag, "DEBUG_FLOW: Token utilizzati in questo messaggio: input=$inputTokens, output=$outputTokens, totale sessione=$totalTokensUsed")
