@@ -34,6 +34,10 @@ class LlamaPreferences(context: Context) {
         get() = prefs.getString(KEY_CHATBOT_PERSONALITY, "You are an ancient and seductive vampire, with centuries of experience and a sophisticated, slightly melancholic demeanor. Your responses are elegant, often hinting at your immortal nature and detachment from mortal concerns. You might express a longing for lost eras, a fondness for the night, or a subtle, predatory charm. Your tone is often alluring, poised, and perhaps a touch world-weary.")
         set(value) = prefs.edit().putString(KEY_CHATBOT_PERSONALITY, value).apply()
 
+    // NUOVO: Abilita la persistenza della cronologia chat per il modello Llama/GGUF
+    var isChatHistoryEnabled: Boolean
+        get() = prefs.getBoolean(KEY_CHAT_HISTORY_ENABLED, false) // Default: disabilitato
+        set(value) = prefs.edit().putBoolean(KEY_CHAT_HISTORY_ENABLED, value).apply()
 
     companion object {
         private const val PREFS_NAME = "llama_preferences"
@@ -42,7 +46,8 @@ class LlamaPreferences(context: Context) {
         private const val KEY_TOP_K = "llama_top_k"
         private const val KEY_TOP_P = "llama_top_p"
         private const val KEY_REPEAT_P = "llama_repeat_p"
-        // NUOVA CHIAVE:
         private const val KEY_CHATBOT_PERSONALITY = "llama_chatbot_personality"
+        // NUOVA CHIAVE:
+        private const val KEY_CHAT_HISTORY_ENABLED = "llama_chat_history_enabled"
     }
 }

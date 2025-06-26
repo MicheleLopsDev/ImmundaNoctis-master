@@ -156,7 +156,6 @@ class ModelActivity : ComponentActivity() {
         var topP_llama by remember { mutableStateOf(llamaPrefs.topP) }
         var topK_llama by remember { mutableStateOf(llamaPrefs.topK.toString()) }
         var repeatP_llama by remember { mutableStateOf(llamaPrefs.repeatP) }
-
         var chatbotPersonality_llama by remember { mutableStateOf(llamaPrefs.chatbotPersonality ?: "") }
 
         // Stati per il Dropdown delle personalità
@@ -582,6 +581,41 @@ class ModelActivity : ComponentActivity() {
                     )
 
                     Spacer(Modifier.height(16.dp))
+
+                    // Incolla questo blocco nel tuo file ModelActivity.kt, in MainEngineScreen, sotto TokenInputSection
+
+                    Spacer(Modifier.height(16.dp))
+                    Divider()
+                    Spacer(Modifier.height(16.dp))
+
+                    // NUOVO PULSANTE ON/OFF: Abilita la persistenza del contesto
+                    var isChatHistoryEnabled by remember { mutableStateOf(llamaPrefs.isChatHistoryEnabled) }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Abilita persistenza del contesto", style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                "ATTENZIONE: Funzione instabile. Potrebbe migliorare la chat con GUFF ma potrebbe anche generare problemi. Abilitare solo per prova.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = isChatHistoryEnabled,
+                            onCheckedChange = {
+                                isChatHistoryEnabled = it
+                                llamaPrefs.isChatHistoryEnabled = it
+                            }
+                        )
+                    }
+
+
                     Text("Token Massimi (nLen)", style = MaterialTheme.typography.bodyLarge)
                     Text(
                         "Numero massimo di token (parole/simboli) che il modello GGUF può generare in una singola risposta. Valori alti permettono risposte più lunghe ma consumano più memoria e tempo. Impatto su CPU/Memoria: Medio.",
