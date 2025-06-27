@@ -17,29 +17,20 @@ Questo progetto è costruito con un'architettura moderna e modulare per garantir
 * **Gestione delle Sessioni**: Il gioco salva i tuoi progressi! Puoi continuare la tua ultima avventura o iniziarne una nuova da zero, sovrascrivendo quella precedente.
 
 * **Creazione dell'Eroe Personalizzato**: Prima di iniziare una nuova campagna, puoi dare forma al tuo eroe scegliendo:
-    * **Nome della Campagna**: Per dare un titolo unico alla tua partita.
-    * **Nome dell'Eroe**: Scegli il nome del tuo protagonista.
-    * **Ritratto e Genere**: Seleziona un ritratto maschile o femminile.
-    * **Classe**: Scegli tra Guerriero, Ladro, Mago o Saggio, ognuno con una breve descrizione.
-    * **Allineamento**: Definisci il carattere del tuo eroe come Buono, Neutrale or Malvagio.
-    * **Lingua**: Imposta la lingua del tuo eroe (per future funzionalità TTS).
+  * **Nome della Campagna**: Per dare un titolo unico alla tua partita.
+  * **Nome dell'Eroe**: Scegli il nome del tuo protagonista.
+  * **Ritratto e Genere**: Seleziona un ritratto maschile o femminile.
+  * **Classe**: Scegli tra Guerriero, Ladro, Mago o Saggio, ognuno con una breve descrizione.
+  * **Allineamento**: Definisci il carattere del tuo eroe come Buono, Neutrale or Malvagio.
+  * **Lingua**: Imposta la lingua del tuo eroe (per future funzionalità TTS).
 
 * **Motore IA Locale**: L'inferenza viene eseguita al 100% sul dispositivo grazie a implementazioni di `llama.cpp` e MediaPipe (per modelli Gemma), garantendo un'esperienza offline e la massima privacy.
 
 * **Architettura a Doppio Motore**: L'applicazione permette agli utenti di scaricare e gestire due modelli IA separati (es. Gemma per il DM, GGUF per i PG) tramite un'interfaccia dedicata.
 
 * **Struttura Modulare**: Il progetto è diviso in due moduli principali:
-    * `:app`: Contiene tutta l'interfaccia utente (scritta in Jetpack Compose) e la logica di gioco.
-    * `:llama`: Una libreria Android autonoma che incapsula la complessità di `llama.cpp`, fornendo un'API Kotlin pulita.
-
-## 🗺️ Flusso dell'Applicazione
-
-L'app è strutturata con un flusso di navigazione chiaro:
-
-1.  **MainActivity**: La schermata iniziale che funge da hub, da cui puoi scegliere se iniziare a giocare o configurare i motori AI.
-2.  **SetupActivity**: Il cuore della preparazione dell'avventura. Qui scegli se continuare una partita esistente o crearne una nuova attraverso la personalizzazione del personaggio.
-3.  **ModelActivity**: La schermata tecnica per la gestione e il download dei modelli di linguaggio.
-4.  **AdventureActivity**: Il tavolo da gioco vero e proprio, dove si svolge l'avventura testuale.
+  * `:app`: Contiene tutta l'interfaccia utente (scritta in Jetpack Compose) e la logica di gioco.
+  * `:llama`: Una libreria Android autonoma che incapsula la complessità di `llama.cpp`, fornendo un'API Kotlin pulita.
 
 ## 🚀 Come Iniziare
 
@@ -50,6 +41,29 @@ Per compilare ed eseguire il progetto, segui questi passaggi:
 3.  Apri il progetto con Android Studio.
 4.  Esegui una prima sincronizzazione con Gradle.
 5.  Avvia l'app su un emulatore o un dispositivo fisico.
+
+## ⚙️ Note per la Compilazione Nativa (C++)
+
+A causa di limitazioni del sistema operativo, la compilazione del codice nativo `llama.cpp` può presentare problemi.
+
+**Struttura delle Cartelle:**
+Per garantire che la compilazione C++ funzioni, devi clonare il repository di `llama.cpp` allo **stesso livello** del repository `ImmundaNoctis-master`. La tua struttura di directory dovrebbe essere simile a questa:
+
+C:\DEV
+
+├── ImmundaNoctis-master\  <-- Questo progetto
+└── llama.cpp-master\      <-- Il repository di llama.cpp
+
+Questo è fondamentale perché il file `CMakeLists.txt` del modulo `llama` utilizza un percorso relativo per trovare i file di `llama.cpp` e fallirà se la struttura non è corretta.
+
+**Compilazione Condizionale:**
+Per evitare di ricompilare il codice nativo a ogni build (e per aggirare i problemi di compilazione su Windows), puoi usare dei flag Gradle.
+
+* **Windows:** La compilazione completa del codice C++ su un ambiente Windows nativo **non è supportata** e può fallire a causa di problemi di lunghezza del prompt della riga di comando.
+* **WSL (Windows Subsystem for Linux):** La compilazione C++ deve essere eseguita **esclusivamente all'interno di un ambiente WSL (Ubuntu)**, dove la compilazione è stabile e funziona come previsto.
+
+**Ottimizzazioni per ARM:**
+La configurazione della build nativa include ottimizzazioni specifiche per le GPU Adreno (tipicamente presenti nei dispositivi con chipset Snapdragon), migliorando le performance su questi dispositivi.
 
 ## 🙏 Un Tributo Speciale
 
