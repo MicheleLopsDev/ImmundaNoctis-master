@@ -2,7 +2,6 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/../llama.cpp-master" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../llama.cpp-master/ggml/src/ggml-kompute/kompute" vcs="Git" />
   </component>
 </project>

@@ -32,11 +32,16 @@ android {
             )
         }
     }
-    externalNativeBuild {
-        cmake {
-            path("src/main/cpp/CMakeLists.txt")
-            version = "3.22.1"
+    val buildLlama = rootProject.extra["buildStdf"] as? Boolean ?: false
+    if (buildLlama) {
+        externalNativeBuild {
+            cmake {
+                path("src/main/cpp/CMakeLists.txt")
+                version = "3.22.1"
+            }
         }
+    } else {
+        println("Compilazione di Llama disabilitata (buildLlama = false)")
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11

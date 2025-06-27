@@ -70,6 +70,7 @@ dependencies {
 
 
     implementation(project(":llama"))
+    implementation(project(":stdf"))
 
     testImplementation(libs.junit)
     testImplementation(libs.mockito.core)
