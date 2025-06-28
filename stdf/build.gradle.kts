@@ -50,6 +50,13 @@ android {
     kotlinOptions {
         jvmTarget = "11"
     }
+    // --- 👇 QUESTA È LA CONFIGURAZIONE CHIAVE 👇 ---
+    // Diciamo a Gradle dove trovare le nostre librerie pre-compilate
+    sourceSets {
+        getByName("main") {
+            jniLibs.srcDirs("src/main/jniLibs")
+        }
+    }
 }
 
 dependencies {

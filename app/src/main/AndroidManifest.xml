@@ -1,9 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
+
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -13,6 +16,8 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.ImmundaNoctis"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:extractNativeLibs="true"
         tools:targetApi="35">
 
         <activity
@@ -28,38 +33,42 @@
         </activity>
 
         <activity
-            android:name=".AdventureActivity"
-            android:exported="false"
-            android:label="Tavolo da Gioco"
-            android:theme="@style/Theme.ImmundaNoctis" />
-
-        <activity
-            android:name=".SetupActivity"
-            android:exported="false"
-            android:label="Prepara Avventura"
-            android:theme="@style/Theme.ImmundaNoctis" />
-
-        <activity
-            android:name=".CharacterSheetActivity"
-            android:exported="false"
-            android:label="Scheda Personaggio"
-            android:theme="@style/Theme.ImmundaNoctis" />
-
-        <activity
-            android:name=".ConfigurationActivity"
-            android:exported="false"
-            android:label="Gestione Motori"
-            android:theme="@style/Theme.ImmundaNoctis" />
-
-        <activity
             android:name=".ModelActivity"
             android:exported="false"
             android:label="Gestione Modelli"
             android:theme="@style/Theme.ImmundaNoctis" />
-            <!-- 👇 Aggiunto questo blocco -->
-            <service
-                android:name="androidx.work.impl.foreground.SystemForegroundService"
-                android:exported="false"
-                android:foregroundServiceType="dataSync" />
+
+        <activity
+            android:name=".StdfGenerationActivity"
+            android:exported="false"
+            android:label="Generazione immagini"
+            android:theme="@style/Theme.ImmundaNoctis" />
+
+        <activity
+            android:name=".StdfModelActivity"
+            android:exported="false"
+            android:label="Gestione Modelli Stdf"
+            android:theme="@style/Theme.ImmundaNoctis" />
+
+
+
+
+
+
+        <service
+            android:name=".stdf.service.BackendService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+        <service
+            android:name=".stdf.service.BackgroundGenerationService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+        <service
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
     </application>
 </manifest>

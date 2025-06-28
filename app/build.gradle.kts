@@ -20,7 +20,11 @@ android {
             useSupportLibrary = true
         }
     }
-
+    sourceSets {
+        getByName("main") {
+            jniLibs.srcDirs("src/main/jniLibs")
+        }
+    }
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -68,6 +72,7 @@ dependencies {
 
     implementation(libs.language.id)
 
+    implementation(libs.okhttp.sse)
 
     implementation(project(":llama"))
     implementation(project(":stdf"))

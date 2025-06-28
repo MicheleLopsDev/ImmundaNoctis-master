@@ -1,3 +1,18 @@
 <resources>
     <string name="app_name">ImmundaNoctis</string>
+
+    <string name="anythingv5_description">Anime Image Generation</string>
+    <string name="chilloutmix_description">ChilloutMix Series</string>
+    <string name="qteamix_description">Chibi Style Anime</string>
+    <string name="cuteyukimix_description">Cute Style Anime</string>
+    <string name="absolutereality_description">Realistic Image Generation</string>
+    <string name="sd21_description">General Image Generation</string>
+    <string name="ponyv55_description">Pony Diffusion Series</string>
+
+    <string name="backend_notify_starting">Avvio del backend di generazione...</string>
+    <string name="stdf_backend_notification_title">Immunda Noctis - Backend STDF</string>
+    <string name="stdf_generating_notification_title">Generazione Immagine...</string>
+    <string name="stdf_error_request_failed">Richiesta fallita con codice: %s</string>
+    <string name="stdf_unknown_error">Errore sconosciuto durante la generazione</string>
+
 </resources>

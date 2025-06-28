@@ -99,10 +99,12 @@ fun MainMenuScreen(isDarkTheme: Boolean, onThemeToggle: () -> Unit) {
             )
         }
     ) { innerPadding ->
+        // ... (dentro il Composable MainMenuScreen in MainActivity.kt)
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
+                .padding(innerPadding), // Usa innerPadding dal Scaffold
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
@@ -112,22 +114,50 @@ fun MainMenuScreen(isDarkTheme: Boolean, onThemeToggle: () -> Unit) {
             }) {
                 Text("Inizia / Continua Avventura")
             }
+
             Spacer(modifier = Modifier.height(16.dp))
+
+
+            Button(onClick = {
+                // Lancia la nostra nuova Activity per i modelli di IMMAGINE
+                val intent = Intent(context, StdfGenerationActivity::class.java)
+                context.startActivity(intent)
+            }) {
+                Text("Genera immagini")
+            }
+
+            // --- 👇 AGGIUNGI QUESTO NUOVO PULSANTE 👇 ---
+            Spacer(modifier = Modifier.height(16.dp))
+
+
             Button(onClick = {
                 val intent = Intent(context, ConfigurationActivity::class.java)
                 context.startActivity(intent)
             }) {
                 Text("Impostazioni Generali")
             }
+
             Spacer(modifier = Modifier.height(16.dp))
+
+            // --- 👇 MODIFICA QUI 👇 ---
+            // Specifichiamo che questo è per i modelli di LINGUAGGIO (LLM)
             Button(onClick = {
                 val intent = Intent(context, ModelActivity::class.java)
                 context.startActivity(intent)
             }) {
-                Text("Gestione Modelli")
+                Text("Gestione Modelli Linguaggio (LLM)")
             }
 
+            // --- 👇 AGGIUNGI QUESTO NUOVO PULSANTE 👇 ---
+            Spacer(modifier = Modifier.height(16.dp))
 
+            Button(onClick = {
+                // Lancia la nostra nuova Activity per i modelli di IMMAGINE
+                val intent = Intent(context, StdfModelActivity::class.java)
+                context.startActivity(intent)
+            }) {
+                Text("Gestione Modelli Immagine (STDF)")
+            }
         }
     }
 }
