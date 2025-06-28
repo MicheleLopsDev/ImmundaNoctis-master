@@ -6,5 +6,5 @@ plugins {
     alias(libs.plugins.android.library) apply false
 }
 // build.gradle.kts di :app
-extra["buildLlama"] = false
+extra["buildLlama"] = true
 extra["buildStdf"] = false
