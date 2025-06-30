@@ -139,6 +139,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val activeDirectionalChoices: StateFlow<List<EngineCommand>> =
         _activeDirectionalChoices.asStateFlow()
 
+//    private val _combatState = MutableStateFlow<CombatState?>(null)
+//    val combatState = _combatState.asStateFlow()
+
+    private val _usableDisciplines = MutableStateFlow<Set<String>>(emptySet())
+    val usableDisciplines = _usableDisciplines.asStateFlow()
 
     init {
         if (useGemmaForAll) {
@@ -683,4 +688,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _respondingCharacterId.value = null
         }
     }
+
+    fun onDisciplineClicked(disciplineId: String) {}
 }

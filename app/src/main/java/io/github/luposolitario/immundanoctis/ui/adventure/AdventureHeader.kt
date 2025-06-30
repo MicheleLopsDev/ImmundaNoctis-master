@@ -1,5 +1,6 @@
 package io.github.luposolitario.immundanoctis.ui.adventure
 
+import android.content.Intent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -32,10 +33,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.luposolitario.immundanoctis.CharacterSheetActivity
 import io.github.luposolitario.immundanoctis.R
 import io.github.luposolitario.immundanoctis.data.CharacterType
 import io.github.luposolitario.immundanoctis.data.GameCharacter
@@ -72,7 +75,15 @@ fun AdventureHeader(
         ) {
             sortedCharacters.forEach { character ->
                 if (character.type == CharacterType.PLAYER) {
-                    // Non mostrare l'eroe nell'header
+                    val context = LocalContext.current
+                    CharacterPortrait(
+                        character = character,
+                        isSelected = false,
+                        size = 56.dp,
+                        modifier = Modifier.clickable {
+                            context.startActivity(Intent(context, CharacterSheetActivity::class.java))
+                        }
+                    )
                 } else if (character.isVisible) {
                     CharacterPortrait(
                         character = character,
@@ -80,8 +91,6 @@ fun AdventureHeader(
                         modifier = Modifier.clickable { onCharacterClick(character.id) }, // Il click chiama onCharacterClick
                         size = if (character.type == CharacterType.DM) 72.dp else 60.dp
                     )
-                } else {
-                    PlaceholderPortrait(size = 60.dp)
                 }
             }
         }

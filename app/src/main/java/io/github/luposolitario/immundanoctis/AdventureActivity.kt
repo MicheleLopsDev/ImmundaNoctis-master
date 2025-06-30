@@ -56,6 +56,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
+import androidx.lifecycle.lifecycleScope
 import io.github.luposolitario.immundanoctis.data.CharacterID
 import io.github.luposolitario.immundanoctis.data.CharacterType
 import io.github.luposolitario.immundanoctis.data.ChatMessage
@@ -63,6 +64,7 @@ import io.github.luposolitario.immundanoctis.data.GameCharacter
 import io.github.luposolitario.immundanoctis.data.Genre
 import io.github.luposolitario.immundanoctis.data.Scene
 import io.github.luposolitario.immundanoctis.data.SessionData
+import io.github.luposolitario.immundanoctis.engine.GameLogicManager
 import io.github.luposolitario.immundanoctis.engine.TokenInfo
 import io.github.luposolitario.immundanoctis.service.TtsService
 import io.github.luposolitario.immundanoctis.ui.adventure.AdventureHeader
@@ -74,16 +76,13 @@ import io.github.luposolitario.immundanoctis.ui.adventure.TokenSemaphoreIndicato
 import io.github.luposolitario.immundanoctis.ui.theme.ImmundaNoctisTheme
 import io.github.luposolitario.immundanoctis.util.GameStateManager
 import io.github.luposolitario.immundanoctis.util.ModelPreferences
+import io.github.luposolitario.immundanoctis.util.SavePreferences
 import io.github.luposolitario.immundanoctis.util.ThemePreferences
 import io.github.luposolitario.immundanoctis.util.TtsPreferences
 import io.github.luposolitario.immundanoctis.view.MainViewModel
-import io.github.luposolitario.immundanoctis.util.SavePreferences // <-- 1. Aggiungi questo import
 import io.github.luposolitario.immundanoctis.view.MainViewModel.EngineLoadingState
-import kotlinx.coroutines.launch
-import io.github.luposolitario.immundanoctis.engine.GameLogicManager
 import kotlinx.coroutines.flow.MutableStateFlow
-import androidx.lifecycle.lifecycleScope // <-- Importa lifecycleScope
-import kotlin.lazy
+import kotlinx.coroutines.launch
 
 class AdventureActivity : ComponentActivity() {
     private val tag: String? = this::class.simpleName
@@ -134,6 +133,7 @@ class AdventureActivity : ComponentActivity() {
                     is EngineLoadingState.Loading -> {
                         LoadingScreen()
                     }
+
                     is EngineLoadingState.Success -> {
                         val view = LocalView.current
                         if (!view.isInEditMode) {
@@ -141,7 +141,9 @@ class AdventureActivity : ComponentActivity() {
                                 val window = (view.context as? Activity)?.window
                                 if (window != null) {
                                     window.statusBarColor = Color.Black.toArgb()
-                                    WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
+                                    WindowCompat.getInsetsController(
+                                        window, view
+                                    ).isAppearanceLightStatusBars = false
                                 }
                             }
                         }
@@ -154,9 +156,11 @@ class AdventureActivity : ComponentActivity() {
                         val conversationTargetId by viewModel.conversationTargetId.collectAsState()
                         val respondingCharacterId by viewModel.respondingCharacterId.collectAsState()
                         val isAutoReadEnabled = ttsPreferences.isAutoReadEnabled()
-                        val isAutoSaveEnabled = savePreferences.isAutoSaveEnabled // Leggiamo il valore
+                        val isAutoSaveEnabled =
+                            savePreferences.isAutoSaveEnabled // Leggiamo il valore
                         val tokenInfo by viewModel.activeTokenInfo.collectAsState()
-
+                        val usableDisciplines by viewModel.usableDisciplines.collectAsState()
+                        val activeNarrativeChoices by viewModel.activeNarrativeChoices.collectAsState()
                         // Effetto per la lettura automatica dei nuovi messaggi
                         LaunchedEffect(chatMessages) {
                             if (isAutoReadEnabled) {
@@ -189,7 +193,7 @@ class AdventureActivity : ComponentActivity() {
                                 respondingCharacterId = respondingCharacterId,
                                 tokenInfo = tokenInfo, // <-- NUOVO PARAMETRO
                                 onMessageSent = { messageText ->
-                                    viewModel.sendMessage(messageText,conversationTargetId)
+                                    viewModel.sendMessage(messageText, conversationTargetId)
                                 },
                                 onCharacterSelected = { characterId ->
                                     viewModel.setConversationTarget(characterId)
@@ -210,15 +214,18 @@ class AdventureActivity : ComponentActivity() {
                                     }
                                 },
                                 // --- 👇 AGGIUNGI QUESTO NUOVO PARAMETRO 👇 ---
-                                onResetSession = { viewModel.resetSession() }
-                            )
+                                onResetSession = { viewModel.resetSession() },
+                                usableDisciplines = usableDisciplines,
+                                onDisciplineClicked = { disciplineId ->
+                                    viewModel.onDisciplineClicked(disciplineId)
+                                })
                         }
                     }
+
                     is EngineLoadingState.Error -> {
                         val errorMessage = (loadingState as EngineLoadingState.Error).message
                         ErrorScreen(
-                            errorMessage = errorMessage ?: "Errore sconosciuto",
-                            onRetry = {
+                            errorMessage = errorMessage ?: "Errore sconosciuto", onRetry = {
                                 // Rilancia il caricamento dei modelli
                                 val dmModel = modelPreferences.getDmModel()
                                 val playerModel = modelPreferences.getPlayerModel()
@@ -226,8 +233,7 @@ class AdventureActivity : ComponentActivity() {
                                     dmModelPath = dmModel?.destination?.path,
                                     playerModelPath = playerModel?.destination?.path
                                 )
-                            }
-                        )
+                            })
                     }
                 }
             }
@@ -235,11 +241,17 @@ class AdventureActivity : ComponentActivity() {
 
         // NUOVO: Gestione dell'inizio di una nuova avventura o ripresa di una esistente
         if (!session.isStarted) {
-            currentScene.value = gameLogicManager.selectRandomStartScene(Genre.WESTERN) // Genere hardcoded per ora
-            Log.d(tag, "Scena iniziale NUOVA AVVENTURA impostata da GameLogicManager: ${currentScene.value?.id ?: "Nessuna scena iniziale"}")
+            currentScene.value =
+                gameLogicManager.selectRandomStartScene(Genre.WESTERN) // Genere hardcoded per ora
+            Log.d(
+                tag,
+                "Scena iniziale NUOVA AVVENTURA impostata da GameLogicManager: ${currentScene.value?.id ?: "Nessuna scena iniziale"}"
+            )
 
             lifecycleScope.launch {
-                viewModel.sendInitialDmPrompt(session,currentScene.value) // Passa la sessione per aggiornare isStarted
+                viewModel.sendInitialDmPrompt(
+                    session, currentScene.value
+                ) // Passa la sessione per aggiornare isStarted
             }
             gameStateManager.saveSession(
                 SessionData(
@@ -258,7 +270,10 @@ class AdventureActivity : ComponentActivity() {
             } else {
                 gameLogicManager.selectRandomStartScene(Genre.WESTERN) // Fallback a START casuale
             }
-            Log.d(tag, "Scena sessione esistente impostata a: ${currentScene.value?.id ?: "Nessuna scena valida trovata. Riprovo con casuale START."}")
+            Log.d(
+                tag,
+                "Scena sessione esistente impostata a: ${currentScene.value?.id ?: "Nessuna scena valida trovata. Riprovo con casuale START."}"
+            )
             // Non inviamo prompt iniziale qui, si suppone che la storia sia già avviata
         }
     }
@@ -275,7 +290,9 @@ class AdventureActivity : ComponentActivity() {
 fun LoadingScreen(text: String = "Caricamento motori AI...") {
     Box(
         // 👇 MODIFICA SOLO QUESTA RIGA 👇
-        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -296,8 +313,10 @@ fun LoadingScreen(text: String = "Caricamento motori AI...") {
 fun ErrorScreen(errorMessage: String, onRetry: () -> Unit) {
     Box(
         // 👇 MODIFICA SOLO QUESTA RIGA 👇
-        modifier = Modifier.fillMaxSize().padding(16.dp).background(MaterialTheme.colorScheme.background),
-        contentAlignment = Alignment.Center
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+            .background(MaterialTheme.colorScheme.background), contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             // ... il resto del codice rimane invariato
@@ -322,7 +341,6 @@ fun ErrorScreen(errorMessage: String, onRetry: () -> Unit) {
 }
 
 
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdventureChatScreen(
@@ -342,6 +360,8 @@ fun AdventureChatScreen(
     onTranslateMessage: (String) -> Unit,
     onPlayMessage: (ChatMessage) -> Unit,
     // --- 👇 AGGIUNGI QUESTO NUOVO PARAMETRO ALLA FIRMA 👇 ---
+    usableDisciplines: Set<String>,
+    onDisciplineClicked: (String) -> Unit,
     onResetSession: () -> Unit
 ) {
     val listState = rememberLazyListState()
@@ -363,37 +383,35 @@ fun AdventureChatScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    // --- 👇 MODIFICA QUI: Sostituisci il Text con una Row 👇 ---
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        TokenSemaphoreIndicator(tokenInfo = tokenInfo, onResetSession = onResetSession )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(sessionName)
+            TopAppBar(title = {
+                // --- 👇 MODIFICA QUI: Sostituisci il Text con una Row 👇 ---
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    TokenSemaphoreIndicator(
+                        tokenInfo = tokenInfo, onResetSession = onResetSession
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(sessionName)
+                }
+            }, actions = {
+                Box {
+                    IconButton(onClick = { showMenu = true }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "Opzioni")
                     }
-                },
-                actions = {
-                    Box {
-                        IconButton(onClick = { showMenu = true }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = "Opzioni")
-                        }
-                        DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                            if (!isAutoSaveEnabled) {
-                                DropdownMenuItem(
-                                    text = { Text("Salva Chat Manualmente") },
-                                    onClick = {
-                                        onSaveChat()
-                                        showMenu = false
-                                    },
-                                    leadingIcon = { Icon(Icons.Outlined.Save, contentDescription = "Salva") }
+                    DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                        if (!isAutoSaveEnabled) {
+                            DropdownMenuItem(text = { Text("Salva Chat Manualmente") }, onClick = {
+                                onSaveChat()
+                                showMenu = false
+                            }, leadingIcon = {
+                                Icon(
+                                    Icons.Outlined.Save, contentDescription = "Salva"
                                 )
-                            }
+                            })
                         }
                     }
                 }
-            )
-        }
-    ) { paddingValues ->
+            })
+        }) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -410,7 +428,10 @@ fun AdventureChatScreen(
                     .padding(horizontal = 8.dp),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
-                val customTextSelectionColors = TextSelectionColors(handleColor = MaterialTheme.colorScheme.tertiary, backgroundColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.4f))
+                val customTextSelectionColors = TextSelectionColors(
+                    handleColor = MaterialTheme.colorScheme.tertiary,
+                    backgroundColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.4f)
+                )
                 CompositionLocalProvider(LocalTextSelectionColors provides customTextSelectionColors) {
                     SelectionContainer {
                         LazyColumn(
@@ -421,7 +442,11 @@ fun AdventureChatScreen(
                         ) {
                             if (isGenerating && streamingText.isNotBlank() && respondingCharacterId != null) {
                                 item {
-                                    val streamingMessage = ChatMessage(position = -1L,authorId=respondingCharacterId, text=streamingText)
+                                    val streamingMessage = ChatMessage(
+                                        position = -1L,
+                                        authorId = respondingCharacterId,
+                                        text = streamingText
+                                    )
                                     MessageBubble(
                                         message = streamingMessage,
                                         characters = characters,
@@ -434,25 +459,29 @@ fun AdventureChatScreen(
                                     message = message,
                                     characters = characters,
                                     onTranslateClicked = { onTranslateMessage(message.id) },
-                                    onPlayClicked = { onPlayMessage(message) }
-                                )
+                                    onPlayClicked = { onPlayMessage(message) })
                             }
                         }
                     }
                 }
             }
             if (hero != null) {
-                PlayerActionsBar(hero = hero)
-            }
-            if (isGenerating) {
-                GeneratingIndicator(
-                    characterName = characters.find { it.id == respondingCharacterId }?.name
-                        ?: "...",
-                    onStopClicked = onStopGeneration
+                PlayerActionsBar(
+                    hero = hero,
+                    usableDisciplines = usableDisciplines,      // <-- PARAMETRO AGGIUNTO
+                    onDisciplineClicked = onDisciplineClicked   // <-- PARAMETRO AGGIUNTO
                 )
+                Spacer(modifier = Modifier.height(8.dp))
+                if (isGenerating) {
+                    GeneratingIndicator(
+                        characterName = characters.find { it.id == respondingCharacterId }?.name
+                            ?: "...", onStopClicked = onStopGeneration
+                    )
+                }
+                MessageInput(onMessageSent = onMessageSent, isEnabled = !isGenerating)
             }
-            MessageInput(onMessageSent = onMessageSent, isEnabled = !isGenerating)
         }
+
     }
 }
 
