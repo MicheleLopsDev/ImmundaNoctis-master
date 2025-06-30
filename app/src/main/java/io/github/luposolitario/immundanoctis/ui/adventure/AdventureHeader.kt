@@ -46,38 +46,38 @@ import io.github.luposolitario.immundanoctis.engine.TokenStatus
 fun AdventureHeader(
     characters: List<GameCharacter>,
     selectedCharacterId: String,
-    onCharacterClick: (String) -> Unit
+    onCharacterClick: (String) -> Unit // onCharacterClick è già qui
 ) {
     val characterOrder = mapOf("dm" to 0, "hero" to 1, "companion1" to 2, "companion2" to 3)
     val sortedCharacters = characters.sortedWith(compareBy { characterOrder[it.id] ?: Int.MAX_VALUE })
 
     Box(
-        modifier = Modifier.Companion
+        modifier = Modifier
             .fillMaxWidth()
             .padding(bottom = 8.dp)
     ) {
         Image(
             painter = painterResource(id = R.drawable.map_dungeon),
             contentDescription = "Mappa del Dungeon",
-            contentScale = ContentScale.Companion.Crop,
-            modifier = Modifier.Companion.fillMaxWidth().height(120.dp)
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxWidth().height(120.dp)
         )
         Row(
-            modifier = Modifier.Companion
+            modifier = Modifier
                 .fillMaxWidth()
-                .align(Alignment.Companion.BottomCenter)
+                .align(Alignment.BottomCenter)
                 .padding(top = 80.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.Companion.Bottom
+            verticalAlignment = Alignment.Bottom
         ) {
             sortedCharacters.forEach { character ->
                 if (character.type == CharacterType.PLAYER) {
-                    // Non mostrare l'eroe nell'header, come da soluzione del bug
+                    // Non mostrare l'eroe nell'header
                 } else if (character.isVisible) {
                     CharacterPortrait(
                         character = character,
                         isSelected = character.id == selectedCharacterId,
-                        modifier = Modifier.Companion.clickable { onCharacterClick(character.id) },
+                        modifier = Modifier.clickable { onCharacterClick(character.id) }, // Il click chiama onCharacterClick
                         size = if (character.type == CharacterType.DM) 72.dp else 60.dp
                     )
                 } else {
@@ -89,7 +89,7 @@ fun AdventureHeader(
 }
 
 @Composable
-fun TokenSemaphoreIndicator(tokenInfo: TokenInfo, onResetSession: () -> Unit) { // Aggiunto onResetSession
+fun TokenSemaphoreIndicator(tokenInfo: TokenInfo, onResetSession: () -> Unit) {
     var showDialog by remember { mutableStateOf(false) }
 
     val semaphoreColor = when (tokenInfo.status) {
@@ -112,7 +112,6 @@ fun TokenSemaphoreIndicator(tokenInfo: TokenInfo, onResetSession: () -> Unit) { 
             onDismissRequest = { showDialog = false },
             title = { Text(text = "Dettaglio Utilizzo Token") },
             text = {
-                // Se i token sono in stato critico, aggiungi un avviso
                 val criticalWarning = if (tokenInfo.status == TokenStatus.CRITICAL) {
                     "ATTENZIONE: Limite token quasi raggiunto! Resetta la sessione per continuare.\n\n"
                 } else {
@@ -120,8 +119,8 @@ fun TokenSemaphoreIndicator(tokenInfo: TokenInfo, onResetSession: () -> Unit) { 
                 }
                 Text(
                     criticalWarning +
-                        "Hai utilizzato il ${tokenInfo.percentage}% dei token disponibili.\n" +
-                        "Utilizzati: ${tokenInfo.count} / Massimi: ${tokenInfo.maxTokens}"
+                            "Hai utilizzato il ${tokenInfo.percentage}% dei token disponibili.\n" +
+                            "Utilizzati: ${tokenInfo.count} / Massimi: ${tokenInfo.maxTokens}"
                 )
             },
             confirmButton = {
@@ -129,7 +128,6 @@ fun TokenSemaphoreIndicator(tokenInfo: TokenInfo, onResetSession: () -> Unit) { 
                     Text("OK")
                 }
             },
-            // --- 👇 MODIFICA QUI: Aggiungiamo il pulsante di reset condizionale 👇 ---
             dismissButton = {
                 if (tokenInfo.status == TokenStatus.CRITICAL) {
                     TextButton(
@@ -150,19 +148,19 @@ fun TokenSemaphoreIndicator(tokenInfo: TokenInfo, onResetSession: () -> Unit) { 
 fun CharacterPortrait(
     character: GameCharacter,
     isSelected: Boolean,
-    modifier: Modifier = Modifier.Companion,
+    modifier: Modifier = Modifier,
     size: Dp = 64.dp
 ) {
-    val borderColor = if (isSelected) MaterialTheme.colorScheme.primary else Color.Companion.Transparent
+    val borderColor = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
     Column(
         modifier = modifier,
-        horizontalAlignment = Alignment.Companion.CenterHorizontally
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Image(
             painter = painterResource(id = character.portraitResId),
             contentDescription = "Ritratto di ${character.name}",
-            contentScale = ContentScale.Companion.Crop,
-            modifier = Modifier.Companion
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
                 .size(size)
                 .clip(CircleShape)
                 .border(3.dp, borderColor, CircleShape)
@@ -171,37 +169,37 @@ fun CharacterPortrait(
             text = character.name,
             fontSize = 12.sp,
             color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.Companion.padding(top = 2.dp)
+            modifier = Modifier.padding(top = 2.dp)
         )
     }
 }
 
 @Composable
-fun PlaceholderPortrait(modifier: Modifier = Modifier.Companion, size: Dp = 64.dp) {
+fun PlaceholderPortrait(modifier: Modifier = Modifier, size: Dp = 64.dp) {
     Column(
         modifier = modifier,
-        horizontalAlignment = Alignment.Companion.CenterHorizontally
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Box(
-            modifier = Modifier.Companion
+            modifier = Modifier
                 .size(size)
                 .clip(CircleShape)
-                .background(Color.Companion.Black.copy(alpha = 0.8f))
-                .border(3.dp, Color.Companion.DarkGray, CircleShape),
-            contentAlignment = Alignment.Companion.Center
+                .background(Color.Black.copy(alpha = 0.8f))
+                .border(3.dp, Color.DarkGray, CircleShape),
+            contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Default.QuestionMark,
                 contentDescription = "Personaggio Sconosciuto",
-                tint = Color.Companion.Gray,
-                modifier = Modifier.Companion.size(size * 0.6f)
+                tint = Color.Gray,
+                modifier = Modifier.size(size * 0.6f)
             )
         }
         Text(
             text = "Sconosciuto",
             fontSize = 12.sp,
             color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.Companion.padding(top = 2.dp)
+            modifier = Modifier.padding(top = 2.dp)
         )
     }
 }

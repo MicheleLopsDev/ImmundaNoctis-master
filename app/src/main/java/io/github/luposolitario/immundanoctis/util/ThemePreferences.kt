@@ -4,7 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 
 /**
- * Gestisce la lettura e scrittura della preferenza del tema (chiaro/scuro).
+ * Gestisce la lettura e scrittura della preferenza del tema (chiaro/scuro) e ora anche l'ultimo personaggio selezionato.
  */
 class ThemePreferences(context: Context) {
 
@@ -12,6 +12,8 @@ class ThemePreferences(context: Context) {
         private const val PREFS_NAME = "theme_prefs"
         private const val KEY_IS_DARK_THEME = "is_dark_theme"
         private const val KEY_HF_TOKEN = "hugging_face_token"
+        // NUOVA CHIAVE: ID dell'ultimo personaggio selezionato
+        private const val KEY_LAST_SELECTED_CHARACTER_ID = "last_selected_character_id"
     }
 
     private val sharedPrefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -59,5 +61,17 @@ class ThemePreferences(context: Context) {
 
     fun getToken(): String? {
         return sharedPrefs.getString(KEY_HF_TOKEN, null)
+    }
+
+    // NUOVI METODI: Salva e recupera l'ID dell'ultimo personaggio selezionato
+    fun saveLastSelectedCharacterId(characterId: String) {
+        with(sharedPrefs.edit()) {
+            putString(KEY_LAST_SELECTED_CHARACTER_ID, characterId)
+            apply()
+        }
+    }
+
+    fun getLastSelectedCharacterId(): String? {
+        return sharedPrefs.getString(KEY_LAST_SELECTED_CHARACTER_ID, null)
     }
 }

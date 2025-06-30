@@ -7,8 +7,10 @@ import androidx.lifecycle.viewModelScope
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
 import io.github.luposolitario.immundanoctis.data.CharacterID
+import io.github.luposolitario.immundanoctis.data.CharacterType
 import io.github.luposolitario.immundanoctis.data.ChatMessage
 import io.github.luposolitario.immundanoctis.data.GameCharacter
+import io.github.luposolitario.immundanoctis.data.Scene
 import io.github.luposolitario.immundanoctis.engine.GemmaEngine
 import io.github.luposolitario.immundanoctis.engine.InferenceEngine
 import io.github.luposolitario.immundanoctis.engine.LlamaCppEngine
@@ -18,6 +20,7 @@ import io.github.luposolitario.immundanoctis.util.EnginePreferences
 import io.github.luposolitario.immundanoctis.util.GameStateManager
 import io.github.luposolitario.immundanoctis.util.SavePreferences
 import io.github.luposolitario.immundanoctis.util.getAppSpecificDirectory
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -29,6 +32,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -40,45 +44,47 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicLong
-
+import io.github.luposolitario.immundanoctis.util.ThemePreferences
+import io.github.luposolitario.immundanoctis.util.StringTagParser
+import io.github.luposolitario.immundanoctis.data.EngineCommand
+import io.github.luposolitario.immundanoctis.data.GameChallenge
+import io.github.luposolitario.immundanoctis.data.NarrativeChoice
+import io.github.luposolitario.immundanoctis.engine.GameLogicManager
+import io.github.luposolitario.immundanoctis.data.Genre
+import io.github.luposolitario.immundanoctis.data.SceneType
+import io.github.luposolitario.immundanoctis.data.SessionData
+import io.github.luposolitario.immundanoctis.util.LlamaPreferences
+import kotlin.random.Random
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val tag: String? = this::class.simpleName
 
-    // In MainViewModel.kt (fuori dalla classe)
     sealed interface EngineLoadingState {
         data object Loading : EngineLoadingState
         data object Success : EngineLoadingState
         data class Error(val message: String?) : EngineLoadingState
     }
 
-    // In MainViewModel.kt (dentro la classe)
     private val _engineLoadingState =
         MutableStateFlow<EngineLoadingState>(EngineLoadingState.Loading)
     val engineLoadingState: StateFlow<EngineLoadingState> = _engineLoadingState.asStateFlow()
 
-
-    // --- 👇 AGGIUNGI QUESTA RIGA QUI 👇 ---
     var isPickingForDm: Boolean = false
 
-    // --- FINE RIGA DA AGGIUNGERE ---
-    // --- 1. AGGIUNGI QUESTO STATEFLOW SOTTO GLI ALTRI ---
     private val _sessionName = MutableStateFlow("Immunda Noctis")
     val sessionName: StateFlow<String> = _sessionName.asStateFlow()
 
-    // --- NUOVO GESTORE DI STATO ---
     private val gameStateManager = GameStateManager(application)
     private val enginePreferences = EnginePreferences(application)
+    private val themePreferences = ThemePreferences(application)
+    private val llamaPreferences = LlamaPreferences(application)
 
-    // --- 1. AGGIUNGIAMO LE PREFERENZE DI SALVATAGGIO ---
     private val savePreferences = SavePreferences(application)
     private val _chatMessages = MutableStateFlow<List<ChatMessage>>(emptyList())
     val chatMessages: StateFlow<List<ChatMessage>> = _chatMessages.asStateFlow()
 
-    // ... altri StateFlow ...
     private val _gameCharacters = MutableStateFlow<List<GameCharacter>>(emptyList())
     val gameCharacters: StateFlow<List<GameCharacter>> = _gameCharacters.asStateFlow()
-
 
     private val _streamingText = MutableStateFlow("")
     val streamingText: StateFlow<String> = _streamingText.asStateFlow()
@@ -92,7 +98,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _logMessages = MutableStateFlow<List<String>>(listOf("ViewModel Inizializzato."))
     val logMessages: StateFlow<List<String>> = _logMessages.asStateFlow()
 
-    private val _conversationTargetId = MutableStateFlow(CharacterID.DM)
+
+    private val _conversationTargetId = MutableStateFlow(
+        themePreferences.getLastSelectedCharacterId() ?: CharacterID.DM
+    )
     val conversationTargetId: StateFlow<String> = _conversationTargetId.asStateFlow()
 
     private val _saveChatEvent = MutableSharedFlow<String>()
@@ -100,9 +109,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private var generationJob: Job? = null
 
-    // --- 1. NUOVO CONTATORE PER GLI ID DEI MESSAGGI ---
     private val messageCounter = AtomicLong(0)
-
 
     private val useGemmaForAll = enginePreferences.useGemmaForAll
 
@@ -110,19 +117,37 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val playerEngine: InferenceEngine
     private val translationEngine = TranslationEngine()
 
+    private lateinit var stringTagParser: StringTagParser
+
+    private val _currentScene = MutableStateFlow<Scene?>(null)
+    val currentScene: StateFlow<Scene?> = _currentScene.asStateFlow()
+
+    private lateinit var gameLogicManager: GameLogicManager
+
+    private val _activeChallenges = MutableStateFlow<List<GameChallenge>>(emptyList())
+    val activeChallenges: StateFlow<List<GameChallenge>> = _activeChallenges.asStateFlow()
+
+    private val _activeNarrativeChoices = MutableStateFlow<List<NarrativeChoice>>(emptyList())
+    val activeNarrativeChoices: StateFlow<List<NarrativeChoice>> = _activeNarrativeChoices.asStateFlow()
+
+    private val _activeDirectionalChoices = MutableStateFlow<List<EngineCommand>>(emptyList())
+    val activeDirectionalChoices: StateFlow<List<EngineCommand>> = _activeDirectionalChoices.asStateFlow()
+
+
     init {
         if (useGemmaForAll) {
-            log( "Modalità Solo Gemma ATTIVA.")
+            log("Modalità Solo Gemma ATTIVA.")
             dmEngine = GemmaEngine(application.applicationContext)
             playerEngine = dmEngine
         } else {
-            log( "Modalità Mista ATTIVA (Gemma per DM, GGUF per PG).")
+            log("Modalità Mista ATTIVA (Gemma per DM, GGUF per PG).")
             dmEngine = GemmaEngine(application.applicationContext)
             playerEngine = LlamaCppEngine(application.applicationContext)
         }
+        stringTagParser = StringTagParser(application.applicationContext)
+        gameLogicManager = GameLogicManager(application.applicationContext)
     }
 
-    // --- 👇 INCOLLA QUESTO BLOCCO DI CODICE QUI SOTTO 👇 ---
     val activeTokenInfo: StateFlow<TokenInfo> = conversationTargetId.flatMapLatest { targetId ->
         val engineToUse = if (!useGemmaForAll && targetId.startsWith("Companion", true)) {
             playerEngine
@@ -135,27 +160,47 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = dmEngine.tokenInfo.value
     )
-// --- FINE BLOCCO DA INCOLLARE ---
 
+    fun loadGameSession(startFresh: Boolean = false) {
+        val session = gameStateManager.loadSession()
+        val actualIsNewAdventure = (session == null || startFresh)
 
-    /**
-     * NUOVA FUNZIONE: Carica la sessione di gioco (o ne crea una di default)
-     * e popola lo StateFlow dei personaggi.
-     */
+        val currentSession = session ?: gameStateManager.createDefaultSession()
+        _gameCharacters.value = currentSession.characters
+        _sessionName.value = currentSession.sessionName
+        log("Sessione di gioco caricata: ${currentSession.sessionName}")
 
-    fun loadGameSession() {
-        val session = gameStateManager.loadSession() ?: gameStateManager.createDefaultSession()
-        _gameCharacters.value = session.characters
-        // --- 2. AGGIORNA IL NOME DELLA SESSIONE QUI ---
-        _sessionName.value = session.sessionName
-        log( "Sessione di gioco caricata: ${session.sessionName}")
-
-        // --- 1. NUOVA LOGICA DI CARICAMENTO ---
-        // Se l'autosave è attivo, proviamo a caricare la chat precedente
         if (savePreferences.isAutoSaveEnabled) {
             loadChatFromAutoSave()
         }
+        val lastSavedId = themePreferences.getLastSelectedCharacterId()
+        if (lastSavedId != null && currentSession.characters.any { it.id == lastSavedId }) {
+            _conversationTargetId.value = lastSavedId
+            log("Ripristinato target di conversazione: $lastSavedId")
+        } else {
+            _conversationTargetId.value = CharacterID.DM
+            log("Nessun target di conversazione salvato valido. Impostato su DM.")
+        }
+
+        if (actualIsNewAdventure) {
+            _currentScene.value = gameLogicManager.selectRandomStartScene(Genre.WESTERN)
+            log("Scena iniziale NUOVA AVVENTURA impostata da GameLogicManager: ${_currentScene.value?.id ?: "Nessuna scena iniziale"}")
+            viewModelScope.launch {
+                sendInitialDmPrompt(currentSession, _currentScene.value)
+            }
+            _currentScene.value?.let { currentSession.usedScenes.add(it.id) }
+            gameStateManager.saveSession(currentSession)
+        } else {
+            val lastSceneId = currentSession.usedScenes.lastOrNull()
+            _currentScene.value = if (lastSceneId != null) {
+                gameLogicManager.getSceneById(lastSceneId)
+            } else {
+                gameLogicManager.selectRandomStartScene(Genre.WESTERN)
+            }
+            log("Scena sessione esistente impostata a: ${_currentScene.value?.id ?: "Nessuna scena valida trovata. Riprovo con casuale START."}")
+        }
     }
+
 
     private fun loadChatFromAutoSave() {
         viewModelScope.launch(Dispatchers.IO) {
@@ -165,14 +210,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
                 if (autoSaveFile.exists() && autoSaveFile.length() > 0) {
                     val gson = GsonBuilder().create()
-                    // Definiamo il tipo corretto per deserializzare una lista di ChatMessage
                     val type = object : TypeToken<List<ChatMessage>>() {}.type
 
                     FileReader(autoSaveFile).use { reader ->
                         val loadedMessages: List<ChatMessage> = gson.fromJson(reader, type)
                         if (loadedMessages.isNotEmpty()) {
                             _chatMessages.value = loadedMessages
-                            // Reimposta il contatore all'ultimo valore salvato + 1 per evitare ID duplicati
                             val maxPosition = loadedMessages.maxOfOrNull { it.position } ?: -1L
                             messageCounter.set(maxPosition + 1)
                             log("Chat caricata con successo (${loadedMessages.size} messaggi).")
@@ -188,7 +231,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-
     override fun onCleared() {
         super.onCleared()
         viewModelScope.launch {
@@ -201,37 +243,48 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-
-    // In MainViewModel.kt
     fun loadEngines(dmModelPath: String?, playerModelPath: String?) {
-        _engineLoadingState.value = EngineLoadingState.Loading // 1. Imposta lo stato su Caricamento
+        _engineLoadingState.value = EngineLoadingState.Loading
 
-        viewModelScope.launch(Dispatchers.IO) { // Esegui sempre in background
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 if (dmModelPath == null && playerModelPath == null) {
                     throw IllegalStateException("Nessun modello configurato.")
                 }
 
+                val loadTasks = mutableListOf<Deferred<Unit>>()
+
                 dmModelPath?.let {
-                    log( "Tentativo di caricamento modello DM (Gemma) su thread IO...")
-                    dmEngine.load(it)
+                    loadTasks.add(async {
+                        log("Tentativo di caricamento modello DM (Gemma) su thread IO...")
+                        dmEngine.load(it, llamaPreferences.chatbotPersonality)
+                    })
                 }
 
                 if (!useGemmaForAll) {
                     playerModelPath?.let {
-                        log( "Tentativo di caricamento modello PG (GGUF) su thread IO...")
-                        playerEngine.load(it)
+                        loadTasks.add(async {
+                            log("Tentativo di caricamento modello PG (GGUF) su thread IO...")
+                            playerEngine.load(it,llamaPreferences.chatbotPersonality)
+                        })
                     }
                 }
-                log( "Processo di caricamento motori in background completato.")
-                _engineLoadingState.value =
-                    EngineLoadingState.Success // 2. Se tutto va bene, imposta Successo
+
+                loadTasks.add(async {
+                    log("Tentativo di caricamento modello di traduzione...")
+                    translationEngine.loadModel()
+                })
+
+                loadTasks.awaitAll()
+
+                log("Processo di caricamento motori in background completato.")
+                _engineLoadingState.value = EngineLoadingState.Success
 
             } catch (e: Exception) {
                 Log.e(tag, "Errore critico durante il caricamento degli engine", e)
-                log( "ERRORE CARICAMENTO: ${e.message}")
+                log("ERRORE CARICAMENTO: ${e.message}")
                 _engineLoadingState.value =
-                    EngineLoadingState.Error(e.message) // 3. Se c'è un errore, imposta Errore
+                    EngineLoadingState.Error(e.message)
             }
         }
     }
@@ -246,48 +299,43 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     if (line.isBlank()) {
                         async { "" }
                     } else {
-                        async { translationEngine.translate(line) }
+                        async { translationEngine.translate(line, targetLang = Locale.ITALIAN.language) }
                     }
                 }.awaitAll()
                 val finalTranslation = translatedLines.joinToString("\n")
                 updateMessage(messageId) {
                     it.copy(translatedText = finalTranslation, isTranslating = false)
                 }
-                log( "Traduzione completata per il messaggio ID: $messageId")
+                log("Traduzione completata per il messaggio ID: $messageId")
             } catch (e: Exception) {
-                log( "Errore di traduzione: ${e.message}")
+                log("Errore di traduzione: ${e.message}. Assicurati che il modello sia scaricato e caricato.")
                 updateMessage(messageId) { it.copy(isTranslating = false) }
+                Log.e(tag, "Errore di traduzione", e)
             }
         }
     }
 
+    // Funzione updateMessage spostata qui dal tuo AdventureActivity.kt
     private fun updateMessage(messageId: String, transformation: (ChatMessage) -> ChatMessage) {
         _chatMessages.update { currentMessages ->
             currentMessages.map { if (it.id == messageId) transformation(it) else it }
         }
     }
 
-    /**
-     * MODIFICATA: Ora prende i personaggi direttamente dallo stato interno del ViewModel.
-     */
     fun onSaveChatClicked() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                // --- MODIFICA QUI ---
                 val chatToSave = _chatMessages.value
                 if (chatToSave.isEmpty()) {
-                    log( "Chat vuota, nessun salvataggio manuale eseguito.")
+                    log("Chat vuota, nessun salvataggio manuale eseguito.")
                     return@launch
                 }
                 val gson = GsonBuilder().setPrettyPrinting().create()
-                // Salviamo direttamente la lista di ChatMessage
                 val jsonString = gson.toJson(chatToSave)
-                // --- FINE MODIFICA ---
 
-                // --- MODIFICA QUI ---
                 val savesDir = getAppSpecificDirectory(getApplication(), "saves")
                 if (savesDir == null) {
-                    log( "Errore: impossibile accedere alla cartella di salvataggio.")
+                    log("Errore: impossibile accedere alla cartella di salvataggio.")
                     return@launch
                 }
 
@@ -295,59 +343,89 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
                 val fileName = "manual_save_${timeStamp}.json"
                 val file = File(savesDir, fileName)
-                // --- FINE MODIFICA ---
 
                 FileWriter(file).use { writer -> writer.write(jsonString) }
-                log( "Chat salvata manualmente su $fileName")
+                log("Chat salvata manualmente su $fileName")
             } catch (e: Exception) {
-                log( "Errore durante il salvataggio manuale: ${e.message}")
+                log("Errore durante il salvataggio manuale: ${e.message}")
                 Log.e(tag, "Errore salvataggio manuale", e)
             }
         }
     }
 
-    // --- 2. MODIFICHIAMO sendMessage PER USARE IL NUOVO ID ---
     fun sendMessage(text: String, conversationTargetId: String) {
         if (_isGenerating.value) {
-            log( "Generazione già in corso, richiesta ignorata.")
+            log("Generazione già in corso, richiesta ignorata.")
             return
         }
 
-        val userMessage = ChatMessage(authorId = CharacterID.HERO,position = messageCounter.getAndIncrement(), text = text)
+        val heroCharacter = _gameCharacters.value.find { it.id == CharacterID.HERO }
+        val playerLanguage = heroCharacter?.language ?: Locale.ENGLISH.language // Lingua del giocatore
+
+        val (parsedPlayerText, playerCommands) = stringTagParser.parseAndReplaceWithCommands(
+            inputString = text,
+            currentActor = CharacterType.PLAYER,
+            lang = playerLanguage
+        )
+
+        val userMessage = ChatMessage(authorId = CharacterID.HERO, position = messageCounter.getAndIncrement(), text = parsedPlayerText)
         _chatMessages.update { it + userMessage }
         autoSaveChatIfEnabled()
+
+        viewModelScope.launch {
+            processCommands(playerCommands)
+        }
 
         val targetId = _conversationTargetId.value
         var engineToUse = dmEngine
 
-        if (!useGemmaForAll && conversationTargetId.toString().startsWith("Companion", true)) {
+        if (!useGemmaForAll && conversationTargetId.startsWith("Companion", true)) {
             engineToUse = playerEngine
         }
 
         val logMessage = "Invio prompt per una risposta da '$targetId'..."
-        log( logMessage)
+        log(logMessage)
 
         generationJob = viewModelScope.launch {
             _isGenerating.value = true
             _streamingText.value = ""
             _respondingCharacterId.value = targetId
             try {
-                // Il prompt non ha più bisogno di casi speciali.
-                // Sarà il "System Prompt" (che miglioreremo in futuro) a dare le istruzioni.
-                engineToUse.sendMessage(text)
+                // AGGIUNTO: Attesa che i motori siano pronti prima di inviare messaggi regolari
+                _engineLoadingState.first { it is EngineLoadingState.Success }
+                log("DEBUG: Motori pronti per sendMessage. Invio testo del giocatore.")
+
+                // Il prompt per la scena iniziale è gestito ora da sendInitialDmPrompt()
+                engineToUse.sendMessage(parsedPlayerText)
                     .collect { token ->
                         _streamingText.update { it + token }
                     }
             } catch (e: Exception) {
                 Log.e(tag, "Errore durante la raccolta del flow di messaggi", e)
-                log( "Errore: ${e.message}")
+                log("Errore: ${e.message}")
             } finally {
-                log( "Generazione per '$targetId' completata o interrotta.")
-                if (_streamingText.value.isNotBlank()) {
-                    val finalMessage = ChatMessage(position = messageCounter.getAndIncrement(), authorId = targetId, text = _streamingText.value)
+                log("Generazione per '$targetId' completata o interrotta.")
+
+                val rawLLMResponse = _streamingText.value
+                val respondingCharacter = _gameCharacters.value.find { it.id == targetId }
+                val llmLanguage = respondingCharacter?.language ?: Locale.ITALIAN.language
+
+                val (parsedLLMText, llmCommands) = stringTagParser.parseAndReplaceWithCommands(
+                    inputString = rawLLMResponse,
+                    currentActor = respondingCharacter?.type,
+                    lang = llmLanguage
+                )
+
+                if (parsedLLMText.isNotBlank()) {
+                    val finalMessage = ChatMessage(authorId = targetId, position = messageCounter.getAndIncrement(), text = parsedLLMText)
                     _chatMessages.update { it + finalMessage }
                     autoSaveChatIfEnabled()
                 }
+
+                viewModelScope.launch {
+                    processCommands(llmCommands)
+                }
+
                 _isGenerating.value = false
                 _streamingText.value = ""
                 _respondingCharacterId.value = null
@@ -355,34 +433,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // --- FUNZIONE PER L'AUTOSALVATAGGIO CORRETTA ---
     private fun autoSaveChatIfEnabled() {
         if (!savePreferences.isAutoSaveEnabled) return
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                // --- MODIFICA QUI ---
                 val chatToSave = _chatMessages.value
                 if (chatToSave.isEmpty()) return@launch
 
                 val gson = GsonBuilder().setPrettyPrinting().create()
-                // Salviamo direttamente la lista di ChatMessage
                 val jsonString = gson.toJson(chatToSave)
 
-                // --- MODIFICA QUI ---
                 val savesDir = getAppSpecificDirectory(getApplication(), "saves")
                 if (savesDir == null) {
-                    log( "Errore: impossibile accedere alla cartella di salvataggio.")
+                    log("Errore: impossibile accedere alla cartella di salvataggio.")
                     return@launch
                 }
                 val file = File(savesDir, "autosave_chat.json")
                 FileWriter(file).use { writer -> writer.write(jsonString) }
-                log( "Chat salvata automaticamente.")
+                log("Chat salvata automaticamente.")
             } catch (e: Exception) {
-                log( "Errore durante il salvataggio automatico della chat: ${e.message}")
+                log("Errore durante il salvataggio automatico della chat: ${e.message}")
                 Log.e(tag, "Errore salvataggio automatico", e)
             }
-            // --- FINE DELLA CORREZIONE ---
         }
     }
 
@@ -395,27 +468,224 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setConversationTarget(characterId: String) {
         _conversationTargetId.value = characterId
+        themePreferences.saveLastSelectedCharacterId(characterId)
         log("Ora stai parlando con: $characterId")
     }
 
-    fun log( message: String) {
+    fun log(message: String) {
         _logMessages.update { it + message }
     }
 
-    // --- 👇 AGGIUNGI QUESTA NUOVA FUNZIONE QUI 👇 ---
+    // NUOVA FUNZIONE: per scaricare esplicitamente il motore DM (necessaria per la pulizia)
+    suspend fun unloadDmEngine() {
+        Log.d(tag, "Richiesta di unload del motore DM (Gemma).")
+        dmEngine.unload()
+        Log.d(tag, "Motore DM (Gemma) scaricato.")
+    }
+
     fun resetSession() {
         viewModelScope.launch {
             log("Avvio reset sessione per il motore attivo...")
             val targetId = _conversationTargetId.value
-            // Determina quale motore resettare in base al target attuale
             val engineToUse = if (!useGemmaForAll && targetId.startsWith("Companion", true)) {
                 playerEngine
             } else {
                 dmEngine
             }
-            // Chiama la funzione di reset sull'engine corretto
-            engineToUse.resetSession(null)
+
+            // Se il motore è il playerEngine (LlamaCppEngine) e c'è una personalità definita, passala.
+            val systemPromptForReset = if (engineToUse is LlamaCppEngine) {
+                llamaPreferences.chatbotPersonality
+            } else {
+                null
+            }
+
+            engineToUse.resetSession(systemPromptForReset)
             log("Reset della sessione completato per ${engineToUse::class.simpleName}.")
+            _currentScene.value = gameLogicManager.selectRandomStartScene(Genre.WESTERN)
+            log("Scena reimpostata a una scena START casuale di genere WESTERN.")
+            gameLogicManager.resetUsedScenes()
+            val currentSession = gameStateManager.loadSession() ?: gameStateManager.createDefaultSession()
+            if (_currentScene.value?.sceneType == SceneType.START) {
+                sendInitialDmPrompt(currentSession, _currentScene.value)
+            }
+        }
+    }
+
+    private fun rollDice(numDice: Int, sides: Int): Int {
+        var totalRoll = 0
+        repeat(numDice) {
+            totalRoll += Random.nextInt(1, sides + 1)
+        }
+        return totalRoll
+    }
+
+    private suspend fun processCommands(commands: List<io.github.luposolitario.immundanoctis.data.EngineCommand>) {
+        if (commands.isEmpty()) {
+            return
+        }
+        log("Processing commands: ${commands.map { it.commandName }}")
+        commands.forEach { command ->
+            Log.d(tag, "Comando ricevuto: ${command.commandName} con parametri: ${command.parameters}")
+            when (command.commandName) {
+                "playAudio" -> {
+                    val audioFile = command.parameters["audioFile"] as? String
+                    log("DEBUG COMMAND: Riproduci audio: $audioFile")
+                    // Qui andrebbe la logica per riprodurre l'audio
+                }
+                "generateImage" -> {
+                    val prompt = command.parameters["prompt"] as? String
+                    log("DEBUG COMMAND: Genera immagine con prompt: $prompt")
+                    // Qui andrebbe la logica per generare un'immagine con Stable Diffusion
+                }
+                "triggerGraphicEffect" -> {
+                    val effectName = command.parameters["effectName"] as? String
+                    log("DEBUG COMMAND: Attiva effetto grafico: $effectName")
+                    // Qui andrebbe la logica per attivare un effetto grafico
+                }
+                "gameChallenge" -> {
+                    val heroCharacter = _gameCharacters.value.find { it.id == CharacterID.HERO }
+                    if (heroCharacter == null || heroCharacter.stats == null) {
+                        log("ATTENZIONE: Personaggio Eroe o sue statistiche non disponibili per la sfida!")
+                        return@forEach
+                    }
+
+                    val abilityType = command.parameters["abilityType"] as? String
+                    val challengeLevelStr = command.parameters["challengeLevel"] as? String
+                    val currentSceneChallengeLevel = _currentScene.value?.challengeLevel
+                    val descriptionForLog = command.parameters["description"] as? String ?: "Descrizione non disponibile"
+
+                    log("DEBUG COMMAND: Inizio sfida di gioco: Tipo=${abilityType}, Livello Richiesto (tag)=${challengeLevelStr}, Livello Scena=${currentSceneChallengeLevel?.name}, Descrizione='${descriptionForLog}'")
+
+                    val abilityBonus = when (abilityType) {
+                        "strength" -> heroCharacter.stats.strength.div(2) - 5
+                        "dexterity" -> heroCharacter.stats.dexterity.div(2) - 5
+                        "intelligence" -> heroCharacter.stats.intelligence.div(2) - 5
+                        "spellcraft" -> heroCharacter.stats.wisdom.div(2) - 5
+                        else -> 0
+                    }
+                    val objectBonus = 0
+
+                    val diceRollSum = rollDice(2, 6)
+                    val finalRoll = diceRollSum + abilityBonus + objectBonus
+
+                    var resultMessage = ""
+                    if (diceRollSum == 12) {
+                        resultMessage = "{CRTI_OK} 12"
+                        log("DEBUG COMMAND: Successo Critico! Tiro: 12")
+                    } else if (diceRollSum == 2) {
+                        resultMessage = "{CRTI_K0} 2"
+                        log("DEBUG COMMAND: Fallimento Critico! Tiro: 2")
+                    } else {
+                        resultMessage = "Hai lanciato ${diceRollSum} + Bonus(${abilityBonus} + ${objectBonus}) = ${finalRoll}."
+                        log("DEBUG COMMAND: Tiro Normale: ${diceRollSum}, Totale: ${finalRoll}")
+                    }
+
+                    val resultChatMessage = ChatMessage(
+                        authorId = CharacterID.HERO,
+                        position = messageCounter.getAndIncrement(),
+                        text = resultMessage
+                    )
+                    _chatMessages.update { it + resultChatMessage }
+                    autoSaveChatIfEnabled()
+                }
+                "narrativeChoice" -> {
+                    val choiceId = command.parameters["nextSceneId"] as? String
+                    val choiceText = command.parameters["choiceText"] as? String
+                    log("DEBUG COMMAND: Avvia scelta narrativa: ID=${choiceId}, Testo='${choiceText}'")
+                    // Qui andrebbe la logica per presentare una scelta narrativa
+                }
+                "displayDirectionalButton" -> {
+                    val direction = command.parameters["direction"] as? String
+                    val colorHex = command.parameters["colorHex"] as? String
+                    val choiceText = command.parameters["choiceText"] as? String
+                    val nextSceneId = command.parameters["nextSceneId"] as? String
+                    log("DEBUG COMMAND: Mostra pulsante direzionale: Dir=${direction}, Colore=${colorHex}, Testo='${choiceText}', ProssimaScena=${nextSceneId}")
+                    // Qui andrebbe la logica per esporre questi dati alla UI per mostrare il pulsante
+                }
+                else -> {
+                    log("DEBUG COMMAND: Comando sconosciuto: ${command.commandName}")
+                }
+            }
+        }
+    }
+
+    // NUOVA FUNZIONE: Invia il prompt iniziale del DM all'avvio di una nuova avventura
+    public suspend fun sendInitialDmPrompt(
+        sessionData: SessionData,
+        currentScene1: Scene?
+    ) {
+        // Impedisce l'invio multiplo se la sessione è già stata avviata con questo prompt
+        if (sessionData.isStarted) {
+            log("DEBUG: La sessione è già iniziata, non invio prompt iniziale DM.")
+            return
+        }
+
+        _isGenerating.value = true
+        _streamingText.value = ""
+        _respondingCharacterId.value = CharacterID.DM // Sempre DM per il prompt iniziale
+
+        try {
+            // AGGIUNTO: Attendiamo che i motori siano caricati prima di inviare il prompt
+            log("DEBUG: Attendendo caricamento motori prima di inviare prompt iniziale DM...")
+            _engineLoadingState.first { it is EngineLoadingState.Success }
+            log("DEBUG: Motori pronti, invio prompt iniziale DM.")
+
+            val scene = currentScene1
+            if (scene == null || scene.sceneType != SceneType.START) {
+                log("ATTENZIONE: Impossibile inviare prompt iniziale DM. Scena non START o non caricata.")
+                _isGenerating.value = false // Assicurati di resettare lo stato di generazione
+                return
+            }
+
+            // --- INIZIO NUOVA LOGICA: Costruzione del prompt dal tag config.json ---
+            val startPromptTag = stringTagParser.getTagConfigById("start_adventure_prompt")
+            if (startPromptTag == null || startPromptTag.parameters == null) {
+                log("ERRORE: Tag 'start_adventure_prompt' non trovato o incompleto in config.json!")
+                _isGenerating.value = false
+                return
+            }
+
+            // Estrai i parametri dal tag
+            val baseText = startPromptTag.parameters.firstOrNull { it.name == "baseText" }?.value as? String ?: "Sei il DM per un gioco di ruolo."
+            val genreTextTemplate = startPromptTag.parameters.firstOrNull { it.name == "genreText" }?.value as? String ?: "Il genere della storia è: {genre}."
+            val sceneTextTemplate = startPromptTag.parameters.firstOrNull { it.name == "sceneText" }?.value as? String ?: "Inizia la narrazione dalla seguente scena: {scene_narrative_text}."
+            val continuationText = startPromptTag.parameters.firstOrNull { it.name == "continuationText" }?.value as? String ?: "Ti prego di iniziare a narrare la storia basandoti su questa scena."
+
+            val genre = Genre.WESTERN.name // Genere hardcoded per ora, poi dalla campagna
+            val sceneNarrativeText = scene.narrativeText
+
+            // Costruisci il prompt finale sostituendo i placeholder
+            val secretPrompt = """
+                $baseText
+                ${genreTextTemplate.replace("{genre}", genre)}
+                ${sceneTextTemplate.replace("{scene_narrative_text}", sceneNarrativeText)}
+                $continuationText
+            """.trimIndent()
+            // --- FINE NUOVA LOGICA ---
+
+            log("DEBUG: Invio prompt iniziale DM: Genere=${genre}, Scena ID=${scene.id}")
+
+            dmEngine.sendMessage(secretPrompt)
+                .collect { token ->
+                    _streamingText.update { it + token }
+                }
+            val updatedSession = sessionData.copy(isStarted = true)
+            gameStateManager.saveSession(updatedSession)
+            log("DEBUG: Sessione marcata come avviata.")
+
+        } catch (e: Exception) {
+            Log.e(tag, "Errore durante l'invio del prompt iniziale al DM: ${e.message}", e)
+            log("ERRORE: Impossibile avviare la narrazione del DM. ${e.message}")
+        } finally {
+            if (_streamingText.value.isNotBlank()) {
+                val finalMessage = ChatMessage(authorId = CharacterID.DM, position = messageCounter.getAndIncrement(), text = _streamingText.value)
+                _chatMessages.update { it + finalMessage }
+                autoSaveChatIfEnabled()
+            }
+            _isGenerating.value = false
+            _streamingText.value = ""
+            _respondingCharacterId.value = null
         }
     }
 }

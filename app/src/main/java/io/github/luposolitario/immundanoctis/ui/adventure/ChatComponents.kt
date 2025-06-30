@@ -191,7 +191,7 @@ fun GeneratingIndicator(onStopClicked: () -> Unit, characterName: String) {
 @Composable
 fun MessageInput(onMessageSent: (String) -> Unit, isEnabled: Boolean) {
     var textState by remember { mutableStateOf(TextFieldValue("")) }
-    val maxChars = 1024
+    val maxChars = 10240
     val isError = textState.text.length > maxChars // Correzione logica qui
 
     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {

@@ -22,3 +22,4 @@ dependencyResolutionManagement {
 rootProject.name = "ImmundaNoctis"
 include(":app")
 include(":llama")
+include(":stdf")
