@@ -9,16 +9,28 @@ import com.google.gson.reflect.TypeToken
 import io.github.luposolitario.immundanoctis.data.CharacterID
 import io.github.luposolitario.immundanoctis.data.CharacterType
 import io.github.luposolitario.immundanoctis.data.ChatMessage
+import io.github.luposolitario.immundanoctis.data.EngineCommand
+import io.github.luposolitario.immundanoctis.data.GameChallenge
 import io.github.luposolitario.immundanoctis.data.GameCharacter
+import io.github.luposolitario.immundanoctis.data.Genre
+import io.github.luposolitario.immundanoctis.data.NarrativeChoice
 import io.github.luposolitario.immundanoctis.data.Scene
+import io.github.luposolitario.immundanoctis.data.SceneType
+import io.github.luposolitario.immundanoctis.data.SessionData
+import io.github.luposolitario.immundanoctis.engine.GameLogicManager
+import io.github.luposolitario.immundanoctis.engine.GameRulesEngine
 import io.github.luposolitario.immundanoctis.engine.GemmaEngine
 import io.github.luposolitario.immundanoctis.engine.InferenceEngine
 import io.github.luposolitario.immundanoctis.engine.LlamaCppEngine
 import io.github.luposolitario.immundanoctis.engine.TokenInfo
 import io.github.luposolitario.immundanoctis.engine.TranslationEngine
+import io.github.luposolitario.immundanoctis.engine.rules.LoneWolfRules
 import io.github.luposolitario.immundanoctis.util.EnginePreferences
 import io.github.luposolitario.immundanoctis.util.GameStateManager
+import io.github.luposolitario.immundanoctis.util.LlamaPreferences
 import io.github.luposolitario.immundanoctis.util.SavePreferences
+import io.github.luposolitario.immundanoctis.util.StringTagParser
+import io.github.luposolitario.immundanoctis.util.ThemePreferences
 import io.github.luposolitario.immundanoctis.util.getAppSpecificDirectory
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -44,18 +56,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicLong
-import io.github.luposolitario.immundanoctis.util.ThemePreferences
-import io.github.luposolitario.immundanoctis.util.StringTagParser
-import io.github.luposolitario.immundanoctis.data.EngineCommand
-import io.github.luposolitario.immundanoctis.data.GameChallenge
-import io.github.luposolitario.immundanoctis.data.NarrativeChoice
-import io.github.luposolitario.immundanoctis.engine.GameLogicManager
-import io.github.luposolitario.immundanoctis.data.Genre
-import io.github.luposolitario.immundanoctis.data.SceneType
-import io.github.luposolitario.immundanoctis.data.SessionData
-import io.github.luposolitario.immundanoctis.engine.GameRulesEngine
-import io.github.luposolitario.immundanoctis.util.LlamaPreferences
-import io.github.luposolitario.immundanoctis.engine.rules.LoneWolfRules
 import kotlin.random.Random
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -132,10 +132,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val activeChallenges: StateFlow<List<GameChallenge>> = _activeChallenges.asStateFlow()
 
     private val _activeNarrativeChoices = MutableStateFlow<List<NarrativeChoice>>(emptyList())
-    val activeNarrativeChoices: StateFlow<List<NarrativeChoice>> = _activeNarrativeChoices.asStateFlow()
+    val activeNarrativeChoices: StateFlow<List<NarrativeChoice>> =
+        _activeNarrativeChoices.asStateFlow()
 
     private val _activeDirectionalChoices = MutableStateFlow<List<EngineCommand>>(emptyList())
-    val activeDirectionalChoices: StateFlow<List<EngineCommand>> = _activeDirectionalChoices.asStateFlow()
+    val activeDirectionalChoices: StateFlow<List<EngineCommand>> =
+        _activeDirectionalChoices.asStateFlow()
 
 
     init {
@@ -269,7 +271,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     playerModelPath?.let {
                         loadTasks.add(async {
                             log("Tentativo di caricamento modello PG (GGUF) su thread IO...")
-                            playerEngine.load(it,llamaPreferences.chatbotPersonality)
+                            playerEngine.load(it, llamaPreferences.chatbotPersonality)
                         })
                     }
                 }
@@ -303,7 +305,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     if (line.isBlank()) {
                         async { "" }
                     } else {
-                        async { translationEngine.translate(line, targetLang = Locale.ITALIAN.language) }
+                        async {
+                            translationEngine.translate(
+                                line,
+                                targetLang = Locale.ITALIAN.language
+                            )
+                        }
                     }
                 }.awaitAll()
                 val finalTranslation = translatedLines.joinToString("\n")
@@ -364,7 +371,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         val heroCharacter = _gameCharacters.value.find { it.id == CharacterID.HERO }
-        val playerLanguage = heroCharacter?.language ?: Locale.ENGLISH.language // Lingua del giocatore
+        val playerLanguage =
+            heroCharacter?.language ?: Locale.ENGLISH.language // Lingua del giocatore
 
         val (parsedPlayerText, playerCommands) = stringTagParser.parseAndReplaceWithCommands(
             inputString = text,
@@ -372,7 +380,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             lang = playerLanguage
         )
 
-        val userMessage = ChatMessage(authorId = CharacterID.HERO, position = messageCounter.getAndIncrement(), text = parsedPlayerText)
+        val userMessage = ChatMessage(
+            authorId = CharacterID.HERO,
+            position = messageCounter.getAndIncrement(),
+            text = parsedPlayerText
+        )
         _chatMessages.update { it + userMessage }
         autoSaveChatIfEnabled()
 
@@ -421,7 +433,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 )
 
                 if (parsedLLMText.isNotBlank()) {
-                    val finalMessage = ChatMessage(authorId = targetId, position = messageCounter.getAndIncrement(), text = parsedLLMText)
+                    val finalMessage = ChatMessage(
+                        authorId = targetId,
+                        position = messageCounter.getAndIncrement(),
+                        text = parsedLLMText
+                    )
                     _chatMessages.update { it + finalMessage }
                     autoSaveChatIfEnabled()
                 }
@@ -509,7 +525,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _currentScene.value = gameLogicManager.selectRandomStartScene(Genre.WESTERN)
             log("Scena reimpostata a una scena START casuale di genere WESTERN.")
             gameLogicManager.resetUsedScenes()
-            val currentSession = gameStateManager.loadSession() ?: gameStateManager.createDefaultSession()
+            val currentSession =
+                gameStateManager.loadSession() ?: gameStateManager.createDefaultSession()
             if (_currentScene.value?.sceneType == SceneType.START) {
                 sendInitialDmPrompt(currentSession, _currentScene.value)
             }
@@ -530,75 +547,36 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         log("Processing commands: ${commands.map { it.commandName }}")
         commands.forEach { command ->
-            Log.d(tag, "Comando ricevuto: ${command.commandName} con parametri: ${command.parameters}")
+            Log.d(
+                tag,
+                "Comando ricevuto: ${command.commandName} con parametri: ${command.parameters}"
+            )
             when (command.commandName) {
                 "playAudio" -> {
                     val audioFile = command.parameters["audioFile"] as? String
                     log("DEBUG COMMAND: Riproduci audio: $audioFile")
                     // Qui andrebbe la logica per riprodurre l'audio
                 }
+
                 "generateImage" -> {
                     val prompt = command.parameters["prompt"] as? String
                     log("DEBUG COMMAND: Genera immagine con prompt: $prompt")
                     // Qui andrebbe la logica per generare un'immagine con Stable Diffusion
                 }
+
                 "triggerGraphicEffect" -> {
                     val effectName = command.parameters["effectName"] as? String
                     log("DEBUG COMMAND: Attiva effetto grafico: $effectName")
                     // Qui andrebbe la logica per attivare un effetto grafico
                 }
-                "gameChallenge" -> {
-                    val heroCharacter = _gameCharacters.value.find { it.id == CharacterID.HERO }
-                    if (heroCharacter == null || heroCharacter.stats == null) {
-                        log("ATTENZIONE: Personaggio Eroe o sue statistiche non disponibili per la sfida!")
-                        return@forEach
-                    }
 
-                    val abilityType = command.parameters["abilityType"] as? String
-                    val challengeLevelStr = command.parameters["challengeLevel"] as? String
-                    val currentSceneChallengeLevel = _currentScene.value?.challengeLevel
-                    val descriptionForLog = command.parameters["description"] as? String ?: "Descrizione non disponibile"
-
-                    log("DEBUG COMMAND: Inizio sfida di gioco: Tipo=${abilityType}, Livello Richiesto (tag)=${challengeLevelStr}, Livello Scena=${currentSceneChallengeLevel?.name}, Descrizione='${descriptionForLog}'")
-
-                    val abilityBonus = when (abilityType) {
-                        "strength" -> heroCharacter.stats.strength.div(2) - 5
-                        "dexterity" -> heroCharacter.stats.dexterity.div(2) - 5
-                        "intelligence" -> heroCharacter.stats.intelligence.div(2) - 5
-                        "spellcraft" -> heroCharacter.stats.wisdom.div(2) - 5
-                        else -> 0
-                    }
-                    val objectBonus = 0
-
-                    val diceRollSum = rollDice(2, 6)
-                    val finalRoll = diceRollSum + abilityBonus + objectBonus
-
-                    var resultMessage = ""
-                    if (diceRollSum == 12) {
-                        resultMessage = "{CRTI_OK} 12"
-                        log("DEBUG COMMAND: Successo Critico! Tiro: 12")
-                    } else if (diceRollSum == 2) {
-                        resultMessage = "{CRTI_K0} 2"
-                        log("DEBUG COMMAND: Fallimento Critico! Tiro: 2")
-                    } else {
-                        resultMessage = "Hai lanciato ${diceRollSum} + Bonus(${abilityBonus} + ${objectBonus}) = ${finalRoll}."
-                        log("DEBUG COMMAND: Tiro Normale: ${diceRollSum}, Totale: ${finalRoll}")
-                    }
-
-                    val resultChatMessage = ChatMessage(
-                        authorId = CharacterID.HERO,
-                        position = messageCounter.getAndIncrement(),
-                        text = resultMessage
-                    )
-                    _chatMessages.update { it + resultChatMessage }
-                    autoSaveChatIfEnabled()
-                }
                 "narrativeChoice" -> {
                     val choiceId = command.parameters["nextSceneId"] as? String
                     val choiceText = command.parameters["choiceText"] as? String
                     log("DEBUG COMMAND: Avvia scelta narrativa: ID=${choiceId}, Testo='${choiceText}'")
                     // Qui andrebbe la logica per presentare una scelta narrativa
                 }
+
                 "displayDirectionalButton" -> {
                     val direction = command.parameters["direction"] as? String
                     val colorHex = command.parameters["colorHex"] as? String
@@ -607,6 +585,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     log("DEBUG COMMAND: Mostra pulsante direzionale: Dir=${direction}, Colore=${colorHex}, Testo='${choiceText}', ProssimaScena=${nextSceneId}")
                     // Qui andrebbe la logica per esporre questi dati alla UI per mostrare il pulsante
                 }
+
                 else -> {
                     log("DEBUG COMMAND: Comando sconosciuto: ${command.commandName}")
                 }
@@ -651,22 +630,30 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             // Estrai i parametri dal tag
-            val baseText = startPromptTag.parameters.firstOrNull { it.name == "baseText" }?.value as? String ?: "Sei il DM per un gioco di ruolo."
-            val genreTextTemplate = startPromptTag.parameters.firstOrNull { it.name == "genreText" }?.value as? String ?: "Il genere della storia è: {genre}."
-            val sceneTextTemplate = startPromptTag.parameters.firstOrNull { it.name == "sceneText" }?.value as? String ?: "Inizia la narrazione dalla seguente scena: {scene_narrative_text}."
-            val continuationText = startPromptTag.parameters.firstOrNull { it.name == "continuationText" }?.value as? String ?: "Ti prego di iniziare a narrare la storia basandoti su questa scena."
+            val baseText =
+                startPromptTag.parameters.firstOrNull { it.name == "baseText" }?.value as? String
+                    ?: "Sei il DM per un gioco di ruolo."
+            val genreTextTemplate =
+                startPromptTag.parameters.firstOrNull { it.name == "genreText" }?.value as? String
+                    ?: "Il genere della storia è: {genre}."
+            val sceneTextTemplate =
+                startPromptTag.parameters.firstOrNull { it.name == "sceneText" }?.value as? String
+                    ?: "Inizia la narrazione dalla seguente scena: {scene_narrative_text}."
+            val continuationText =
+                startPromptTag.parameters.firstOrNull { it.name == "continuationText" }?.value as? String
+                    ?: "Ti prego di iniziare a narrare la storia basandoti su questa scena."
 
             val genre = Genre.WESTERN.name // Genere hardcoded per ora, poi dalla campagna
-            val sceneNarrativeText = scene.narrativeText
 
-            // Costruisci il prompt finale sostituendo i placeholder
+            // Selezioniamo prima la stringa della lingua corretta (es. italiano)
+            val sceneNarrativeText = scene.narrativeText.it // o .en a seconda della lingua di gioco
+
             val secretPrompt = """
-                $baseText
-                ${genreTextTemplate.replace("{genre}", genre)}
-                ${sceneTextTemplate.replace("{scene_narrative_text}", sceneNarrativeText)}
-                $continuationText
-            """.trimIndent()
-            // --- FINE NUOVA LOGICA ---
+    $baseText
+    ${genreTextTemplate.replace("{genre}", genre , ignoreCase = true)}
+    ${sceneTextTemplate.replace("{scene_narrative_text}", sceneNarrativeText.toString() , ignoreCase = true)}  // <-- ORA FUNZIONA
+    $continuationText
+    """.trimIndent()
 
             log("DEBUG: Invio prompt iniziale DM: Genere=${genre}, Scena ID=${scene.id}")
 
@@ -683,7 +670,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             log("ERRORE: Impossibile avviare la narrazione del DM. ${e.message}")
         } finally {
             if (_streamingText.value.isNotBlank()) {
-                val finalMessage = ChatMessage(authorId = CharacterID.DM, position = messageCounter.getAndIncrement(), text = _streamingText.value)
+                val finalMessage = ChatMessage(
+                    authorId = CharacterID.DM,
+                    position = messageCounter.getAndIncrement(),
+                    text = _streamingText.value
+                )
                 _chatMessages.update { it + finalMessage }
                 autoSaveChatIfEnabled()
             }

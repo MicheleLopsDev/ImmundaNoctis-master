@@ -1,7 +1,5 @@
 package io.github.luposolitario.immundanoctis
 
-import androidx.core.view.WindowCompat
-import androidx.compose.ui.graphics.Color
 import android.app.Activity
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -17,11 +15,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalView
@@ -30,8 +30,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import io.github.luposolitario.immundanoctis.data.CharacterType
-import io.github.luposolitario.immundanoctis.data.GameCharacter
+import androidx.core.view.WindowCompat
+import io.github.luposolitario.immundanoctis.data.*
 import io.github.luposolitario.immundanoctis.ui.theme.ImmundaNoctisTheme
 import io.github.luposolitario.immundanoctis.util.ThemePreferences
 
@@ -44,15 +44,17 @@ class CharacterSheetActivity : ComponentActivity() {
             val useDarkTheme = themePreferences.useDarkTheme(isSystemInDarkTheme())
             ImmundaNoctisTheme(darkTheme = useDarkTheme) {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    // Creiamo un personaggio MOCK con dati di esempio
+                    // Creiamo un personaggio MOCK con dati aggiornati per il preview
                     val mockHero = GameCharacter(
                         id = "hero",
-                        name = "Kaelan",
+                        name = "Lupo Solitario",
                         type = CharacterType.PLAYER,
-                        characterClass = "Guerriero",
+                        characterClass = "Iniziato Kai", // Rango invece di classe
                         portraitResId = R.drawable.portrait_hero_male,
                         gender = "MALE",
-                        language = "it"
+                        language = "it",
+                        stats = LoneWolfStats(combattivita = 18, resistenza = 25),
+                        kaiDisciplines = listOf("HEALING", "WEAPONSKILL", "MINDSHIELD", "SIXTH_SENSE", "HUNTING")
                     )
                     CharacterSheetScreen(
                         character = mockHero,
@@ -67,15 +69,12 @@ class CharacterSheetActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CharacterSheetScreen(character: GameCharacter, onNavigateBack: () -> Unit) {
-    // --- GESTIONE COLORI STATUS BAR (CORRETTA) ---
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
-            val window = (view.context as Activity).window
-            // Impostiamo un colore NERO fisso per la barra di stato
-            window.statusBarColor = Color.Black.toArgb()
-            // Assicuriamo che le icone della barra (batteria, ora) siano CHIARE e quindi visibili
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
+            val window = (view.context as? Activity)?.window
+            window?.statusBarColor = Color.Black.toArgb()
+            WindowCompat.getInsetsController(window, view)?.isAppearanceLightStatusBars = false
         }
     }
 
@@ -98,7 +97,6 @@ fun CharacterSheetScreen(character: GameCharacter, onNavigateBack: () -> Unit) {
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Il resto del codice della funzione rimane identico...
             Text(character.name, style = MaterialTheme.typography.headlineMedium)
             Spacer(Modifier.height(16.dp))
             Row(
@@ -110,8 +108,8 @@ fun CharacterSheetScreen(character: GameCharacter, onNavigateBack: () -> Unit) {
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    InfoCard(character)
-                    AttributesCard()
+                    StatsCard(character.stats) // <-- NUOVA CARD STATISTICHE
+                    KaiDisciplinesCard(character.kaiDisciplines) // <-- NUOVA CARD DISCIPLINE
                 }
                 // Colonna Destra
                 Column(
@@ -119,75 +117,72 @@ fun CharacterSheetScreen(character: GameCharacter, onNavigateBack: () -> Unit) {
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     PortraitCard(character)
-                    HistoryCard()
                 }
             }
             Spacer(Modifier.height(16.dp))
-            ExperienceCard()
-            Spacer(Modifier.height(16.dp))
             Divider()
             Spacer(Modifier.height(16.dp))
-            Text("Inventario", style = MaterialTheme.typography.headlineSmall)
+            Text("Equipaggiamento", style = MaterialTheme.typography.headlineSmall)
             Spacer(Modifier.height(16.dp))
-            InventorySection()
+            InventorySection() // <-- Sezione Inventario (da dettagliare in futuro)
             Spacer(Modifier.height(16.dp))
         }
     }
 }
-// --- Sezione dei Composable Helper per pulizia ---
+
+// --- Sezione dei Composable Helper Aggiornati ---
 
 @Composable
-fun InfoCard(character: GameCharacter) {
+fun StatsCard(stats: LoneWolfStats?) {
+    if (stats == null) return
+
     Card(modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(12.dp), Arrangement.spacedBy(8.dp)) {
-            Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                Text("Classe: ${character.characterClass}", fontWeight = FontWeight.Bold)
-                Text("Livello: 1", fontWeight = FontWeight.Bold)
+        Column(Modifier.padding(16.dp), Arrangement.spacedBy(8.dp)) {
+            Text("Statistiche", style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.CenterHorizontally))
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.SpaceAround, modifier = Modifier.fillMaxWidth()) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Combattività", style = MaterialTheme.typography.titleSmall)
+                    Text("${stats.combattivita}", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Resistenza", style = MaterialTheme.typography.titleSmall)
+                    Text("${stats.resistenza}", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                }
             }
-            Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                Text("PV: 25/25")
-                Text("CA: 16")
-            }
-            Text("Punti Fato: 3")
         }
     }
 }
 
 @Composable
-fun AttributesCard() {
+fun KaiDisciplinesCard(disciplineIds: List<String>) {
     Card(modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(12.dp), Arrangement.spacedBy(8.dp)) {
-            Text("Caratteristiche", style = MaterialTheme.typography.titleMedium)
-            AttributeRow("Forza", "16", "+3")
-            AttributeRow("Astuzia", "12", "+1")
-            AttributeRow("Sapere", "10", "+0")
-            AttributeRow("Magia", "8", "-1")
+        Column(Modifier.padding(16.dp), Arrangement.spacedBy(8.dp)) {
+            Text("Discipline Kai", style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.CenterHorizontally))
+            disciplineIds.forEach { disciplineId ->
+                val disciplineInfo = KAI_DISCIPLINES.find { it.id == disciplineId }
+                if (disciplineInfo != null) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Shield, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(disciplineInfo.name, style = MaterialTheme.typography.bodyLarge)
+                    }
+                }
+            }
         }
     }
 }
 
-@Composable
-fun AttributeRow(name: String, value: String, modifier: String) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(name, modifier = Modifier.weight(1f))
-        Text(value, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-        OutlinedTextField(
-            value = modifier,
-            onValueChange = {},
-            modifier = Modifier.width(70.dp).padding(start = 16.dp),
-            textStyle = LocalTextStyle.current.copy(textAlign = TextAlign.Center)
-        )
-    }
-}
 
 @Composable
 fun PortraitCard(character: GameCharacter) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("Ritratto", style = MaterialTheme.typography.titleSmall)
+        Text("Rango: ${character.characterClass}", style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(8.dp))
         Card(
             modifier = Modifier
-                .width(150.dp) // Più stretto
-                .height(200.dp) // Più alto
+                .fillMaxWidth()
+                .aspectRatio(3f / 4f) // Manteniamo le proporzioni del ritratto
         ) {
             Image(
                 painter = painterResource(id = character.portraitResId),
@@ -200,63 +195,34 @@ fun PortraitCard(character: GameCharacter) {
 }
 
 @Composable
-fun HistoryCard() {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(12.dp)) {
-            Text("Storia", style = MaterialTheme.typography.titleSmall)
-            Text(
-                "Alex ha lasciato il suo piccolo villaggio dopo un'incursione di goblin. Cerca risposte e vendetta, armato solo della vecchia spada di suo padre e di una determinazione incrollabile.",
-                style = MaterialTheme.typography.bodySmall,
-                lineHeight = 16.sp
-            )
-        }
-    }
-}
-
-@Composable
-fun ExperienceCard() {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(12.dp)) {
-            Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
-                Text("Esperienza (PX)", style = MaterialTheme.typography.titleMedium)
-                Text("250 / 1000")
-            }
-            Spacer(Modifier.height(8.dp))
-            LinearProgressIndicator(
-                progress = { 0.25f },
-                modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp))
-            )
-        }
-    }
-}
-
-@Composable
 fun InventorySection() {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        // Sezione Armi e Oro
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            OutlinedTextField(value = "Armatura di Cuoio", onValueChange = {}, label = { Text("Armatura") }, modifier = Modifier.weight(2f))
-            OutlinedTextField(value = "1d6", onValueChange = {}, label = { Text("Parata") }, modifier = Modifier.weight(1f))
-            OutlinedTextField(value = "Anello della Protezione", onValueChange = {}, label = { Text("Anello") }, modifier = Modifier.weight(2f))
+            OutlinedTextField(value = "Ascia", onValueChange = {}, label = { Text("Arma 1") }, modifier = Modifier.weight(1f))
+            OutlinedTextField(value = "", onValueChange = {}, label = { Text("Arma 2") }, modifier = Modifier.weight(1f))
+            OutlinedTextField(value = "10", onValueChange = {}, label = { Text("Corone d'Oro") }, modifier = Modifier.width(100.dp))
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            OutlinedTextField(value = "Spada Lunga", onValueChange = {}, label = { Text("Arma") }, modifier = Modifier.weight(2f))
-            OutlinedTextField(value = "1d8", onValueChange = {}, label = { Text("Danno") }, modifier = Modifier.weight(1f))
-            OutlinedTextField(value = "15", onValueChange = {}, label = { Text("Oro") }, modifier = Modifier.weight(2f))
-        }
+        // Sezione Oggetti Speciali
+        Text("Oggetti Speciali", style = MaterialTheme.typography.titleMedium)
+        // Qui potremmo avere una LazyColumn o una Column per mostrare gli oggetti
+        Text("Mappa di Sommerlund", style = MaterialTheme.typography.bodyMedium)
+
+        // Sezione Zaino
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(12.dp)) {
-                Text("Zaino (9 slot)", style = MaterialTheme.typography.titleMedium)
+                Text("Zaino (8 slot)", style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.height(8.dp))
                 LazyVerticalGrid(
-                    columns = GridCells.Fixed(3),
-                    modifier = Modifier.height(180.dp), // Altezza fissa per la griglia
+                    columns = GridCells.Fixed(4), // 4 colonne per essere più compatto
+                    modifier = Modifier.height(120.dp), // Altezza fissa per la griglia
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(9) {
+                    items(8) {
                         Box(
                             modifier = Modifier
-                                .size(50.dp)
+                                .size(60.dp)
                                 .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(4.dp))
                         )
                     }

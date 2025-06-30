@@ -10,6 +10,7 @@ import io.github.luposolitario.immundanoctis.data.SessionData
 import java.io.File
 import java.io.FileReader
 import java.io.FileWriter
+import io.github.luposolitario.immundanoctis.data.LoneWolfStats
 
 /**
  * Gestisce il salvataggio e il caricamento dello stato della sessione di gioco
@@ -71,7 +72,8 @@ class GameStateManager(private val context: Context) {
                 "MALE",
                 "it",
                 isVisible = false,
-                stats = null, // Inizializza con stats appropriate
+                // Aggiungi un oggetto LoneWolfStats di default
+                stats = LoneWolfStats(combattivita = 15, resistenza = 25),
                 details = null
             ),
             GameCharacter(
@@ -82,7 +84,8 @@ class GameStateManager(private val context: Context) {
                 R.drawable.portrait_dm,
                 "MALE",
                 "it",
-                isVisible = true
+                isVisible = true,
+                stats = null // Il DM non ha statistiche
             ),
             GameCharacter(
                 "companion1",
@@ -92,7 +95,8 @@ class GameStateManager(private val context: Context) {
                 R.drawable.portrait_cleric,
                 "FEMALE",
                 "it",
-                isVisible = true
+                isVisible = true,
+                stats = LoneWolfStats(combattivita = 12, resistenza = 20) // Anche i PNG possono averle
             ),
             GameCharacter(
                 "companion2",
@@ -102,7 +106,8 @@ class GameStateManager(private val context: Context) {
                 R.drawable.portrait_mage,
                 "MALE",
                 "it",
-                isVisible = false
+                isVisible = false,
+                stats = LoneWolfStats(combattivita = 10, resistenza = 18)
             )
         )
         return SessionData(

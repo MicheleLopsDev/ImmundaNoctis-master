@@ -73,7 +73,9 @@ class StringTagParser(private val context: Context) {
             if (tagConfig.replace) {
                 when (tagConfig.type) {
                     "textSubstitution", "chatBotSaluto" -> { // Convertito a camelCase
-                        resultString = resultString.replace(regex, tagConfig.replacement ?: "")
+                        // Inside your loop, where 'regex' is defined
+                        val localizedReplacement = tagConfig.replacement?.get(lang) ?: tagConfig.replacement?.get("en") ?: ""
+                        resultString = resultString.replace(regex, localizedReplacement)
                     }
                     "promptDescription" -> { // Convertito a camelCase
                         resultString = regex.replace(resultString) { matchResult ->

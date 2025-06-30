@@ -124,7 +124,28 @@ data class TagParameter(
     val defaultValue: Any?,
     val value: Any?
 )
+// In fondo a GameData.kt
 
+/**
+ * Contiene le informazioni per una singola Disciplina Kai.
+ */
+data class KaiDisciplineInfo(val id: String, val name: String, val description: String)
+
+/**
+ * Lista ufficiale delle 10 Discipline Kai iniziali.
+ */
+val KAI_DISCIPLINES = listOf(
+    KaiDisciplineInfo("CAMOUFLAGE", "Mimetismo", "Permette di nascondersi e passare inosservato."),
+    KaiDisciplineInfo("HUNTING", "Caccia", "Permette di trovare sempre cibo, non richiede Pasti."),
+    KaiDisciplineInfo("SIXTH_SENSE", "Sesto Senso", "Avverte di pericoli imminenti."),
+    KaiDisciplineInfo("TRACKING", "Orientamento", "Permette di seguire tracce e non perdersi."),
+    KaiDisciplineInfo("HEALING", "Guarigione", "Ripristina 1 punto Resistenza per sezione senza combattimento."),
+    KaiDisciplineInfo("WEAPONSKILL", "Scherma", "+2 Combattività con un tipo di arma."),
+    KaiDisciplineInfo("MINDSHIELD", "Psicoschermo", "Immunità agli attacchi psichici."),
+    KaiDisciplineInfo("MINDBLAST", "Psicolaser", "+2 Combattività in combattimento."),
+    KaiDisciplineInfo("ANIMAL_KINSHIP", "Affinità Animale", "Permette di comunicare con gli animali."),
+    KaiDisciplineInfo("MIND_OVER_MATTER", "Telecinesi", "Permette di muovere piccoli oggetti con la mente.")
+)
 data class TagConfig(
     val id: String,
     val type: String,
