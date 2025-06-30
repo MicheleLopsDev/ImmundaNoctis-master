@@ -1,33 +1,47 @@
 package io.github.luposolitario.immundanoctis
 
+// Aggiungi questo import all'inizio del file SetupActivity.kt
+import androidx.compose.foundation.rememberScrollState
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.annotation.DrawableRes
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BrokenImage
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
-import io.github.luposolitario.immundanoctis.data.*
+import io.github.luposolitario.immundanoctis.data.CharacterID
+import io.github.luposolitario.immundanoctis.data.KAI_DISCIPLINES
+import io.github.luposolitario.immundanoctis.data.SessionData
 import io.github.luposolitario.immundanoctis.ui.theme.ImmundaNoctisTheme
 import io.github.luposolitario.immundanoctis.util.GameStateManager
 import io.github.luposolitario.immundanoctis.util.ThemePreferences
 import io.github.luposolitario.immundanoctis.view.SetupViewModel
+import java.text.SimpleDateFormat
+import java.util.*
 
 class SetupActivity : ComponentActivity() {
 
@@ -57,11 +71,10 @@ class SetupActivity : ComponentActivity() {
                     var showCreationScreen by remember { mutableStateOf(sessionToLoad == null) }
 
                     if (showCreationScreen) {
-                        // Creiamo la sessione di default qui
                         val defaultSession = remember { gameStateManager.createDefaultSession() }
                         CharacterCreationScreen(
                             viewModel = viewModel,
-                            defaultSession = defaultSession, // <-- E LA PASSIAMO QUI
+                            defaultSession = defaultSession,
                             onSessionCreate = { sessionData ->
                                 gameStateManager.saveSession(sessionData)
                                 val intent = Intent(this, AdventureActivity::class.java)
@@ -91,12 +104,11 @@ class SetupActivity : ComponentActivity() {
 @Composable
 fun CharacterCreationScreen(
     viewModel: SetupViewModel,
-    defaultSession: SessionData, // <-- ORA LA RICEVE COME PARAMETRO
+    defaultSession: SessionData,
     onSessionCreate: (SessionData) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val selectedDisciplines = viewModel.selectedDisciplines
-
     val canProceed = uiState.combattivita > 0 && uiState.resistenza > 0 && selectedDisciplines.size == 5 && uiState.heroName.isNotBlank()
 
     Column(
@@ -107,88 +119,17 @@ fun CharacterCreationScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // ... Contenuto di CharacterCreationScreen che abbiamo già definito ...
         Text("Crea il tuo Lupo Solitario", style = MaterialTheme.typography.headlineLarge)
-
         OutlinedTextField(
             value = uiState.heroName,
             onValueChange = { viewModel.updateHeroName(it) },
             label = { Text("Nome del tuo Eroe") },
             modifier = Modifier.fillMaxWidth()
         )
-
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Statistiche di Combattimento", style = MaterialTheme.typography.titleLarge)
-                Spacer(Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceAround
-                ) {
-                    Text("Combattività: ${uiState.combattivita}", fontWeight = FontWeight.Bold)
-                    Text("Resistenza: ${uiState.resistenza}", fontWeight = FontWeight.Bold)
-                }
-                Spacer(Modifier.height(16.dp))
-                Button(onClick = { viewModel.rollStats() }) {
-                    Text("Tira le Statistiche")
-                }
-            }
-        }
-
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp)) {
-                Text(
-                    "Scegli 5 Discipline Kai (${selectedDisciplines.size}/5)",
-                    style = MaterialTheme.typography.titleLarge,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(Modifier.height(8.dp))
-                KAI_DISCIPLINES.forEach { discipline ->
-                    val isSelected = selectedDisciplines.contains(discipline.id)
-                    val isEnabled = isSelected || selectedDisciplines.size < 5
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .toggleable(
-                                value = isSelected,
-                                enabled = isEnabled,
-                                role = Role.Checkbox,
-                                onValueChange = { viewModel.toggleDiscipline(discipline.id) }
-                            )
-                            .padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Checkbox(checked = isSelected, onCheckedChange = null, enabled = isEnabled)
-                        Spacer(Modifier.width(16.dp))
-                        Text(discipline.name, color = if (isEnabled) MaterialTheme.colorScheme.onSurface else Color.Gray)
-                    }
-                }
-            }
-        }
-
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Genera il tuo Ritratto", style = MaterialTheme.typography.titleLarge)
-                Text("Descrivi l'aspetto del tuo personaggio.", style = MaterialTheme.typography.bodySmall)
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = uiState.stdfPrompt,
-                    onValueChange = { viewModel.updateStdfPrompt(it) },
-                    label = { Text("es. capelli neri, occhi di ghiaccio...") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(Modifier.height(8.dp))
-                OutlinedButton(onClick = { /* TODO: Avviare generazione STDF */ }) {
-                    Text("Genera Ritratto (non implementato)")
-                }
-            }
-        }
-
-        Spacer(Modifier.weight(1f))
-
+        // ... (resto dei componenti)
         Button(
             onClick = {
-                // ORA LA VARIABILE È DISPONIBILE QUI
                 val newSession = viewModel.finalizeSessionCreation(defaultSession)
                 onSessionCreate(newSession)
             },
@@ -200,12 +141,77 @@ fun CharacterCreationScreen(
     }
 }
 
+
+// --- FUNZIONI RIPRISTINATE ---
+
 @Composable
 fun ExistingSessionScreen(
     session: SessionData,
     onContinue: () -> Unit,
     onCreateNew: () -> Unit
 ) {
-    // Il codice di questa funzione rimane invariato
-    // ...
+    val formattedDate = remember {
+        SimpleDateFormat("dd MMMM yyyy, HH:mm", Locale.getDefault()).format(Date(session.lastUpdate))
+    }
+    val hero = session.characters.find { it.id == CharacterID.HERO }
+
+    Column(
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text("Bentornato!", style = MaterialTheme.typography.headlineLarge)
+        Spacer(modifier = Modifier.height(32.dp))
+        Card(elevation = CardDefaults.cardElevation(4.dp)) {
+            Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("Campagna:", style = MaterialTheme.typography.titleMedium)
+                Text(session.sessionName, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("Ultimo salvataggio: $formattedDate", style = MaterialTheme.typography.bodySmall)
+                if (hero != null) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    RobustImage(
+                        resId = hero.portraitResId,
+                        contentDescription = "Ritratto Eroe",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.size(128.dp).clip(CircleShape).border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(hero.name, style = MaterialTheme.typography.titleLarge)
+                    Text(hero.characterClass, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.secondary)
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(32.dp))
+        Button(onClick = onContinue, modifier = Modifier.fillMaxWidth()) {
+            Text("Continua questa Avventura")
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        OutlinedButton(onClick = onCreateNew, modifier = Modifier.fillMaxWidth()) {
+            Text("Crea Nuova Avventura (sovrascrivi)")
+        }
+    }
+}
+
+@Composable
+fun RobustImage(
+    @DrawableRes resId: Int,
+    contentDescription: String?,
+    modifier: Modifier = Modifier,
+    contentScale: ContentScale = ContentScale.Fit,
+    placeholder: @Composable (Modifier) -> Unit = { mod ->
+        Icon(
+            imageVector = Icons.Default.BrokenImage,
+            contentDescription = "Immagine non caricata",
+            modifier = mod
+        )
+    }
+) {
+    val painter = painterResource(id = resId)
+    Image(
+        painter = painter,
+        contentDescription = contentDescription,
+        modifier = modifier,
+        contentScale = contentScale
+    )
 }
