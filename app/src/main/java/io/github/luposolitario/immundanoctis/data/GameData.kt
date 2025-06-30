@@ -129,13 +129,12 @@ data class TagConfig(
     val id: String,
     val type: String,
     val regex: String,
-    val replacement: String?,
+    val replacement: Map<String, String>?, // <-- MODIFICA QUI
     val parameters: List<TagParameter>?,
     val actor: String,
     val command: String?,
     val replace: Boolean
 )
-
 data class TagsConfigWrapper(
     val tags: List<TagConfig>
 )
