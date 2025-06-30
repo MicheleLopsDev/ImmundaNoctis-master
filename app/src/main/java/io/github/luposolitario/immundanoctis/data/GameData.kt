@@ -93,6 +93,8 @@ data class GameCharacter(
     val stats: LoneWolfStats?,
     // AGGIUNGIAMO IL NUOVO CAMPO PER LE DISCIPLINE
     val kaiDisciplines: List<String> = emptyList(),
+    val notes: String = "", // <-- NUOVO CAMPO PER LE NOTE
+    val pasti: Int = 0, // <-- NUOVO CAMPO PER I PASTI
     val details: HeroDetails? = null // 'details' potrebbe contenere l'inventario in futuro
 )
 

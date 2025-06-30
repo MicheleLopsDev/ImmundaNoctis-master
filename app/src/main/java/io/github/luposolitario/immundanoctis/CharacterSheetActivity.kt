@@ -54,7 +54,9 @@ class CharacterSheetActivity : ComponentActivity() {
                         gender = "MALE",
                         language = "it",
                         stats = LoneWolfStats(combattivita = 18, resistenza = 25),
-                        kaiDisciplines = listOf("HEALING", "WEAPONSKILL", "MINDSHIELD", "SIXTH_SENSE", "HUNTING")
+                        kaiDisciplines = listOf("HEALING", "WEAPONSKILL", "MINDSHIELD", "SIXTH_SENSE", "HUNTING"),
+                        notes = "Ricordarsi di cercare la mappa al bivio della foresta.",
+                        pasti =2
                     )
                     CharacterSheetScreen(
                         character = mockHero,
@@ -69,13 +71,28 @@ class CharacterSheetActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CharacterSheetScreen(character: GameCharacter, onNavigateBack: () -> Unit) {
+    var showNotesDialog by remember { mutableStateOf(false) }
+
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as? Activity)?.window
             window?.statusBarColor = Color.Black.toArgb()
-            WindowCompat.getInsetsController(window, view)?.isAppearanceLightStatusBars = false
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
         }
+    }
+
+    // --- GESTIONE DEL DIALOGO ---
+    if (showNotesDialog) {
+        NotesDialog(
+            initialNotes = character.notes,
+            onDismiss = { showNotesDialog = false },
+            onSave = { newNotes ->
+                // TODO: Chiamare una funzione del ViewModel per salvare le nuove note
+                // Esempio: viewModel.updateNotes(newNotes)
+                showNotesDialog = false
+            }
+        )
     }
 
     Scaffold(
@@ -103,20 +120,19 @@ fun CharacterSheetScreen(character: GameCharacter, onNavigateBack: () -> Unit) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Colonna Sinistra
                 Column(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    StatsCard(character.stats) // <-- NUOVA CARD STATISTICHE
-                    KaiDisciplinesCard(character.kaiDisciplines) // <-- NUOVA CARD DISCIPLINE
+                    StatsCard(character.stats)
+                    KaiDisciplinesCard(character.kaiDisciplines)
                 }
-                // Colonna Destra
                 Column(
                     modifier = Modifier.weight(0.8f),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    PortraitCard(character)
+                    // Passiamo l'azione per aprire il dialogo
+                    PortraitCard(character = character, onOpenNotes = { showNotesDialog = true })
                 }
             }
             Spacer(Modifier.height(16.dp))
@@ -124,7 +140,7 @@ fun CharacterSheetScreen(character: GameCharacter, onNavigateBack: () -> Unit) {
             Spacer(Modifier.height(16.dp))
             Text("Equipaggiamento", style = MaterialTheme.typography.headlineSmall)
             Spacer(Modifier.height(16.dp))
-            InventorySection() // <-- Sezione Inventario (da dettagliare in futuro)
+            InventorySection()
             Spacer(Modifier.height(16.dp))
         }
     }
@@ -154,6 +170,40 @@ fun StatsCard(stats: LoneWolfStats?) {
     }
 }
 
+// --- NUOVO COMPOSABLE PER IL DIALOGO ---
+@Composable
+fun NotesDialog(
+    initialNotes: String,
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit
+) {
+    var notesText by remember { mutableStateOf(initialNotes) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Note del Personaggio") },
+        text = {
+            OutlinedTextField(
+                value = notesText,
+                onValueChange = { notesText = it },
+                modifier = Modifier.fillMaxWidth().height(200.dp),
+                label = { Text("Scrivi qui i tuoi appunti...") }
+            )
+        },
+        confirmButton = {
+            Button(onClick = { onSave(notesText) }) {
+                Text("Salva")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Annulla")
+            }
+        }
+    )
+}
+
+
 @Composable
 fun KaiDisciplinesCard(disciplineIds: List<String>) {
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -173,16 +223,15 @@ fun KaiDisciplinesCard(disciplineIds: List<String>) {
     }
 }
 
-
 @Composable
-fun PortraitCard(character: GameCharacter) {
+fun PortraitCard(character: GameCharacter, onOpenNotes: () -> Unit) {
+    var mealCount by remember { mutableStateOf(character.pasti) }
+
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text("Rango: ${character.characterClass}", style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(8.dp))
         Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(3f / 4f) // Manteniamo le proporzioni del ritratto
+            modifier = Modifier.fillMaxWidth().aspectRatio(3f / 4f)
         ) {
             Image(
                 painter = painterResource(id = character.portraitResId),
@@ -190,6 +239,35 @@ fun PortraitCard(character: GameCharacter) {
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
+        }
+        Spacer(Modifier.height(16.dp))
+
+        Text("Pasti", style = MaterialTheme.typography.titleMedium)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            // ...
+            IconButton(onClick = { if (mealCount > 0) mealCount-- }) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_remove), // <-- CORREZIONE
+                    contentDescription = "Rimuovi Pasto"
+                )
+            }
+            Text("$mealCount", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+            IconButton(onClick = { mealCount++ }) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_add), // <-- CORREZIONE
+                    contentDescription = "Aggiungi Pasto"
+                )
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
+        // Il pulsante delle note ora ha un'azione
+        OutlinedButton(onClick = onOpenNotes) {
+            Text("Apri Note")
         }
     }
 }
