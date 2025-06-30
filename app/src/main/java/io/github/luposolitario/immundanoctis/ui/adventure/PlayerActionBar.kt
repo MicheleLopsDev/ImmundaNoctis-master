@@ -2,9 +2,28 @@ package io.github.luposolitario.immundanoctis.ui.adventure
 
 import android.content.Intent
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.AutoFixHigh
+import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.Healing
+import androidx.compose.material.icons.filled.Hearing
+import androidx.compose.material.icons.filled.HelpOutline
+import androidx.compose.material.icons.filled.Lightbulb
+import androidx.compose.material.icons.filled.LocationSearching
+import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.Pets
+import androidx.compose.material.icons.filled.Psychology
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -30,10 +49,10 @@ fun PlayerActionsBar(
     usableDisciplines: Set<String>,
     onDisciplineClicked: (String) -> Unit
 )  {
-    var showStrengthDialog by remember { mutableStateOf(false) }
-    var showCunningDialog by remember { mutableStateOf(false) }
-    var showKnowledgeDialog by remember { mutableStateOf(false) }
-    var showSpellDialog by remember { mutableStateOf(false) }
+//    var showStrengthDialog by remember { mutableStateOf(false) }
+//    var showCunningDialog by remember { mutableStateOf(false) }
+//    var showKnowledgeDialog by remember { mutableStateOf(false) }
+//    var showSpellDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val playerDisciplines = KAI_DISCIPLINES.filter { hero.kaiDisciplines.contains(it.id) }
 
@@ -44,11 +63,45 @@ fun PlayerActionsBar(
         verticalAlignment = Alignment.Top,
         horizontalArrangement = Arrangement.SpaceAround
     ) {
-        ActionIcon(icon = Icons.Default.FitnessCenter, label = "Forza", enabled = true ,onClick = { showStrengthDialog = true })
-        ActionIcon(icon = Icons.Default.Lightbulb, label = "Astuzia", enabled = true , onClick = { showCunningDialog = true })
-        ActionIcon(icon = Icons.Default.MenuBook, label = "Sapere", enabled = true , onClick = { showKnowledgeDialog = true })
-        ActionIcon(icon = Icons.Default.AutoFixHigh, label = "Magia", enabled = true , onClick = { showSpellDialog = true })
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            CharacterPortrait(
+                character = hero,
+                isSelected = false,
+                size = 56.dp,
+                modifier = Modifier.clickable {
+                    context.startActivity(Intent(context, CharacterSheetActivity::class.java))
+                }
+            )
 
+            // Prima riga di discipline
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                playerDisciplines.take(5).forEach { discipline ->
+                    ActionIcon(
+                        label = discipline.name,
+                        icon = getIconForDiscipline(discipline.id),
+                        enabled = usableDisciplines.contains(discipline.id),
+                        onClick = { onDisciplineClicked(discipline.id) }
+                    )
+                }
+            }
+            // Seconda riga di discipline
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                playerDisciplines.drop(5).forEach { discipline ->
+                    ActionIcon(
+                        label = discipline.name,
+                        icon = getIconForDiscipline(discipline.id),
+                        enabled = usableDisciplines.contains(discipline.id),
+                        onClick = { onDisciplineClicked(discipline.id) }
+                    )
+                }
+            }
+
+
+        }
+//        ActionIcon(icon = Icons.Default.FitnessCenter, label = "Forza", enabled = true, onClick = { showStrengthDialog = true })
+//        ActionIcon(icon = Icons.Default.Lightbulb, label = "Astuzia", enabled = true, onClick = { showCunningDialog = true })
+//        ActionIcon(icon = Icons.Default.MenuBook, label = "Sapere", enabled = true, onClick = { showKnowledgeDialog = true })
+//        ActionIcon(icon = Icons.Default.AutoFixHigh, label = "Magia", enabled = true, onClick = { showSpellDialog = true })
         }
     }
 

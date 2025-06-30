@@ -74,17 +74,7 @@ fun AdventureHeader(
             verticalAlignment = Alignment.Bottom
         ) {
             sortedCharacters.forEach { character ->
-                if (character.type == CharacterType.PLAYER) {
-                    val context = LocalContext.current
-                    CharacterPortrait(
-                        character = character,
-                        isSelected = false,
-                        size = 56.dp,
-                        modifier = Modifier.clickable {
-                            context.startActivity(Intent(context, CharacterSheetActivity::class.java))
-                        }
-                    )
-                } else if (character.isVisible) {
+               if (character.isVisible) {
                     CharacterPortrait(
                         character = character,
                         isSelected = character.id == selectedCharacterId,
