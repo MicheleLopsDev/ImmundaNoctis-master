@@ -59,17 +59,13 @@ data class LocalizedText(
     }
 }
 
-data class CharacterStats(
-    val id: String = UUID.randomUUID().toString(),
-    val currentHp: Int,
-    val maxHp: Int,
-    val armorClass: Int,
-    val strength: Int,
-    val dexterity: Int,
-    val constitution: Int,
-    val intelligence: Int,
-    val wisdom: Int,
-    val charisma: Int
+/**
+ * Contiene le statistiche fondamentali per il sistema di regole di Lupo Solitario.
+ */
+data class LoneWolfStats(
+    val combattivita: Int,
+    val resistenza: Int
+    // In futuro potremmo aggiungere qui altri campi come 'rank' o 'oro'.
 )
 
 data class HeroDetails(
@@ -81,17 +77,21 @@ data class HeroDetails(
     val coins: Map<String, Int>
 )
 
+// VERSIONE MODIFICATA
 data class GameCharacter(
     val id: String,
     val name: String,
     val type: CharacterType,
-    val characterClass: String,
+    val characterClass: String, // Potremmo rinominarlo 'rankName' in futuro
     @DrawableRes val portraitResId: Int,
     val gender: String,
     val language: String,
     val isVisible: Boolean = true,
-    val stats: CharacterStats? = null,
-    val details: HeroDetails? = null
+    // SOSTITUIAMO IL VECCHIO CAMPO 'stats'
+    val stats: LoneWolfStats?,
+    // AGGIUNGIAMO IL NUOVO CAMPO PER LE DISCIPLINE
+    val kaiDisciplines: List<String> = emptyList(),
+    val details: HeroDetails? = null // 'details' potrebbe contenere l'inventario in futuro
 )
 
 data class TagParameter(

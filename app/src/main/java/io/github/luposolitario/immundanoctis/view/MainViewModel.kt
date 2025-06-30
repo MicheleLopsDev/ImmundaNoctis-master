@@ -53,7 +53,9 @@ import io.github.luposolitario.immundanoctis.engine.GameLogicManager
 import io.github.luposolitario.immundanoctis.data.Genre
 import io.github.luposolitario.immundanoctis.data.SceneType
 import io.github.luposolitario.immundanoctis.data.SessionData
+import io.github.luposolitario.immundanoctis.engine.GameRulesEngine
 import io.github.luposolitario.immundanoctis.util.LlamaPreferences
+import io.github.luposolitario.immundanoctis.engine.rules.LoneWolfRules
 import kotlin.random.Random
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -98,6 +100,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _logMessages = MutableStateFlow<List<String>>(listOf("ViewModel Inizializzato."))
     val logMessages: StateFlow<List<String>> = _logMessages.asStateFlow()
 
+    // All'interno della classe MainViewModel, dopo le altre dichiarazioni di variabili
+    private val gameRules: GameRulesEngine = LoneWolfRules()
 
     private val _conversationTargetId = MutableStateFlow(
         themePreferences.getLastSelectedCharacterId() ?: CharacterID.DM
