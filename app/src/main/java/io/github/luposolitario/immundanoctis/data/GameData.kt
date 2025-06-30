@@ -1,6 +1,7 @@
 package io.github.luposolitario.immundanoctis.data
 
 import androidx.annotation.DrawableRes
+import com.fasterxml.jackson.annotation.JsonProperty
 import java.util.UUID
 
 object CharacterID {
@@ -47,27 +48,19 @@ enum class Genre {
 }
 
 data class LocalizedText(
-    val en: String?,
-    val it: String?
+    @JsonProperty("en") val english: String?,
+    @JsonProperty("it") val italian: String?
 )
 
-// DA COSÌ:
-// val choiceText: String,
-
-// A COSÌ:
 data class NarrativeChoice(
     val id: String,
-    val choiceText: LocalizedText, // <-- MODIFICA QUI
+    val choiceText: LocalizedText,
     val nextSceneId: String
 )
 
-/**
- * Contiene le statistiche fondamentali per il sistema di regole di Lupo Solitario.
- */
 data class LoneWolfStats(
     val combattivita: Int,
     val resistenza: Int
-    // In futuro potremmo aggiungere qui altri campi come 'rank' o 'oro'.
 )
 
 data class HeroDetails(
@@ -79,32 +72,27 @@ data class HeroDetails(
     val coins: Map<String, Int>
 )
 
-// VERSIONE MODIFICATA
 data class GameCharacter(
     val id: String,
     val name: String,
     val type: CharacterType,
-    val characterClass: String, // Potremmo rinominarlo 'rankName' in futuro
+    val characterClass: String,
     @DrawableRes val portraitResId: Int,
     val gender: String,
     val language: String,
     val isVisible: Boolean = true,
-    // SOSTITUIAMO IL VECCHIO CAMPO 'stats'
     val stats: LoneWolfStats?,
-    // AGGIUNGIAMO IL NUOVO CAMPO PER LE DISCIPLINE
     val kaiDisciplines: List<String> = emptyList(),
-    val notes: String = "", // <-- NUOVO CAMPO PER LE NOTE
-    val pasti: Int = 0, // <-- NUOVO CAMPO PER I PASTI
-    val details: HeroDetails? = null // 'details' potrebbe contenere l'inventario in futuro
+    val notes: String = "",
+    val pasti: Int = 0,
+    val details: HeroDetails? = null
 )
 
-// Contenitore per le scelte legate alle discipline
 data class DisciplineChoice(
     val disciplineId: String,
     val nextSceneId: String
 )
 
-// --- CLASSE SCENE FINALE E COMPLETA ---
 data class Scene(
     val id: String,
     val sceneType: SceneType,
@@ -117,8 +105,6 @@ data class Scene(
     val challengeLevel: ChallengeLevel
 )
 
-
-
 data class TagParameter(
     val id: String = UUID.randomUUID().toString(),
     val name: String,
@@ -126,16 +112,9 @@ data class TagParameter(
     val defaultValue: Any?,
     val value: Any?
 )
-// In fondo a GameData.kt
 
-/**
- * Contiene le informazioni per una singola Disciplina Kai.
- */
 data class KaiDisciplineInfo(val id: String, val name: String, val description: String)
 
-/**
- * Lista ufficiale delle 10 Discipline Kai iniziali.
- */
 val KAI_DISCIPLINES = listOf(
     KaiDisciplineInfo("CAMOUFLAGE", "Mimetismo", "Permette di nascondersi e passare inosservato."),
     KaiDisciplineInfo("HUNTING", "Caccia", "Permette di trovare sempre cibo, non richiede Pasti."),
@@ -148,16 +127,18 @@ val KAI_DISCIPLINES = listOf(
     KaiDisciplineInfo("ANIMAL_KINSHIP", "Affinità Animale", "Permette di comunicare con gli animali."),
     KaiDisciplineInfo("MIND_OVER_MATTER", "Telecinesi", "Permette di muovere piccoli oggetti con la mente.")
 )
+
 data class TagConfig(
     val id: String,
     val type: String,
     val regex: String,
-    val replacement: Map<String, String>?, // <-- MODIFICA QUI
+    val replacement: Map<String, String>?,
     val parameters: List<TagParameter>?,
     val actor: String,
     val command: String?,
     val replace: Boolean
 )
+
 data class TagsConfigWrapper(
     val tags: List<TagConfig>
 )
@@ -175,17 +156,11 @@ data class GameChallenge(
     val failureText: String
 )
 
-/**
- * Rappresenta un'immagine all'interno di una scena, con una didascalia localizzata.
- */
 data class SceneImage(
     val imageUrl: String,
-    val caption: LocalizedText? // La didascalia è opzionale
+    val caption: LocalizedText?
 )
 
-/**
- * Contiene informazioni geografiche su una scena.
- */
 data class LocationInfo(
     val areaName: LocalizedText,
     val coordinates: String? = null,
@@ -201,5 +176,5 @@ data class SessionData(
     val lastUpdate: Long,
     val characters: List<GameCharacter>,
     val usedScenes: MutableList<String> = mutableListOf(),
-    val isStarted: Boolean = false
+    val isStarted: Boolean = false // <-- CAMPO AGGIUNTO
 )

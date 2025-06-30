@@ -1,7 +1,7 @@
 {
     "scenes": [{
             "id": "1",
-            "sceneType": "TRANSITION",
+            "sceneType": "INITIAL",
             "genre": "FANTASY",
             "challengeLevel": "BASE",
             "narrativeText": {

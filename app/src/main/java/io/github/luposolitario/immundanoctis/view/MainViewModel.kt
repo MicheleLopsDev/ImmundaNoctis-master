@@ -648,15 +648,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 startPromptTag.parameters.firstOrNull { it.name == "continuationText" }?.value as? String
                     ?: "Ti prego di iniziare a narrare la storia basandoti su questa scena."
 
-            val genre = Genre.WESTERN.name // Genere hardcoded per ora, poi dalla campagna
+            val genre = Genre.FANTASY.name // Genere hardcoded per ora, poi dalla campagna
 
             // Selezioniamo prima la stringa della lingua corretta (es. italiano)
-            val sceneNarrativeText = scene.narrativeText.it // o .en a seconda della lingua di gioco
+            val sceneNarrativeText = scene.narrativeText.italian  // o .en a seconda della lingua di gioco
 
             val secretPrompt = """
     $baseText
-    ${genreTextTemplate.replace("{genre}", genre , ignoreCase = true)}
-    ${sceneTextTemplate.replace("{scene_narrative_text}", sceneNarrativeText.toString() , ignoreCase = true)}  // <-- ORA FUNZIONA
+    ${genreTextTemplate.replace("{genre}", genre, ignoreCase = true)}
+    ${
+                sceneTextTemplate.replace(
+                    "{scene_narrative_text}",
+                    sceneNarrativeText.toString(),
+                    ignoreCase = true
+                )
+            }  // <-- ORA FUNZIONA
     $continuationText
     """.trimIndent()
 

@@ -17,14 +17,24 @@ class LoneWolfRules : GameRulesEngine {
         TODO("Implementare il calcolo del Rapporto di Forza, il tiro casuale e la consultazione della Tabella di Combattimento.")
 
         // Esempio di valore di ritorno temporaneo
-        return CombatRoundResult(0, 0, LocalizedText(en = "Round result pending", it = "Risultato del round in attesa"))
+        return CombatRoundResult(
+            playerDamage = 0,
+            enemyDamage = 0,
+            // --- CORREZIONE QUI ---
+            logMessage = LocalizedText(english = "Round result pending", italian = "Risultato del round in attesa")
+        )
     }
 
     override fun canUseDiscipline(player: GameCharacter, disciplineId: String, scene: Scene): Boolean {
-        // Logica da implementare nella Fase 5
-        TODO("Implementare il controllo: il giocatore ha la disciplina E la scena la abilita in 'disciplineChoices'?")
+        // Il giocatore deve possedere la disciplina
+        val playerHasDiscipline = player.kaiDisciplines.contains(disciplineId)
+        if (!playerHasDiscipline) {
+            return false
+        }
 
-        // Esempio di valore di ritorno temporaneo
-        return false
+        // La scena deve permettere l'uso di quella disciplina
+        val sceneAllowsDiscipline = scene.disciplineChoices?.any { it.disciplineId == disciplineId } ?: false
+
+        return sceneAllowsDiscipline
     }
 }
