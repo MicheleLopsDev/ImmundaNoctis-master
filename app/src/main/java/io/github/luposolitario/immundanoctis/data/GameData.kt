@@ -49,15 +49,17 @@ enum class Genre {
 data class LocalizedText(
     val en: String?,
     val it: String?
-) {
-    fun getLocalizedText(lang: String): String? {
-        return when (lang.lowercase()) {
-            "en" -> this.en
-            "it" -> this.it
-            else -> this.en
-        }
-    }
-}
+)
+
+// DA COSÌ:
+// val choiceText: String,
+
+// A COSÌ:
+data class NarrativeChoice(
+    val id: String,
+    val choiceText: LocalizedText, // <-- MODIFICA QUI
+    val nextSceneId: String
+)
 
 /**
  * Contiene le statistiche fondamentali per il sistema di regole di Lupo Solitario.
@@ -93,6 +95,27 @@ data class GameCharacter(
     val kaiDisciplines: List<String> = emptyList(),
     val details: HeroDetails? = null // 'details' potrebbe contenere l'inventario in futuro
 )
+
+// Contenitore per le scelte legate alle discipline
+data class DisciplineChoice(
+    val disciplineId: String,
+    val nextSceneId: String
+)
+
+// --- CLASSE SCENE FINALE E COMPLETA ---
+data class Scene(
+    val id: String,
+    val sceneType: SceneType,
+    val genre: Genre,
+    val narrativeText: LocalizedText,
+    val images: List<SceneImage>? = null,
+    val choices: List<NarrativeChoice>? = null,
+    val disciplineChoices: List<DisciplineChoice>? = null,
+    val location: LocationInfo? = null,
+    val challengeLevel: ChallengeLevel
+)
+
+
 
 data class TagParameter(
     val id: String = UUID.randomUUID().toString(),
@@ -130,22 +153,21 @@ data class GameChallenge(
     val failureText: String
 )
 
-data class NarrativeChoice(
-    val id: String = UUID.randomUUID().toString(),
-    val choiceText: String,
-    val nextSceneId: String,
-    val consequenceText: String? = null
+/**
+ * Rappresenta un'immagine all'interno di una scena, con una didascalia localizzata.
+ */
+data class SceneImage(
+    val imageUrl: String,
+    val caption: LocalizedText? // La didascalia è opzionale
 )
 
-data class Scene(
-    val id: String,
-    val sceneType: SceneType,
-    val genre: Genre,
-    val challengeLevel: ChallengeLevel,
-    val narrativeText: String,
-    val challenges: List<GameChallenge>? = null,
-    val choices: List<NarrativeChoice>? = null,
-    val directionalChoicesTags: String? = null
+/**
+ * Contiene informazioni geografiche su una scena.
+ */
+data class LocationInfo(
+    val areaName: LocalizedText,
+    val coordinates: String? = null,
+    val isMajorLocation: Boolean = false
 )
 
 data class ScenesWrapper(
