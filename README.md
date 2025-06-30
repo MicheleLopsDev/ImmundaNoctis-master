@@ -23,7 +23,10 @@ Questo progetto è costruito con un'architettura moderna e modulare per garantir
 
 * **Architettura a Doppio Motore**: L'applicazione permette agli utenti di scaricare e gestire due modelli IA separati (es. Gemma per il DM, GGUF per i PG) tramite un'interfaccia dedicata.
 
-* **Struttura Modulare**: Il progetto è diviso in due moduli principali: `:app` (UI e logica di gioco) e `:llama` (libreria per `llama.cpp`).
+* **Struttura Modulare**: Il progetto è diviso in due moduli principali:
+
+  * `:app`: Contiene tutta l'interfaccia utente (scritta in Jetpack Compose) e la logica di gioco.
+  * `:llama`: Una libreria Android autonoma che incapsula la complessità di `llama.cpp`, fornendo un'API Kotlin pulita.
 
 ## 🚀 Come Iniziare
 
@@ -51,10 +54,10 @@ C:\DEV
 Questo è fondamentale perché il file `CMakeLists.txt` del modulo `llama` utilizza un percorso relativo per trovare i file di `llama.cpp` e fallirà se la struttura non è corretta.
 
 **Compilazione Condizionale:**
-Per evitare di ricompilare il codice nativo a ogni build, puoi usare dei flag Gradle.
+Per evitare di ricompilare il codice nativo a ogni build (e per aggirare i problemi di compilazione su Windows), puoi usare dei flag Gradle.
 
-* **Windows:** La compilazione completa del codice C++ su un ambiente Windows nativo **non è supportata** e può fallire.
-* **WSL (Windows Subsystem for Linux):** La compilazione C++ deve essere eseguita **esclusivamente all'interno di un ambiente WSL (Ubuntu)**, dove è stabile.
+* **Windows:** La compilazione completa del codice C++ su un ambiente Windows nativo **non è supportata** e può fallire a causa di problemi di lunghezza del prompt della riga di comando.
+* **WSL (Windows Subsystem for Linux):** La compilazione C++ deve essere eseguita **esclusivamente all'interno di un ambiente WSL (Ubuntu)**, dove la compilazione è stabile e funziona come previsto.
 
 **Ottimizzazioni per ARM:**
 La configurazione della build nativa include ottimizzazioni specifiche per le GPU Adreno (tipicamente presenti nei dispositivi con chipset Snapdragon), migliorando le performance su questi dispositivi.
