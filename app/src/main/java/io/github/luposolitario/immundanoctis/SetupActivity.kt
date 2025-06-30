@@ -101,6 +101,7 @@ class SetupActivity : ComponentActivity() {
     }
 }
 
+
 @Composable
 fun CharacterCreationScreen(
     viewModel: SetupViewModel,
@@ -127,7 +128,77 @@ fun CharacterCreationScreen(
             label = { Text("Nome del tuo Eroe") },
             modifier = Modifier.fillMaxWidth()
         )
-        // ... (resto dei componenti)
+
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("Statistiche di Combattimento", style = MaterialTheme.typography.titleLarge)
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceAround
+                ) {
+                    Text("Combattività: ${uiState.combattivita}", fontWeight = FontWeight.Bold)
+                    Text("Resistenza: ${uiState.resistenza}", fontWeight = FontWeight.Bold)
+                }
+                Spacer(Modifier.height(16.dp))
+                Button(onClick = { viewModel.rollStats() }) {
+                    Text("Tira le Statistiche")
+                }
+            }
+        }
+
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp)) {
+                Text(
+                    "Scegli 5 Discipline Kai (${selectedDisciplines.size}/5)",
+                    style = MaterialTheme.typography.titleLarge,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(8.dp))
+                KAI_DISCIPLINES.forEach { discipline ->
+                    val isSelected = selectedDisciplines.contains(discipline.id)
+                    val isEnabled = isSelected || selectedDisciplines.size < 5
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .toggleable(
+                                value = isSelected,
+                                enabled = isEnabled,
+                                role = Role.Checkbox,
+                                onValueChange = { viewModel.toggleDiscipline(discipline.id) }
+                            )
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(checked = isSelected, onCheckedChange = null, enabled = isEnabled)
+                        Spacer(Modifier.width(16.dp))
+                        Text(discipline.name, color = if (isEnabled) MaterialTheme.colorScheme.onSurface else Color.Gray)
+                    }
+                }
+            }
+        }
+
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("Genera il tuo Ritratto", style = MaterialTheme.typography.titleLarge)
+                Text("Descrivi l'aspetto del tuo personaggio.", style = MaterialTheme.typography.bodySmall)
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = uiState.stdfPrompt,
+                    onValueChange = { viewModel.updateStdfPrompt(it) },
+                    label = { Text("es. capelli neri, occhi di ghiaccio...") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(onClick = { /* TODO: Avviare generazione STDF */ }) {
+                    Text("Genera Ritratto (non implementato)")
+                }
+            }
+        }
+
+        Spacer(Modifier.weight(1f))
+
         Button(
             onClick = {
                 val newSession = viewModel.finalizeSessionCreation(defaultSession)
