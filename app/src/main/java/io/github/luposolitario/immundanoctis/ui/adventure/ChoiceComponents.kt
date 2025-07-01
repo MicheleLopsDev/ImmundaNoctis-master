@@ -7,22 +7,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Group
-import androidx.compose.material.icons.filled.Healing
-import androidx.compose.material.icons.filled.Hearing
-import androidx.compose.material.icons.filled.HelpOutline
-import androidx.compose.material.icons.filled.LocationSearching
-import androidx.compose.material.icons.filled.Pets
-import androidx.compose.material.icons.filled.Psychology
-import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -70,8 +59,6 @@ fun ChoicesContainer(
 
         disciplineChoices.forEach { choice ->
             val disciplineInfo = KAI_DISCIPLINES.find { it.id == choice.disciplineId }
-            // --- MODIFICA QUI ---
-            // Se il testo descrittivo non c'è, usiamo il nome della disciplina come fallback.
             val cardText = choice.choiceText?.italian ?: disciplineInfo?.name ?: "Azione Speciale"
 
             ActionChoiceCard(
@@ -146,21 +133,4 @@ private fun ActionChoiceCard(
     }
 }
 
-/**
- * Funzione helper per mappare un ID di disciplina a un'icona.
- */
-fun getIconForDiscipline(disciplineId: String): ImageVector {
-    return when (disciplineId) {
-        "CAMOUFLAGE" -> Icons.Default.VisibilityOff
-        "HUNTING" -> Icons.Default.Pets
-        "SIXTH_SENSE" -> Icons.Default.Hearing
-        "TRACKING" -> Icons.Default.LocationSearching
-        "HEALING" -> Icons.Default.Healing // <-- Correzione Icona
-        "WEAPONSKILL" -> Icons.Default.Shield
-        "MINDSHIELD" -> Icons.Default.Security
-        "MINDBLAST" -> Icons.Default.Psychology
-        "ANIMAL_KINSHIP" -> Icons.Default.Group
-        "MIND_OVER_MATTER" -> Icons.Default.Star
-        else -> Icons.Default.HelpOutline
-    }
-}
+// --- FUNZIONE DUPLICATA RIMOSSA ---
