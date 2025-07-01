@@ -1,5 +1,6 @@
 package io.github.luposolitario.immundanoctis.ui.adventure
 
+import io.github.luposolitario.immundanoctis.R
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -54,7 +55,7 @@ fun PlayerActionsBar(
                 // Gruppo 1: Identità del Giocatore
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Image(
-                        painter = painterResource(id = hero.portraitResId),
+                        painter = painterResource(id = R.drawable.lupo_solitario),
                         contentDescription = "Ritratto di ${hero.name}",
                         modifier = Modifier
                             .size(48.dp) // Leggermente più compatto
