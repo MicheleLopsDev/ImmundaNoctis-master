@@ -56,18 +56,22 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import io.github.luposolitario.immundanoctis.data.CharacterID
 import io.github.luposolitario.immundanoctis.data.CharacterType
 import io.github.luposolitario.immundanoctis.data.ChatMessage
+import io.github.luposolitario.immundanoctis.data.DisciplineChoice
 import io.github.luposolitario.immundanoctis.data.GameCharacter
 import io.github.luposolitario.immundanoctis.data.Genre
+import io.github.luposolitario.immundanoctis.data.NarrativeChoice
 import io.github.luposolitario.immundanoctis.data.Scene
 import io.github.luposolitario.immundanoctis.data.SessionData
 import io.github.luposolitario.immundanoctis.engine.GameLogicManager
 import io.github.luposolitario.immundanoctis.engine.TokenInfo
 import io.github.luposolitario.immundanoctis.service.TtsService
 import io.github.luposolitario.immundanoctis.ui.adventure.AdventureHeader
+import io.github.luposolitario.immundanoctis.ui.adventure.ChoicesContainer
 import io.github.luposolitario.immundanoctis.ui.adventure.GeneratingIndicator
 import io.github.luposolitario.immundanoctis.ui.adventure.MessageBubble
 import io.github.luposolitario.immundanoctis.ui.adventure.MessageInput
@@ -86,7 +90,9 @@ import kotlinx.coroutines.launch
 
 class AdventureActivity : ComponentActivity() {
     private val tag: String? = this::class.simpleName
-    private val viewModel: MainViewModel by viewModels()
+    private val viewModel: MainViewModel by lazy {
+        ViewModelProvider(this)[MainViewModel::class.java]
+    }
     private val modelPreferences by lazy { ModelPreferences(applicationContext) }
     private val themePreferences by lazy { ThemePreferences(applicationContext) }
     private val ttsPreferences by lazy { TtsPreferences(applicationContext) }
@@ -125,10 +131,8 @@ class AdventureActivity : ComponentActivity() {
             val useDarkTheme = themePreferences.useDarkTheme(isSystemInDarkTheme())
             ImmundaNoctisTheme(darkTheme = useDarkTheme) {
 
-                // Raccogliamo il nuovo stato di caricamento
                 val loadingState by viewModel.engineLoadingState.collectAsState()
 
-                // Usiamo un 'when' per decidere cosa mostrare
                 when (loadingState) {
                     is EngineLoadingState.Loading -> {
                         LoadingScreen()
@@ -156,16 +160,18 @@ class AdventureActivity : ComponentActivity() {
                         val conversationTargetId by viewModel.conversationTargetId.collectAsState()
                         val respondingCharacterId by viewModel.respondingCharacterId.collectAsState()
                         val isAutoReadEnabled = ttsPreferences.isAutoReadEnabled()
-                        val isAutoSaveEnabled =
-                            savePreferences.isAutoSaveEnabled // Leggiamo il valore
+                        val isAutoSaveEnabled = savePreferences.isAutoSaveEnabled
                         val tokenInfo by viewModel.activeTokenInfo.collectAsState()
-                        val usableDisciplines by viewModel.usableDisciplines.collectAsState()
-                        // Effetto per la lettura automatica dei nuovi messaggi
+                        val kaiRank by viewModel.kaiRank.collectAsState()
+                        // --- RACCOLTA DEGLI STATI PER LE SCELTE ---
+                        val narrativeChoices by viewModel.activeNarrativeChoices.collectAsState()
+                        val disciplineChoices by viewModel.activeDisciplineChoices.collectAsState()
+
+
                         LaunchedEffect(chatMessages) {
                             if (isAutoReadEnabled) {
                                 chatMessages.lastOrNull()?.let { lastMessage ->
                                     val author = characters.find { it.id == lastMessage.authorId }
-                                    // Leggi solo se il messaggio non è dell'eroe e non è un messaggio vuoto
                                     if (author != null && author.id != CharacterID.HERO && lastMessage.text.isNotBlank()) {
                                         ttsService?.speak(lastMessage.text, author)
                                     }
@@ -182,7 +188,7 @@ class AdventureActivity : ComponentActivity() {
                             LoadingScreen()
                         } else {
                             AdventureChatScreen(
-                                isAutoSaveEnabled = isAutoSaveEnabled, // Passiamo il valore alla UI
+                                isAutoSaveEnabled = isAutoSaveEnabled,
                                 sessionName = sessionName,
                                 characters = characters,
                                 messages = chatMessages,
@@ -190,7 +196,11 @@ class AdventureActivity : ComponentActivity() {
                                 isGenerating = isGenerating,
                                 selectedCharacterId = conversationTargetId,
                                 respondingCharacterId = respondingCharacterId,
-                                tokenInfo = tokenInfo, // <-- NUOVO PARAMETRO
+                                tokenInfo = tokenInfo,
+                                kaiRank = kaiRank,
+                                // --- PASSAGGIO DEI DATI ALLA UI ---
+                                narrativeChoices = narrativeChoices,
+                                disciplineChoices = disciplineChoices,
                                 onMessageSent = { messageText ->
                                     viewModel.sendMessage(messageText, conversationTargetId)
                                 },
@@ -212,12 +222,11 @@ class AdventureActivity : ComponentActivity() {
                                         ttsService?.speak(message.text, author)
                                     }
                                 },
-                                // --- 👇 AGGIUNGI QUESTO NUOVO PARAMETRO 👇 ---
                                 onResetSession = { viewModel.resetSession() },
-                                usableDisciplines = usableDisciplines,
-                                onDisciplineClicked = { disciplineId ->
-                                    viewModel.onDisciplineClicked(disciplineId)
-                                })
+                                // --- COLLEGAMENTO DELLE AZIONI ---
+                                onNarrativeChoice = { viewModel.onNarrativeChoiceSelected(it) },
+                                onDisciplineChoice = { viewModel.onDisciplineChoiceSelected(it) }
+                            )
                         }
                     }
 
@@ -225,7 +234,6 @@ class AdventureActivity : ComponentActivity() {
                         val errorMessage = (loadingState as EngineLoadingState.Error).message
                         ErrorScreen(
                             errorMessage = errorMessage ?: "Errore sconosciuto", onRetry = {
-                                // Rilancia il caricamento dei modelli
                                 val dmModel = modelPreferences.getDmModel()
                                 val playerModel = modelPreferences.getPlayerModel()
                                 viewModel.loadEngines(
@@ -238,10 +246,9 @@ class AdventureActivity : ComponentActivity() {
             }
         }
 
-        // NUOVO: Gestione dell'inizio di una nuova avventura o ripresa di una esistente
         if (!session.isStarted) {
             currentScene.value =
-                gameLogicManager.selectRandomStartScene(Genre.FANTASY) // Genere hardcoded per ora
+                gameLogicManager.selectRandomStartScene(Genre.FANTASY)
             Log.d(
                 tag,
                 "Scena iniziale NUOVA AVVENTURA impostata da GameLogicManager: ${currentScene.value?.id ?: "Nessuna scena iniziale"}"
@@ -250,30 +257,31 @@ class AdventureActivity : ComponentActivity() {
             lifecycleScope.launch {
                 viewModel.sendInitialDmPrompt(
                     session, currentScene.value
-                ) // Passa la sessione per aggiornare isStarted
+                )
             }
             gameStateManager.saveSession(
                 SessionData(
                     sessionName = "La Prova dell'Eroe",
                     lastUpdate = System.currentTimeMillis(),
                     characters = session.characters,
-                    isStarted = true // NUOVO: La sessione non è ancora "iniziata"
+                    isStarted = true
                 )
             )
-            // gameLogicManager.resetUsedScenes() // Già resettato in sendInitialDmPrompt se si avvia
         } else {
-            // Se è una sessione esistente E NON è un nuovo inizio forzato, prova a caricare l'ultima scena salvata
             val lastSceneId = session.usedScenes.lastOrNull()
             currentScene.value = if (lastSceneId != null) {
                 gameLogicManager.getSceneById(lastSceneId)
             } else {
-                gameLogicManager.selectRandomStartScene(Genre.FANTASY) // Fallback a START casuale
+                gameLogicManager.selectRandomStartScene(Genre.FANTASY)
             }
             Log.d(
                 tag,
                 "Scena sessione esistente impostata a: ${currentScene.value?.id ?: "Nessuna scena valida trovata. Riprovo con casuale START."}"
             )
-            // Non inviamo prompt iniziale qui, si suppone che la storia sia già avviata
+            // Riprocessa la scena corrente per mostrare le scelte al riavvio
+            lifecycleScope.launch {
+                viewModel.sendInitialDmPrompt(session, currentScene.value)
+            }
         }
     }
 
@@ -283,12 +291,9 @@ class AdventureActivity : ComponentActivity() {
     }
 }
 
-// In AdventureActivity.kt
-
 @Composable
 fun LoadingScreen(text: String = "Caricamento motori AI...") {
     Box(
-        // 👇 MODIFICA SOLO QUESTA RIGA 👇
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
@@ -306,19 +311,15 @@ fun LoadingScreen(text: String = "Caricamento motori AI...") {
     }
 }
 
-// In AdventureActivity.kt
-
 @Composable
 fun ErrorScreen(errorMessage: String, onRetry: () -> Unit) {
     Box(
-        // 👇 MODIFICA SOLO QUESTA RIGA 👇
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
             .background(MaterialTheme.colorScheme.background), contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            // ... il resto del codice rimane invariato
             Text(
                 "Errore Critico",
                 style = MaterialTheme.typography.headlineSmall,
@@ -343,7 +344,7 @@ fun ErrorScreen(errorMessage: String, onRetry: () -> Unit) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdventureChatScreen(
-    isAutoSaveEnabled: Boolean, // <-- 3. Aggiungi il nuovo parametro
+    isAutoSaveEnabled: Boolean,
     sessionName: String,
     characters: List<GameCharacter>,
     messages: List<ChatMessage>,
@@ -351,31 +352,26 @@ fun AdventureChatScreen(
     isGenerating: Boolean,
     selectedCharacterId: String,
     respondingCharacterId: String?,
-    tokenInfo: TokenInfo, // <-- 2. Aggiungi il nuovo parametro qui
+    tokenInfo: TokenInfo,
+    kaiRank: String,
+    narrativeChoices: List<NarrativeChoice>,
+    disciplineChoices: List<DisciplineChoice>,
     onMessageSent: (String) -> Unit,
     onCharacterSelected: (String) -> Unit,
     onStopGeneration: () -> Unit,
     onSaveChat: () -> Unit,
     onTranslateMessage: (String) -> Unit,
     onPlayMessage: (ChatMessage) -> Unit,
-    // --- 👇 AGGIUNGI QUESTO NUOVO PARAMETRO ALLA FIRMA 👇 ---
-    usableDisciplines: Set<String>,
-    onDisciplineClicked: (String) -> Unit,
-    onResetSession: () -> Unit
+    onResetSession: () -> Unit,
+    onNarrativeChoice: (NarrativeChoice) -> Unit,
+    onDisciplineChoice: (DisciplineChoice) -> Unit
 ) {
     val listState = rememberLazyListState()
     var showMenu by remember { mutableStateOf(false) }
     val hero = characters.find { it.type == CharacterType.PLAYER }
 
-    LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) {
-            listState.animateScrollToItem(0)
-        }
-    }
-
-    // --- AGGIUNGI QUESTO BLOCCO PER LO SCROLL AUTOMATICO ---
-    LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) {
+    LaunchedEffect(messages.size, streamingText) {
+        if (messages.isNotEmpty() || streamingText.isNotEmpty()) {
             listState.animateScrollToItem(0)
         }
     }
@@ -383,7 +379,6 @@ fun AdventureChatScreen(
     Scaffold(
         topBar = {
             TopAppBar(title = {
-                // --- 👇 MODIFICA QUI: Sostituisci il Text con una Row 👇 ---
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     TokenSemaphoreIndicator(
                         tokenInfo = tokenInfo, onResetSession = onResetSession
@@ -464,11 +459,22 @@ fun AdventureChatScreen(
                     }
                 }
             }
+
+            if (!isGenerating && (narrativeChoices.isNotEmpty() || disciplineChoices.isNotEmpty())) {
+                Spacer(modifier = Modifier.height(4.dp))
+                ChoicesContainer(
+                    narrativeChoices = narrativeChoices,
+                    disciplineChoices = disciplineChoices,
+                    onNarrativeChoice = onNarrativeChoice,
+                    onDisciplineChoice = onDisciplineChoice
+                )
+            }
+
+
             if (hero != null) {
                 PlayerActionsBar(
                     hero = hero,
-                    usableDisciplines = usableDisciplines,      // <-- PARAMETRO AGGIUNTO
-                    onDisciplineClicked = onDisciplineClicked   // <-- PARAMETRO AGGIUNTO
+                    kaiRank = kaiRank
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 if (isGenerating) {
@@ -480,7 +486,5 @@ fun AdventureChatScreen(
                 MessageInput(onMessageSent = onMessageSent, isEnabled = !isGenerating)
             }
         }
-
     }
 }
-

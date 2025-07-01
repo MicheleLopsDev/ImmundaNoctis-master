@@ -74,6 +74,9 @@ dependencies {
 
     implementation(libs.okhttp.sse)
 
+    implementation(libs.material.icons.extended)
+
+
     implementation(project(":llama"))
     implementation(project(":stdf"))
 

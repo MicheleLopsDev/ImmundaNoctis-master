@@ -3,16 +3,19 @@ package io.github.luposolitario.immundanoctis.view
 import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
 import io.github.luposolitario.immundanoctis.data.CharacterID
 import io.github.luposolitario.immundanoctis.data.CharacterType
 import io.github.luposolitario.immundanoctis.data.ChatMessage
+import io.github.luposolitario.immundanoctis.data.DisciplineChoice
 import io.github.luposolitario.immundanoctis.data.EngineCommand
 import io.github.luposolitario.immundanoctis.data.GameChallenge
 import io.github.luposolitario.immundanoctis.data.GameCharacter
 import io.github.luposolitario.immundanoctis.data.Genre
+import io.github.luposolitario.immundanoctis.data.KAI_DISCIPLINES
 import io.github.luposolitario.immundanoctis.data.NarrativeChoice
 import io.github.luposolitario.immundanoctis.data.Scene
 import io.github.luposolitario.immundanoctis.data.SessionData
@@ -56,7 +59,6 @@ import java.util.Date
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.random.Random
-import io.github.luposolitario.immundanoctis.data.KAI_DISCIPLINES
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val tag: String? = this::class.simpleName
@@ -100,7 +102,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _logMessages = MutableStateFlow<List<String>>(listOf("ViewModel Inizializzato."))
     val logMessages: StateFlow<List<String>> = _logMessages.asStateFlow()
 
-    // All'interno della classe MainViewModel, dopo le altre dichiarazioni di variabili
     private val gameRules: GameRulesEngine = LoneWolfRules()
 
     private val _conversationTargetId = MutableStateFlow(
@@ -123,8 +124,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private lateinit var stringTagParser: StringTagParser
 
+    val currentScene: StateFlow<Scene?>
+        get() = _currentScene
     private val _currentScene = MutableStateFlow<Scene?>(null)
-    val currentScene: StateFlow<Scene?> = _currentScene.asStateFlow()
+
 
     private lateinit var gameLogicManager: GameLogicManager
 
@@ -135,15 +138,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val activeNarrativeChoices: StateFlow<List<NarrativeChoice>> =
         _activeNarrativeChoices.asStateFlow()
 
-    private val _activeDirectionalChoices = MutableStateFlow<List<EngineCommand>>(emptyList())
-    val activeDirectionalChoices: StateFlow<List<EngineCommand>> =
-        _activeDirectionalChoices.asStateFlow()
+    private val _activeDisciplineChoices = MutableStateFlow<List<DisciplineChoice>>(emptyList())
+    val activeDisciplineChoices: StateFlow<List<DisciplineChoice>> = _activeDisciplineChoices.asStateFlow()
 
-//    private val _combatState = MutableStateFlow<CombatState?>(null)
-//    val combatState = _combatState.asStateFlow()
 
     private val _usableDisciplines = MutableStateFlow<Set<String>>(emptySet())
     val usableDisciplines = _usableDisciplines.asStateFlow()
+
+    private val _kaiRank = MutableStateFlow("")
+    val kaiRank: StateFlow<String> = _kaiRank.asStateFlow()
 
     init {
         if (useGemmaForAll) {
@@ -179,6 +182,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val currentSession = session ?: gameStateManager.createDefaultSession()
         _gameCharacters.value = currentSession.characters
         _sessionName.value = currentSession.sessionName
+
+        updatePlayerStatus()
+
         log("Sessione di gioco caricata: ${currentSession.sessionName}")
 
         if (savePreferences.isAutoSaveEnabled) {
@@ -209,6 +215,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 gameLogicManager.selectRandomStartScene(Genre.FANTASY)
             }
             log("Scena sessione esistente impostata a: ${_currentScene.value?.id ?: "Nessuna scena valida trovata. Riprovo con casuale START."}")
+            viewModelScope.launch {
+                processCurrentSceneNarrative(shouldGenerateNarration = false)
+            }
         }
     }
 
@@ -331,7 +340,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // Funzione updateMessage spostata qui dal tuo AdventureActivity.kt
     private fun updateMessage(messageId: String, transformation: (ChatMessage) -> ChatMessage) {
         _chatMessages.update { currentMessages ->
             currentMessages.map { if (it.id == messageId) transformation(it) else it }
@@ -377,7 +385,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         val heroCharacter = _gameCharacters.value.find { it.id == CharacterID.HERO }
         val playerLanguage =
-            heroCharacter?.language ?: Locale.ENGLISH.language // Lingua del giocatore
+            heroCharacter?.language ?: Locale.ENGLISH.language
 
         val (parsedPlayerText, playerCommands) = stringTagParser.parseAndReplaceWithCommands(
             inputString = text,
@@ -412,11 +420,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _streamingText.value = ""
             _respondingCharacterId.value = targetId
             try {
-                // AGGIUNTO: Attesa che i motori siano pronti prima di inviare messaggi regolari
                 _engineLoadingState.first { it is EngineLoadingState.Success }
                 log("DEBUG: Motori pronti per sendMessage. Invio testo del giocatore.")
 
-                // Il prompt per la scena iniziale è gestito ora da sendInitialDmPrompt()
                 engineToUse.sendMessage(parsedPlayerText)
                     .collect { token ->
                         _streamingText.update { it + token }
@@ -501,7 +507,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _logMessages.update { it + message }
     }
 
-    // NUOVA FUNZIONE: per scaricare esplicitamente il motore DM (necessaria per la pulizia)
     suspend fun unloadDmEngine() {
         Log.d(tag, "Richiesta di unload del motore DM (Gemma).")
         dmEngine.unload()
@@ -518,7 +523,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 dmEngine
             }
 
-            // Se il motore è il playerEngine (LlamaCppEngine) e c'è una personalità definita, passala.
             val systemPromptForReset = if (engineToUse is LlamaCppEngine) {
                 llamaPreferences.chatbotPersonality
             } else {
@@ -560,26 +564,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 "playAudio" -> {
                     val audioFile = command.parameters["audioFile"] as? String
                     log("DEBUG COMMAND: Riproduci audio: $audioFile")
-                    // Qui andrebbe la logica per riprodurre l'audio
                 }
 
                 "generateImage" -> {
                     val prompt = command.parameters["prompt"] as? String
                     log("DEBUG COMMAND: Genera immagine con prompt: $prompt")
-                    // Qui andrebbe la logica per generare un'immagine con Stable Diffusion
                 }
 
                 "triggerGraphicEffect" -> {
                     val effectName = command.parameters["effectName"] as? String
                     log("DEBUG COMMAND: Attiva effetto grafico: $effectName")
-                    // Qui andrebbe la logica per attivare un effetto grafico
                 }
 
                 "narrativeChoice" -> {
                     val choiceId = command.parameters["nextSceneId"] as? String
                     val choiceText = command.parameters["choiceText"] as? String
                     log("DEBUG COMMAND: Avvia scelta narrativa: ID=${choiceId}, Testo='${choiceText}'")
-                    // Qui andrebbe la logica per presentare una scelta narrativa
                 }
 
                 "displayDirectionalButton" -> {
@@ -588,7 +588,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     val choiceText = command.parameters["choiceText"] as? String
                     val nextSceneId = command.parameters["nextSceneId"] as? String
                     log("DEBUG COMMAND: Mostra pulsante direzionale: Dir=${direction}, Colore=${colorHex}, Testo='${choiceText}', ProssimaScena=${nextSceneId}")
-                    // Qui andrebbe la logica per esporre questi dati alla UI per mostrare il pulsante
                 }
 
                 else -> {
@@ -598,87 +597,77 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // --- METODO RINOMINATO E MODIFICATO ---
-    /**
-     * Processa la scena corrente: costruisce il prompt per l'IA, genera la narrazione
-     * e infine popola la UI con le scelte disponibili per quella scena.
-     */
-    private suspend fun processCurrentSceneNarrative() {
+    private suspend fun processCurrentSceneNarrative(shouldGenerateNarration: Boolean = true) {
         val scene = _currentScene.value ?: run {
             log("ERRORE: Tentativo di processare una scena nulla.")
             return
         }
 
-        // Impedisce di ri-processare una scena se si sta già generando una risposta
-        if (_isGenerating.value) return
+        if (_isGenerating.value && shouldGenerateNarration) return
 
-        _isGenerating.value = true
-        _streamingText.value = ""
-        _respondingCharacterId.value = CharacterID.DM
+        if (shouldGenerateNarration) {
+            _isGenerating.value = true
+            _streamingText.value = ""
+            _respondingCharacterId.value = CharacterID.DM
 
-        try {
-            _engineLoadingState.first { it is EngineLoadingState.Success }
+            try {
+                _engineLoadingState.first { it is EngineLoadingState.Success }
 
-            val sceneNarrativeText = scene.narrativeText.italian ?: ""
-            val choicesTextList = scene.choices?.mapNotNull { it.choiceText.italian } ?: emptyList()
-            val choicesString = choicesTextList.joinToString(", ")
-            val lastMessage = _chatMessages.value.lastOrNull()?.text ?: "L'avventura ha inizio."
+                val sceneNarrativeText = scene.narrativeText.italian ?: ""
+                val choicesTextList = scene.choices?.mapNotNull { it.choiceText.italian } ?: emptyList()
+                val choicesString = choicesTextList.joinToString(", ")
+                val lastMessage = _chatMessages.value.lastOrNull()?.text ?: "L'avventura ha inizio."
 
-            val secretPrompt = """
-            CONTESTO: $lastMessage
-            TESTO DELLA SCENA: "$sceneNarrativeText"
-            OPZIONI DISPONIBILI: "$choicesString"
+                val secretPrompt = """
+                CONTESTO: $lastMessage
+                TESTO DELLA SCENA: "$sceneNarrativeText"
+                OPZIONI DISPONIBILI: "$choicesString"
 
-            Il tuo compito è armonizzare questi tre elementi. Riformula il 'TESTO DELLA SCENA' per collegarlo in modo logico al 'CONTESTO' e per introdurre le 'OPZIONI DISPONIBILI' come naturale conclusione della narrazione. Se il testo delle opzioni è molto breve, arricchiscilo con dettagli evocativi senza cambiarne il significato. Non aggiungere eventi o dettagli non presenti nella scena. Mantieni lo stile del testo originale.
-            """.trimIndent()
+                Il tuo compito è armonizzare questi tre elementi. Riformula il 'TESTO DELLA SCENA' per collegarlo in modo logico al 'CONTESTO' e per introdurre le 'OPZIONI DISPONIBILI' come naturale conclusione della narrazione. Se il testo delle opzioni è molto breve, arricchiscilo con dettagli evocativi senza cambiarne il significato. Non aggiungere eventi o dettagli non presenti nella scena. Mantieni lo stile del testo originale.
+                """.trimIndent()
 
-            log("DEBUG: Invio prompt di armonizzazione al DM per la scena ID=${scene.id}")
+                log("DEBUG: Invio prompt di armonizzazione al DM per la scena ID=${scene.id}")
 
-            dmEngine.sendMessage(secretPrompt)
-                .collect { token ->
-                    _streamingText.update { it + token }
+                dmEngine.sendMessage(secretPrompt)
+                    .collect { token ->
+                        _streamingText.update { it + token }
+                    }
+
+            } catch (e: Exception) {
+                Log.e(tag, "Errore durante la generazione della narrazione della scena: ${e.message}", e)
+                log("ERRORE: Impossibile generare la narrazione del DM. ${e.message}")
+            } finally {
+                if (_streamingText.value.isNotBlank()) {
+                    val finalMessage = ChatMessage(
+                        authorId = CharacterID.DM,
+                        position = messageCounter.getAndIncrement(),
+                        text = _streamingText.value
+                    )
+                    _chatMessages.update { it + finalMessage }
+                    autoSaveChatIfEnabled()
                 }
 
-        } catch (e: Exception) {
-            Log.e(tag, "Errore durante la generazione della narrazione della scena: ${e.message}", e)
-            log("ERRORE: Impossibile generare la narrazione del DM. ${e.message}")
-        } finally {
-            if (_streamingText.value.isNotBlank()) {
-                val finalMessage = ChatMessage(
-                    authorId = CharacterID.DM,
-                    position = messageCounter.getAndIncrement(),
-                    text = _streamingText.value
-                )
-                _chatMessages.update { it + finalMessage }
-                autoSaveChatIfEnabled()
+                _isGenerating.value = false
+                _streamingText.value = ""
+                _respondingCharacterId.value = null
             }
+        }
 
-            // Logica per popolare le scelte dopo aver mostrato la narrazione
-            val hero = _gameCharacters.value.find { it.id == CharacterID.HERO }
-            if(hero != null) {
-                _activeNarrativeChoices.value = scene.choices ?: emptyList()
+        val hero = _gameCharacters.value.find { it.id == CharacterID.HERO }
+        if(hero != null) {
+            val availableNarrativeChoices = scene.choices ?: emptyList()
+            _activeNarrativeChoices.value = availableNarrativeChoices
 
-                val availableDisciplines = scene.disciplineChoices?.filter { disciplineChoice ->
-                    gameRules.canUseDiscipline(hero, disciplineChoice.disciplineId, scene)
-                }?.map { it.disciplineId }?.toSet() ?: emptySet()
+            val availableDisciplineChoices = scene.disciplineChoices?.filter { disciplineChoice ->
+                gameRules.canUseDiscipline(hero, disciplineChoice.disciplineId, scene)
+            } ?: emptyList()
+            _activeDisciplineChoices.value = availableDisciplineChoices
 
-                _usableDisciplines.value = availableDisciplines
-                log("DEBUG: Scelte popolate per la scena ${scene.id}. Scelte narrative: ${_activeNarrativeChoices.value.size}, Discipline utilizzabili: ${_usableDisciplines.value.joinToString()}")
-            }
-
-            _isGenerating.value = false
-            _streamingText.value = ""
-            _respondingCharacterId.value = null
+            log("DEBUG: Scelte popolate per la scena ${scene.id}. Scelte narrative: ${availableNarrativeChoices.size}, Discipline: ${availableDisciplineChoices.size}")
         }
     }
 
-    // --- NUOVI METODI PER LA NAVIGAZIONE ---
-
-    /**
-     * Chiamato quando l'utente seleziona una scelta narrativa.
-     */
     fun onNarrativeChoiceSelected(choice: NarrativeChoice) {
-        // Aggiungi un messaggio alla chat che rappresenta la scelta del giocatore
         val choiceMessage = ChatMessage(
             authorId = CharacterID.HERO,
             text = "*Sceglie di: ${choice.choiceText.italian}*",
@@ -689,39 +678,30 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         navigateToScene(choice.nextSceneId)
     }
 
-    /**
-     * Chiamato quando l'utente usa una disciplina Kai.
-     */
-    fun onDisciplineChoiceSelected(disciplineId: String) {
-        val nextSceneId = _currentScene.value?.disciplineChoices?.find { it.disciplineId == disciplineId }?.nextSceneId
-        if (nextSceneId != null) {
-            val disciplineName = KAI_DISCIPLINES.find { it.id == disciplineId }?.name ?: disciplineId
-            val choiceMessage = ChatMessage(
-                authorId = CharacterID.HERO,
-                text = "*Usa la disciplina: $disciplineName*",
-                position = messageCounter.getAndIncrement()
-            )
-            _chatMessages.update { it + choiceMessage }
+    fun onDisciplineChoiceSelected(choice: DisciplineChoice) {
+        // --- CORREZIONE QUI ---
+        // Se choiceText è nullo, usa il nome della disciplina come fallback.
+        val choiceText = choice.choiceText?.italian ?: KAI_DISCIPLINES.find { it.id == choice.disciplineId }?.name ?: choice.disciplineId
 
-            navigateToScene(nextSceneId)
-        } else {
-            log("ERRORE: nextSceneId non trovato per la disciplina $disciplineId")
-        }
+        val choiceMessage = ChatMessage(
+            authorId = CharacterID.HERO,
+            text = "*Usa la disciplina: $choiceText*",
+            position = messageCounter.getAndIncrement()
+        )
+        _chatMessages.update { it + choiceMessage }
+
+        navigateToScene(choice.nextSceneId)
     }
 
-    /**
-     * Logica centrale per passare a una nuova scena.
-     */
     private fun navigateToScene(sceneId: String) {
         viewModelScope.launch {
             val nextScene = gameLogicManager.getSceneById(sceneId)
             if (nextScene != null) {
                 log("Navigazione alla scena: ${nextScene.id}")
-                // Pulisci le scelte della scena precedente
-                _activeNarrativeChoices.value = emptyList()
-                _usableDisciplines.value = emptySet()
 
-                // Aggiorna la scena corrente e avvia la narrazione
+                _activeNarrativeChoices.value = emptyList()
+                _activeDisciplineChoices.value = emptyList()
+
                 _currentScene.value = nextScene
                 gameStateManager.loadSession()?.let {
                     it.usedScenes.add(nextScene.id)
@@ -735,18 +715,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // --- VECCHIO METODO (ORA CHIAMA IL NUOVO) ---
-    // Lo manteniamo per ora per non rompere la logica di avvio iniziale
     suspend fun sendInitialDmPrompt(
         sessionData: SessionData,
         currentScene: Scene?
     ) {
-        // Questa funzione ora si occupa solo di avviare il processo
-        // per la primissima scena.
         if (sessionData.isStarted) {
             log("DEBUG: La sessione è già iniziata, non invio prompt iniziale DM.")
-            // Se la sessione è già iniziata, processiamo la scena corrente
-            processCurrentSceneNarrative()
+            processCurrentSceneNarrative(shouldGenerateNarration = false)
             return
         }
 
@@ -757,5 +732,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         processCurrentSceneNarrative()
     }
 
-    fun onDisciplineClicked(disciplineId: String) {}
+    private fun updatePlayerStatus() {
+        val hero = _gameCharacters.value.find { it.id == CharacterID.HERO }
+        hero?.let {
+            val rank = gameRules.getKaiRank(it.kaiDisciplines.size)
+            _kaiRank.value = rank
+        }
+    }
 }

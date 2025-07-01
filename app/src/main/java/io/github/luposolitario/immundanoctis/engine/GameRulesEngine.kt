@@ -39,4 +39,11 @@ interface GameRulesEngine {
      * @return `true` se la disciplina è utilizzabile, `false` altrimenti.
      */
     fun canUseDiscipline(player: GameCharacter, disciplineId: String, scene: Scene): Boolean
+
+    /**
+     * Calcola il Grado Kai del personaggio in base al numero di discipline possedute.
+     * @param disciplineCount Il numero di discipline dell'eroe.
+     * @return una stringa con il nome del grado.
+     */
+    fun getKaiRank(disciplineCount: Int): String
 }

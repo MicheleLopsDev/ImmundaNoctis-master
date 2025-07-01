@@ -1,137 +1,122 @@
 package io.github.luposolitario.immundanoctis.ui.adventure
 
-import android.content.Intent
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoFixHigh
-import androidx.compose.material.icons.filled.FitnessCenter
-import androidx.compose.material.icons.filled.Group
-import androidx.compose.material.icons.filled.Healing
-import androidx.compose.material.icons.filled.Hearing
-import androidx.compose.material.icons.filled.HelpOutline
-import androidx.compose.material.icons.filled.Lightbulb
-import androidx.compose.material.icons.filled.LocationSearching
-import androidx.compose.material.icons.filled.MenuBook
-import androidx.compose.material.icons.filled.Pets
-import androidx.compose.material.icons.filled.Psychology
-import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import io.github.luposolitario.immundanoctis.CharacterSheetActivity
 import io.github.luposolitario.immundanoctis.data.GameCharacter
-import io.github.luposolitario.immundanoctis.data.KAI_DISCIPLINES
 
+/**
+ * La nuova barra di stato del giocatore, che mostra tutte le informazioni vitali.
+ * @param hero L'oggetto GameCharacter dell'eroe.
+ * @param kaiRank Il grado Kai calcolato dal ViewModel.
+ */
 @Composable
 fun PlayerActionsBar(
     hero: GameCharacter,
-    usableDisciplines: Set<String>,
-    onDisciplineClicked: (String) -> Unit
-)  {
-//    var showStrengthDialog by remember { mutableStateOf(false) }
-//    var showCunningDialog by remember { mutableStateOf(false) }
-//    var showKnowledgeDialog by remember { mutableStateOf(false) }
-//    var showSpellDialog by remember { mutableStateOf(false) }
-    val context = LocalContext.current
-    val playerDisciplines = KAI_DISCIPLINES.filter { hero.kaiDisciplines.contains(it.id) }
-
-    Row(
+    kaiRank: String
+) {
+    Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.Top,
-        horizontalArrangement = Arrangement.SpaceAround
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        // --- MODIFICA AGGIUNTA QUI ---
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFF8D6E63) // Colore personalizzato tipo legno
+        )
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            CharacterPortrait(
-                character = hero,
-                isSelected = false,
-                size = 56.dp,
-                modifier = Modifier.clickable {
-                    context.startActivity(Intent(context, CharacterSheetActivity::class.java))
-                }
-            )
-
-            // Prima riga di discipline
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                playerDisciplines.take(5).forEach { discipline ->
-                    ActionIcon(
-                        label = discipline.name,
-                        icon = getIconForDiscipline(discipline.id),
-                        enabled = usableDisciplines.contains(discipline.id),
-                        onClick = { onDisciplineClicked(discipline.id) }
-                    )
-                }
-            }
-            // Seconda riga di discipline
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                playerDisciplines.drop(5).forEach { discipline ->
-                    ActionIcon(
-                        label = discipline.name,
-                        icon = getIconForDiscipline(discipline.id),
-                        enabled = usableDisciplines.contains(discipline.id),
-                        onClick = { onDisciplineClicked(discipline.id) }
-                    )
+        Column(modifier = Modifier.padding(12.dp)) {
+            // Sezione 1: Identità (Ritratto, Nome, Grado)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Image(
+                    painter = painterResource(id = hero.portraitResId),
+                    contentDescription = "Ritratto di ${hero.name}",
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clip(CircleShape)
+                        .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(verticalArrangement = Arrangement.Center) {
+                    Text(hero.name, style = MaterialTheme.typography.titleLarge, color = Color.White)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.MilitaryTech, contentDescription = "Grado Kai", tint = Color(0xFFFFD700), modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = kaiRank,
+                            style = MaterialTheme.typography.titleSmall,
+                            color = Color(0xFFFFF59D) // Giallo chiaro per contrasto
+                        )
+                    }
                 }
             }
 
+            Spacer(modifier = Modifier.height(12.dp))
 
+            // Sezione 2: Statistiche vitali
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceAround,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                StatItem(icon = Icons.Default.FitnessCenter, value = hero.stats?.combattivita ?: 0, label = "Combattività")
+                StatItem(icon = Icons.Default.Favorite, value = hero.stats?.resistenza ?: 0, label = "Resistenza", iconColor = Color(0xFFE57373))
+                StatItem(icon = Icons.Default.BakeryDining, value = hero.pasti, label = "Pasti")
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Sezione 3: Discipline possedute (solo icone)
+            if (hero.kaiDisciplines.isNotEmpty()) {
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    items(hero.kaiDisciplines) { disciplineId ->
+                        Icon(
+                            imageVector = getIconForDiscipline(disciplineId),
+                            contentDescription = disciplineId,
+                            modifier = Modifier.padding(horizontal = 4.dp).size(24.dp),
+                            tint = Color.White.copy(alpha = 0.8f)
+                        )
+                    }
+                }
+            }
         }
-//        ActionIcon(icon = Icons.Default.FitnessCenter, label = "Forza", enabled = true, onClick = { showStrengthDialog = true })
-//        ActionIcon(icon = Icons.Default.Lightbulb, label = "Astuzia", enabled = true, onClick = { showCunningDialog = true })
-//        ActionIcon(icon = Icons.Default.MenuBook, label = "Sapere", enabled = true, onClick = { showKnowledgeDialog = true })
-//        ActionIcon(icon = Icons.Default.AutoFixHigh, label = "Magia", enabled = true, onClick = { showSpellDialog = true })
-        }
-    }
-
-
-// Funzione helper per mappare un ID di disciplina a un'icona
-private fun getIconForDiscipline(disciplineId: String): ImageVector {
-    return when (disciplineId) {
-        "CAMOUFLAGE" -> Icons.Default.VisibilityOff
-        "HUNTING" -> Icons.Default.Pets
-        "SIXTH_SENSE" -> Icons.Default.Hearing
-        "TRACKING" -> Icons.Default.LocationSearching
-        "HEALING" -> Icons.Default.Healing
-        "WEAPONSKILL" -> Icons.Default.Shield
-        "MINDSHIELD" -> Icons.Default.Security
-        "MINDBLAST" -> Icons.Default.Psychology
-        "ANIMAL_KINSHIP" -> Icons.Default.Group
-        "MIND_OVER_MATTER" -> Icons.Default.Star // La nuova icona a stella
-        else -> Icons.Default.HelpOutline
     }
 }
 
+/**
+ * Composable per mostrare una singola statistica con icona, valore e etichetta.
+ */
 @Composable
-private fun ActionIcon(label: String, icon: ImageVector, enabled: Boolean, onClick: () -> Unit) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.clickable(onClick = onClick)
-    ) {
-        IconButton(onClick = onClick) {
-            Icon(icon, contentDescription = label, Modifier.size(32.dp))
-        }
-        Text(text = label, fontSize = 10.sp)
+private fun StatItem(icon: ImageVector, value: Int, label: String, iconColor: Color = Color.White) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Icon(imageVector = icon, contentDescription = label, tint = iconColor, modifier = Modifier.size(28.dp))
+        Text(text = value.toString(), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color.White)
+        Text(text = label, fontSize = 12.sp, color = Color.White.copy(alpha = 0.8f))
     }
 }

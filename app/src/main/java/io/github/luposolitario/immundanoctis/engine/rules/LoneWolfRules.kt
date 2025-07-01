@@ -20,7 +20,6 @@ class LoneWolfRules : GameRulesEngine {
         return CombatRoundResult(
             playerDamage = 0,
             enemyDamage = 0,
-            // --- CORREZIONE QUI ---
             logMessage = LocalizedText(english = "Round result pending", italian = "Risultato del round in attesa")
         )
     }
@@ -36,5 +35,18 @@ class LoneWolfRules : GameRulesEngine {
         val sceneAllowsDiscipline = scene.disciplineChoices?.any { it.disciplineId == disciplineId } ?: false
 
         return sceneAllowsDiscipline
+    }
+
+    override fun getKaiRank(disciplineCount: Int): String {
+        return when (disciplineCount) {
+            in 0..4 -> "Novizio Kai"
+            5 -> "Iniziato Kai"
+            6 -> "Discepolo Kai"
+            7 -> "Viandante Kai"
+            8 -> "Guerriero Kai"
+            9 -> "Maestro Kai"
+            10 -> "Gran Maestro Kai"
+            else -> "Gran Maestro Kai Supremo"
+        }
     }
 }

@@ -47,7 +47,6 @@ enum class Genre {
     WESTERN
 }
 
-// --- CLASSE MODIFICATA ---
 data class LocalizedText(
     val english: String?,
     val italian: String?
@@ -89,9 +88,10 @@ data class GameCharacter(
     val details: HeroDetails? = null
 )
 
+// --- CLASSE MODIFICATA ---
 data class DisciplineChoice(
     val disciplineId: String,
-    val choiceText: LocalizedText,
+    val choiceText: LocalizedText?, // <-- CAMPO RESO OPZIONALE (NULLABLE)
     val nextSceneId: String
 )
 
