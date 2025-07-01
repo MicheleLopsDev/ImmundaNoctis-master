@@ -1,6 +1,7 @@
 package io.github.luposolitario.immundanoctis
 
 import android.app.Activity
+import androidx.compose.foundation.layout.fillMaxWidth
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -24,8 +25,10 @@ import androidx.compose.foundation.text.selection.LocalTextSelectionColors
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Casino
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.Save
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -167,6 +170,30 @@ class AdventureActivity : ComponentActivity() {
                         val disciplineChoices by viewModel.activeDisciplineChoices.collectAsState()
                         val isChatEnabled = savePreferences.isChatEnabled
                         val currentScene by viewModel.currentScene.collectAsState()
+                        val isDiceRollRequired by viewModel.isRandomNumberRollRequired.collectAsState()
+                        val randomNumberResult by viewModel.randomNumberResult.collectAsState()
+
+
+                        if (randomNumberResult != null) {
+                            AlertDialog(
+                                onDismissRequest = { viewModel.resolveRandomNumberChoice() },
+                                icon = { Icon(Icons.Default.Casino, contentDescription = "Lancio del Dado") },
+                                title = { Text("Risultato del Fato") },
+                                text = {
+                                    Text(
+                                        "Hai ottenuto: $randomNumberResult",
+                                        modifier = Modifier.fillMaxWidth(),
+                                        textAlign = TextAlign.Center,
+                                        style = MaterialTheme.typography.headlineMedium
+                                    )
+                                },
+                                confirmButton = {
+                                    Button(onClick = { viewModel.resolveRandomNumberChoice() }) {
+                                        Text("Continua")
+                                    }
+                                }
+                            )
+                        }
 
 
                         LaunchedEffect(chatMessages) {
@@ -203,6 +230,8 @@ class AdventureActivity : ComponentActivity() {
                                 disciplineChoices = disciplineChoices,
                                 isChatEnabled = isChatEnabled,
                                 currentSceneId = currentScene?.id,
+                                isDiceRollEnabled = isDiceRollRequired,
+                                onDiceRollClicked = { viewModel.onRollRandomNumber() },
                                 onMessageSent = { messageText ->
                                     viewModel.sendMessage(messageText, conversationTargetId)
                                 },
@@ -358,6 +387,8 @@ fun AdventureChatScreen(
     disciplineChoices: List<DisciplineChoice>,
     isChatEnabled: Boolean,
     currentSceneId: String?,
+    isDiceRollEnabled: Boolean,
+    onDiceRollClicked: () -> Unit,
     onMessageSent: (String) -> Unit,
     onCharacterSelected: (String) -> Unit,
     onStopGeneration: () -> Unit,
@@ -433,7 +464,6 @@ fun AdventureChatScreen(
                     .padding(horizontal = 8.dp),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
-                // --- SEZIONE RIPRISTINATA ---
                 val customTextSelectionColors = TextSelectionColors(
                     handleColor = MaterialTheme.colorScheme.tertiary,
                     backgroundColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.4f)
@@ -485,7 +515,9 @@ fun AdventureChatScreen(
             if (hero != null) {
                 PlayerActionsBar(
                     hero = hero,
-                    kaiRank = kaiRank
+                    kaiRank = kaiRank,
+                    isDiceRollEnabled = isDiceRollEnabled,
+                    onDiceRollClicked = onDiceRollClicked
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 if (isGenerating) {

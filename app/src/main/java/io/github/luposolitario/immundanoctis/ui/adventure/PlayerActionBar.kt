@@ -1,6 +1,5 @@
 package io.github.luposolitario.immundanoctis.ui.adventure
 
-import io.github.luposolitario.immundanoctis.ui.adventure.getIconForDiscipline
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -42,7 +41,8 @@ fun PlayerActionsBar(
     isDiceRollEnabled: Boolean,
     onDiceRollClicked: () -> Unit
 ) {
-    val borderColor = if (isDiceRollEnabled) Color(0xFFFFD700) else Color(0xFFC0C0C0)
+    // --- LOGICA PER IL COLORE DEL BORDO DEL DADO ---
+    val borderColor = if (isDiceRollEnabled) Color(0xFFFFD700) else Color(0xFFC0C0C0) // Oro se abilitato, altrimenti Argento
 
     Card(
         modifier = Modifier
@@ -50,7 +50,7 @@ fun PlayerActionsBar(
             .padding(horizontal = 8.dp, vertical = 4.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF8D6E63)
+            containerColor = Color(0xFF8D6E63) // Colore personalizzato tipo legno
         )
     ) {
         Column(modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp)) {
@@ -62,11 +62,12 @@ fun PlayerActionsBar(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Image(
                         painter = painterResource(id = R.drawable.lupo_solitario),
-                        contentDescription = "Ritratto di ${hero.name}",
+                        contentDescription = "Dado del Destino",
                         modifier = Modifier
                             .size(48.dp)
                             .clip(CircleShape)
                             .border(2.dp, borderColor, CircleShape)
+                            // Il click è abilitato solo quando necessario
                             .clickable(enabled = isDiceRollEnabled, onClick = onDiceRollClicked)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
@@ -104,7 +105,7 @@ fun PlayerActionsBar(
                             imageVector = getIconForDiscipline(disciplineId),
                             contentDescription = disciplineId,
                             modifier = Modifier.padding(horizontal = 4.dp).size(24.dp),
-                            tint = Color.White.copy(alpha = 0.8f)
+                            tint = Color.White.copy(alpha = 0.7f)
                         )
                     }
                 }
@@ -121,5 +122,3 @@ private fun StatItem(icon: ImageVector, value: Int, iconColor: Color = Color.Whi
         Text(text = value.toString(), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, color = Color.White)
     }
 }
-
-// --- FUNZIONE DUPLICATA RIMOSSA ---
