@@ -4,122 +4,101 @@ import android.content.Context
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import io.github.luposolitario.immundanoctis.R
+import io.github.luposolitario.immundanoctis.data.CharacterID
 import io.github.luposolitario.immundanoctis.data.CharacterType
 import io.github.luposolitario.immundanoctis.data.GameCharacter
+import io.github.luposolitario.immundanoctis.data.HeroDetails
+import io.github.luposolitario.immundanoctis.data.LoneWolfStats
 import io.github.luposolitario.immundanoctis.data.SessionData
 import java.io.File
 import java.io.FileReader
 import java.io.FileWriter
-import io.github.luposolitario.immundanoctis.data.LoneWolfStats
 
-/**
- * Gestisce il salvataggio e il caricamento dello stato della sessione di gioco
- * su un file JSON nella memoria interna dell'app.
- */
 class GameStateManager(private val context: Context) {
-
     private val gson: Gson = GsonBuilder().setPrettyPrinting().create()
-    val savesDir = getAppSpecificDirectory(context, "saves")
-    private val sessionFile = File(savesDir, SESSION_FILE_NAME)
-    private val chatFile = File(savesDir, CHAT_FILE_NAME)
+    private val saveFile: File = File(context.filesDir, "session.json")
 
     fun saveSession(sessionData: SessionData) {
-        FileWriter(sessionFile).use { writer ->
-            gson.toJson(sessionData, writer)
+        try {
+            FileWriter(saveFile).use { writer ->
+                gson.toJson(sessionData, writer)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
     fun loadSession(): SessionData? {
-        return if (sessionFile.exists()) {
-            try {
-                FileReader(sessionFile).use { reader ->
-                    gson.fromJson(reader, SessionData::class.java)
-                }
-            } catch (e: Exception) {
-                // In caso di file corrotto, restituisce null
-                null
+        if (!saveFile.exists()) {
+            return null
+        }
+        return try {
+            FileReader(saveFile).use { reader ->
+                gson.fromJson(reader, SessionData::class.java)
             }
-        } else {
+        } catch (e: Exception) {
+            e.printStackTrace()
             null
         }
     }
 
-    /**
-     * Cancella il file della sessione di gioco e la chat associata.
-     * Utile per resettare lo stato in caso di dati corrotti o per un nuovo inizio.
-     *
-     * @return `true` se i file sono stati cancellati con successo o non esistevano, `false` altrimenti.
-     */
     fun deleteSession(): Boolean {
-        if (chatFile.exists()) {
-            chatFile.delete()
-        }
-        return if (sessionFile.exists()) {
-            sessionFile.delete()
+        return if (saveFile.exists()) {
+            saveFile.delete()
         } else {
-            true // Consideriamo successo anche se il file non c'era
+            true // Il file non esiste, quindi è già "cancellato"
         }
     }
 
     fun createDefaultSession(): SessionData {
-        val defaultCharacters = listOf(
-            GameCharacter(
-                "hero",
-                "Eroe",
-                CharacterType.PLAYER,
-                "Guerriero",
-                R.drawable.portrait_hero_male,
-                "MALE",
-                "it",
-                isVisible = false,
-                // Aggiungi un oggetto LoneWolfStats di default
-                stats = LoneWolfStats(combattivita = 15, resistenza = 25),
-                details = null
-            ),
-            GameCharacter(
-                "dm",
-                "Dungeon Master",
-                CharacterType.DM,
-                "Narratore",
-                R.drawable.portrait_dm,
-                "MALE",
-                "it",
-                isVisible = true,
-                stats = null // Il DM non ha statistiche
-            ),
-            GameCharacter(
-                "companion1",
-                "Elara",
-                CharacterType.NPC,
-                "Saggio",
-                R.drawable.portrait_cleric,
-                "FEMALE",
-                "it",
-                isVisible = true,
-                stats = LoneWolfStats(combattivita = 12, resistenza = 20) // Anche i PNG possono averle
-            ),
-            GameCharacter(
-                "companion2",
-                "Baldur",
-                CharacterType.NPC,
-                "Mago",
-                R.drawable.portrait_mage,
-                "MALE",
-                "it",
-                isVisible = false,
-                stats = LoneWolfStats(combattivita = 10, resistenza = 18)
+        val hero = GameCharacter(
+            id = CharacterID.HERO,
+            name = "Lupo Solitario",
+            type = CharacterType.PLAYER,
+            characterClass = "Guerriero Kai",
+            portraitResId = R.drawable.portrait_hero_male,
+            gender = "MALE",
+            language = "it",
+            stats = LoneWolfStats(combattivita = 15, resistenza = 25),
+            kaiDisciplines = listOf("SIXTH_SENSE", "HEALING", "MINDSHIELD", "WEAPONSKILL", "HUNTING"),
+            pasti = 2,
+            details = HeroDetails(
+                specialAbilities = listOf("Immunità alle malattie"),
+                equippedWeapon = "Spada",
+                equippedArmor = "Cotta di maglia",
+                equippedShield = "Scudo di legno",
+                coins = mapOf("gold" to 12)
             )
         )
-        return SessionData(
-            sessionName = "La Prova dell'Eroe",
-            lastUpdate = System.currentTimeMillis(),
-            characters = defaultCharacters,
-            isStarted = false // NUOVO: La sessione non è ancora "iniziata"
-        )
-    }
 
-    companion object {
-        private const val SESSION_FILE_NAME = "game_session.json"
-        private const val CHAT_FILE_NAME = "autosave_chat.json"
+        val dm = GameCharacter(
+            id = CharacterID.DM,
+            name = "Dungeon Master",
+            type = CharacterType.DM,
+            characterClass = "Narratore",
+            portraitResId = R.drawable.portrait_dm,
+            gender = "NEUTRAL",
+            language = "it",
+            stats = null
+        )
+
+        val elara = GameCharacter(
+            id = "companion1",
+            name = "Elara",
+            type = CharacterType.NPC,
+            characterClass = "Guaritrice",
+            portraitResId = R.drawable.portrait_cleric,
+            gender = "FEMALE",
+            language = "it",
+            isVisible = true,
+            stats = LoneWolfStats(combattivita = 10, resistenza = 20)
+        )
+
+        // --- COMPAGNO RIMOSSO ---
+        return SessionData(
+            sessionName = "L'Ultimo dei Kai",
+            lastUpdate = System.currentTimeMillis(),
+            characters = listOf(hero, dm, elara)
+        )
     }
 }

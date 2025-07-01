@@ -100,7 +100,7 @@ class AdventureActivity : ComponentActivity() {
     private val savePreferences by lazy { SavePreferences(applicationContext) }
     private lateinit var gameStateManager: GameStateManager
     private lateinit var gameLogicManager: GameLogicManager
-    private val currentScene = MutableStateFlow<Scene?>(null)
+    private val currentSceneFlow = MutableStateFlow<Scene?>(null)
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -163,9 +163,10 @@ class AdventureActivity : ComponentActivity() {
                         val isAutoSaveEnabled = savePreferences.isAutoSaveEnabled
                         val tokenInfo by viewModel.activeTokenInfo.collectAsState()
                         val kaiRank by viewModel.kaiRank.collectAsState()
-                        // --- RACCOLTA DEGLI STATI PER LE SCELTE ---
                         val narrativeChoices by viewModel.activeNarrativeChoices.collectAsState()
                         val disciplineChoices by viewModel.activeDisciplineChoices.collectAsState()
+                        val isChatEnabled = savePreferences.isChatEnabled
+                        val currentScene by viewModel.currentScene.collectAsState()
 
 
                         LaunchedEffect(chatMessages) {
@@ -198,9 +199,10 @@ class AdventureActivity : ComponentActivity() {
                                 respondingCharacterId = respondingCharacterId,
                                 tokenInfo = tokenInfo,
                                 kaiRank = kaiRank,
-                                // --- PASSAGGIO DEI DATI ALLA UI ---
                                 narrativeChoices = narrativeChoices,
                                 disciplineChoices = disciplineChoices,
+                                isChatEnabled = isChatEnabled,
+                                currentSceneId = currentScene?.id,
                                 onMessageSent = { messageText ->
                                     viewModel.sendMessage(messageText, conversationTargetId)
                                 },
@@ -223,7 +225,6 @@ class AdventureActivity : ComponentActivity() {
                                     }
                                 },
                                 onResetSession = { viewModel.resetSession() },
-                                // --- COLLEGAMENTO DELLE AZIONI ---
                                 onNarrativeChoice = { viewModel.onNarrativeChoiceSelected(it) },
                                 onDisciplineChoice = { viewModel.onDisciplineChoiceSelected(it) }
                             )
@@ -247,21 +248,21 @@ class AdventureActivity : ComponentActivity() {
         }
 
         if (!session.isStarted) {
-            currentScene.value =
+            currentSceneFlow.value =
                 gameLogicManager.selectRandomStartScene(Genre.FANTASY)
             Log.d(
                 tag,
-                "Scena iniziale NUOVA AVVENTURA impostata da GameLogicManager: ${currentScene.value?.id ?: "Nessuna scena iniziale"}"
+                "Scena iniziale NUOVA AVVENTURA impostata da GameLogicManager: ${currentSceneFlow.value?.id ?: "Nessuna scena iniziale"}"
             )
 
             lifecycleScope.launch {
                 viewModel.sendInitialDmPrompt(
-                    session, currentScene.value
+                    session, currentSceneFlow.value
                 )
             }
             gameStateManager.saveSession(
                 SessionData(
-                    sessionName = "La Prova dell'Eroe",
+                    sessionName = "L'Ultimo dei Kai",
                     lastUpdate = System.currentTimeMillis(),
                     characters = session.characters,
                     isStarted = true
@@ -269,18 +270,17 @@ class AdventureActivity : ComponentActivity() {
             )
         } else {
             val lastSceneId = session.usedScenes.lastOrNull()
-            currentScene.value = if (lastSceneId != null) {
+            currentSceneFlow.value = if (lastSceneId != null) {
                 gameLogicManager.getSceneById(lastSceneId)
             } else {
                 gameLogicManager.selectRandomStartScene(Genre.FANTASY)
             }
             Log.d(
                 tag,
-                "Scena sessione esistente impostata a: ${currentScene.value?.id ?: "Nessuna scena valida trovata. Riprovo con casuale START."}"
+                "Scena sessione esistente impostata a: ${currentSceneFlow.value?.id ?: "Nessuna scena valida trovata. Riprovo con casuale START."}"
             )
-            // Riprocessa la scena corrente per mostrare le scelte al riavvio
             lifecycleScope.launch {
-                viewModel.sendInitialDmPrompt(session, currentScene.value)
+                viewModel.sendInitialDmPrompt(session, currentSceneFlow.value)
             }
         }
     }
@@ -356,6 +356,8 @@ fun AdventureChatScreen(
     kaiRank: String,
     narrativeChoices: List<NarrativeChoice>,
     disciplineChoices: List<DisciplineChoice>,
+    isChatEnabled: Boolean,
+    currentSceneId: String?,
     onMessageSent: (String) -> Unit,
     onCharacterSelected: (String) -> Unit,
     onStopGeneration: () -> Unit,
@@ -387,6 +389,14 @@ fun AdventureChatScreen(
                     Text(sessionName)
                 }
             }, actions = {
+                if (currentSceneId != null) {
+                    Text(
+                        text = "Paragrafo: $currentSceneId",
+                        modifier = Modifier.align(Alignment.CenterVertically).padding(end = 8.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
                 Box {
                     IconButton(onClick = { showMenu = true }) {
                         Icon(Icons.Default.MoreVert, contentDescription = "Opzioni")
@@ -414,7 +424,8 @@ fun AdventureChatScreen(
             AdventureHeader(
                 characters = characters,
                 selectedCharacterId = selectedCharacterId,
-                onCharacterClick = onCharacterSelected
+                onCharacterClick = onCharacterSelected,
+                isChatEnabled = isChatEnabled
             )
             Card(
                 modifier = Modifier
@@ -422,6 +433,7 @@ fun AdventureChatScreen(
                     .padding(horizontal = 8.dp),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
+                // --- SEZIONE RIPRISTINATA ---
                 val customTextSelectionColors = TextSelectionColors(
                     handleColor = MaterialTheme.colorScheme.tertiary,
                     backgroundColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.4f)
@@ -470,7 +482,6 @@ fun AdventureChatScreen(
                 )
             }
 
-
             if (hero != null) {
                 PlayerActionsBar(
                     hero = hero,
@@ -483,7 +494,9 @@ fun AdventureChatScreen(
                             ?: "...", onStopClicked = onStopGeneration
                     )
                 }
-                MessageInput(onMessageSent = onMessageSent, isEnabled = !isGenerating)
+                if (isChatEnabled) {
+                    MessageInput(onMessageSent = onMessageSent, isEnabled = !isGenerating)
+                }
             }
         }
     }

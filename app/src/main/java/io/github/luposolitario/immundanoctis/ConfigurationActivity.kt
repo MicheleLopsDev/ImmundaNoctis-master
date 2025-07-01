@@ -2,57 +2,33 @@ package io.github.luposolitario.immundanoctis
 
 import android.app.Activity
 import android.content.Intent
-import android.net.Uri
-import android.os.Bundle
 import android.widget.Toast
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.viewModels
+import androidx.activity.ComponentActivity
+import android.os.Bundle
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
-import androidx.work.WorkManager
 import io.github.luposolitario.immundanoctis.service.TtsService
-import io.github.luposolitario.immundanoctis.ui.configuration.AddUrlDialog
-import io.github.luposolitario.immundanoctis.ui.configuration.EngineRadioButton
-import io.github.luposolitario.immundanoctis.ui.configuration.ModelSlotView
-import io.github.luposolitario.immundanoctis.ui.configuration.TokenInputSection
 import io.github.luposolitario.immundanoctis.ui.configuration.VoiceDropdown
 import io.github.luposolitario.immundanoctis.ui.theme.ImmundaNoctisTheme
 import io.github.luposolitario.immundanoctis.util.*
-import io.github.luposolitario.immundanoctis.view.MainViewModel
-import java.io.File
-import io.github.luposolitario.immundanoctis.util.getAppSpecificDirectory // <-- Assicurati che ci sia questo import
-import io.github.luposolitario.immundanoctis.util.GemmaPreferences
-import io.github.luposolitario.immundanoctis.util.LlamaPreferences
-import androidx.compose.material3.Slider
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.text.style.TextAlign
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import java.io.FileOutputStream
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.workDataOf
-import io.github.luposolitario.immundanoctis.worker.DownloadWorker
 
 class ConfigurationActivity : ComponentActivity() {
 
@@ -121,6 +97,7 @@ class ConfigurationActivity : ComponentActivity() {
         val context = LocalContext.current
         var autoReadEnabled by remember { mutableStateOf(ttsPrefs.isAutoReadEnabled()) }
         var autoSaveEnabled by remember { mutableStateOf(savePrefs.isAutoSaveEnabled) }
+        var chatEnabled by remember { mutableStateOf(savePrefs.isChatEnabled) } // Stato per la chat
         var speechRate by remember { mutableStateOf(ttsPrefs.getSpeechRate()) }
         var pitch by remember { mutableStateOf(ttsPrefs.getPitch()) }
         var showDeleteConfirmDialog by remember { mutableStateOf(false) }
@@ -131,9 +108,6 @@ class ConfigurationActivity : ComponentActivity() {
 
         var isMaleDropdownExpanded by remember { mutableStateOf(false) }
         var isFemaleDropdownExpanded by remember { mutableStateOf(false) }
-
-        // Dentro MainEngineScreen, dopo il blocco filePickerLauncher
-
 
         DisposableEffect(context) {
             var ttsService: TtsService? = null
@@ -146,7 +120,6 @@ class ConfigurationActivity : ComponentActivity() {
                 ttsService.shutdown()
             }
         }
-
 
         if (showDeleteConfirmDialog) {
             AlertDialog(
@@ -175,7 +148,8 @@ class ConfigurationActivity : ComponentActivity() {
         Column(
             modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)
         ) {
-            Text("Impostazioni di Salvataggio", style = MaterialTheme.typography.titleLarge)
+            Text("Impostazioni di Gioco", style = MaterialTheme.typography.titleLarge)
+            // Switch per il salvataggio automatico
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -186,7 +160,7 @@ class ConfigurationActivity : ComponentActivity() {
                 Column(modifier = Modifier.weight(1f)) {
                     Text("Salvataggio Automatico", style = MaterialTheme.typography.bodyLarge)
                     Text(
-                        "Salva la chat ad ogni messaggio. Se disattivato, potrai salvare solo manually dal menu.",
+                        "Salva la chat ad ogni messaggio. Se disattivato, potrai salvare solo manualmente.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -196,6 +170,30 @@ class ConfigurationActivity : ComponentActivity() {
                     onCheckedChange = {
                         autoSaveEnabled = it
                         savePrefs.isAutoSaveEnabled = it
+                    }
+                )
+            }
+            // --- NUOVO SWITCH PER LA CHAT ---
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Abilita Chat Personaggi", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        "Se disattivato, le icone di DM e PNG non saranno cliccabili per avviare una conversazione.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = chatEnabled,
+                    onCheckedChange = {
+                        chatEnabled = it
+                        savePrefs.isChatEnabled = it
                     }
                 )
             }
@@ -228,8 +226,6 @@ class ConfigurationActivity : ComponentActivity() {
                     }
                 )
             }
-            Spacer(Modifier.height(16.dp))
-            Divider()
             Spacer(Modifier.height(16.dp))
             Text("Velocità Voce", style = MaterialTheme.typography.bodyLarge)
             Slider(
