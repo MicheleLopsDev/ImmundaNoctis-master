@@ -47,9 +47,10 @@ enum class Genre {
     WESTERN
 }
 
+// --- CLASSE MODIFICATA ---
 data class LocalizedText(
-    @JsonProperty("en") val english: String?,
-    @JsonProperty("it") val italian: String?
+    val english: String?,
+    val italian: String?
 )
 
 data class NarrativeChoice(
@@ -90,6 +91,7 @@ data class GameCharacter(
 
 data class DisciplineChoice(
     val disciplineId: String,
+    val choiceText: LocalizedText,
     val nextSceneId: String
 )
 
@@ -176,5 +178,5 @@ data class SessionData(
     val lastUpdate: Long,
     val characters: List<GameCharacter>,
     val usedScenes: MutableList<String> = mutableListOf(),
-    val isStarted: Boolean = false // <-- CAMPO AGGIUNTO
+    val isStarted: Boolean = false
 )

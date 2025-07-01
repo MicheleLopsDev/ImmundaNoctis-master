@@ -15,7 +15,6 @@ import io.github.luposolitario.immundanoctis.data.GameCharacter
 import io.github.luposolitario.immundanoctis.data.Genre
 import io.github.luposolitario.immundanoctis.data.NarrativeChoice
 import io.github.luposolitario.immundanoctis.data.Scene
-import io.github.luposolitario.immundanoctis.data.SceneType
 import io.github.luposolitario.immundanoctis.data.SessionData
 import io.github.luposolitario.immundanoctis.engine.GameLogicManager
 import io.github.luposolitario.immundanoctis.engine.GameRulesEngine
@@ -57,6 +56,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.random.Random
+import io.github.luposolitario.immundanoctis.data.KAI_DISCIPLINES
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val tag: String? = this::class.simpleName
@@ -532,7 +532,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             gameLogicManager.resetUsedScenes()
             val currentSession =
                 gameStateManager.loadSession() ?: gameStateManager.createDefaultSession()
-            if (_currentScene.value?.sceneType == SceneType.START) {
+            if (_currentScene.value?.id != null) {
                 sendInitialDmPrompt(currentSession, _currentScene.value)
             }
         }
@@ -598,87 +598,50 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // NUOVA FUNZIONE: Invia il prompt iniziale del DM all'avvio di una nuova avventura
-    suspend fun sendInitialDmPrompt(
-        sessionData: SessionData,
-        currentScene1: Scene?
-    ) {
-        // Impedisce l'invio multiplo se la sessione è già stata avviata con questo prompt
-        if (sessionData.isStarted) {
-            log("DEBUG: La sessione è già iniziata, non invio prompt iniziale DM.")
+    // --- METODO RINOMINATO E MODIFICATO ---
+    /**
+     * Processa la scena corrente: costruisce il prompt per l'IA, genera la narrazione
+     * e infine popola la UI con le scelte disponibili per quella scena.
+     */
+    private suspend fun processCurrentSceneNarrative() {
+        val scene = _currentScene.value ?: run {
+            log("ERRORE: Tentativo di processare una scena nulla.")
             return
         }
 
+        // Impedisce di ri-processare una scena se si sta già generando una risposta
+        if (_isGenerating.value) return
+
         _isGenerating.value = true
         _streamingText.value = ""
-        _respondingCharacterId.value = CharacterID.DM // Sempre DM per il prompt iniziale
+        _respondingCharacterId.value = CharacterID.DM
 
         try {
-            // AGGIUNTO: Attendiamo che i motori siano caricati prima di inviare il prompt
-            log("DEBUG: Attendendo caricamento motori prima di inviare prompt iniziale DM...")
             _engineLoadingState.first { it is EngineLoadingState.Success }
-            log("DEBUG: Motori pronti, invio prompt iniziale DM.")
 
-            val scene = currentScene1
-            if (scene == null || scene.sceneType != SceneType.START) {
-                log("ATTENZIONE: Impossibile inviare prompt iniziale DM. Scena non START o non caricata.")
-                _isGenerating.value = false // Assicurati di resettare lo stato di generazione
-                return
-            }
-
-            // --- INIZIO NUOVA LOGICA: Costruzione del prompt dal tag config.json ---
-            val startPromptTag = stringTagParser.getTagConfigById("start_adventure_prompt")
-            if (startPromptTag == null || startPromptTag.parameters == null) {
-                log("ERRORE: Tag 'start_adventure_prompt' non trovato o incompleto in config.json!")
-                _isGenerating.value = false
-                return
-            }
-
-            // Estrai i parametri dal tag
-            val baseText =
-                startPromptTag.parameters.firstOrNull { it.name == "baseText" }?.value as? String
-                    ?: "Sei il DM per un gioco di ruolo."
-            val genreTextTemplate =
-                startPromptTag.parameters.firstOrNull { it.name == "genreText" }?.value as? String
-                    ?: "Il genere della storia è: {genre}."
-            val sceneTextTemplate =
-                startPromptTag.parameters.firstOrNull { it.name == "sceneText" }?.value as? String
-                    ?: "Inizia la narrazione dalla seguente scena: {scene_narrative_text}."
-            val continuationText =
-                startPromptTag.parameters.firstOrNull { it.name == "continuationText" }?.value as? String
-                    ?: "Ti prego di iniziare a narrare la storia basandoti su questa scena."
-
-            val genre = Genre.FANTASY.name // Genere hardcoded per ora, poi dalla campagna
-
-            // Selezioniamo prima la stringa della lingua corretta (es. italiano)
-            val sceneNarrativeText = scene.narrativeText.italian  // o .en a seconda della lingua di gioco
+            val sceneNarrativeText = scene.narrativeText.italian ?: ""
+            val choicesTextList = scene.choices?.mapNotNull { it.choiceText.italian } ?: emptyList()
+            val choicesString = choicesTextList.joinToString(", ")
+            val lastMessage = _chatMessages.value.lastOrNull()?.text ?: "L'avventura ha inizio."
 
             val secretPrompt = """
-    $baseText
-    ${genreTextTemplate.replace("{genre}", genre, ignoreCase = true)}
-    ${
-                sceneTextTemplate.replace(
-                    "{scene_narrative_text}",
-                    sceneNarrativeText.toString(),
-                    ignoreCase = true
-                )
-            }  
-    $continuationText
-    """.trimIndent()
+            CONTESTO: $lastMessage
+            TESTO DELLA SCENA: "$sceneNarrativeText"
+            OPZIONI DISPONIBILI: "$choicesString"
 
-            log("DEBUG: Invio prompt iniziale DM: Genere=${genre}, Scena ID=${scene.id}")
+            Il tuo compito è armonizzare questi tre elementi. Riformula il 'TESTO DELLA SCENA' per collegarlo in modo logico al 'CONTESTO' e per introdurre le 'OPZIONI DISPONIBILI' come naturale conclusione della narrazione. Se il testo delle opzioni è molto breve, arricchiscilo con dettagli evocativi senza cambiarne il significato. Non aggiungere eventi o dettagli non presenti nella scena. Mantieni lo stile del testo originale.
+            """.trimIndent()
+
+            log("DEBUG: Invio prompt di armonizzazione al DM per la scena ID=${scene.id}")
 
             dmEngine.sendMessage(secretPrompt)
                 .collect { token ->
                     _streamingText.update { it + token }
                 }
-            val updatedSession = sessionData.copy(isStarted = true)
-            gameStateManager.saveSession(updatedSession)
-            log("DEBUG: Sessione marcata come avviata.")
 
         } catch (e: Exception) {
-            Log.e(tag, "Errore durante l'invio del prompt iniziale al DM: ${e.message}", e)
-            log("ERRORE: Impossibile avviare la narrazione del DM. ${e.message}")
+            Log.e(tag, "Errore durante la generazione della narrazione della scena: ${e.message}", e)
+            log("ERRORE: Impossibile generare la narrazione del DM. ${e.message}")
         } finally {
             if (_streamingText.value.isNotBlank()) {
                 val finalMessage = ChatMessage(
@@ -689,10 +652,109 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _chatMessages.update { it + finalMessage }
                 autoSaveChatIfEnabled()
             }
+
+            // Logica per popolare le scelte dopo aver mostrato la narrazione
+            val hero = _gameCharacters.value.find { it.id == CharacterID.HERO }
+            if(hero != null) {
+                _activeNarrativeChoices.value = scene.choices ?: emptyList()
+
+                val availableDisciplines = scene.disciplineChoices?.filter { disciplineChoice ->
+                    gameRules.canUseDiscipline(hero, disciplineChoice.disciplineId, scene)
+                }?.map { it.disciplineId }?.toSet() ?: emptySet()
+
+                _usableDisciplines.value = availableDisciplines
+                log("DEBUG: Scelte popolate per la scena ${scene.id}. Scelte narrative: ${_activeNarrativeChoices.value.size}, Discipline utilizzabili: ${_usableDisciplines.value.joinToString()}")
+            }
+
             _isGenerating.value = false
             _streamingText.value = ""
             _respondingCharacterId.value = null
         }
+    }
+
+    // --- NUOVI METODI PER LA NAVIGAZIONE ---
+
+    /**
+     * Chiamato quando l'utente seleziona una scelta narrativa.
+     */
+    fun onNarrativeChoiceSelected(choice: NarrativeChoice) {
+        // Aggiungi un messaggio alla chat che rappresenta la scelta del giocatore
+        val choiceMessage = ChatMessage(
+            authorId = CharacterID.HERO,
+            text = "*Sceglie di: ${choice.choiceText.italian}*",
+            position = messageCounter.getAndIncrement()
+        )
+        _chatMessages.update { it + choiceMessage }
+
+        navigateToScene(choice.nextSceneId)
+    }
+
+    /**
+     * Chiamato quando l'utente usa una disciplina Kai.
+     */
+    fun onDisciplineChoiceSelected(disciplineId: String) {
+        val nextSceneId = _currentScene.value?.disciplineChoices?.find { it.disciplineId == disciplineId }?.nextSceneId
+        if (nextSceneId != null) {
+            val disciplineName = KAI_DISCIPLINES.find { it.id == disciplineId }?.name ?: disciplineId
+            val choiceMessage = ChatMessage(
+                authorId = CharacterID.HERO,
+                text = "*Usa la disciplina: $disciplineName*",
+                position = messageCounter.getAndIncrement()
+            )
+            _chatMessages.update { it + choiceMessage }
+
+            navigateToScene(nextSceneId)
+        } else {
+            log("ERRORE: nextSceneId non trovato per la disciplina $disciplineId")
+        }
+    }
+
+    /**
+     * Logica centrale per passare a una nuova scena.
+     */
+    private fun navigateToScene(sceneId: String) {
+        viewModelScope.launch {
+            val nextScene = gameLogicManager.getSceneById(sceneId)
+            if (nextScene != null) {
+                log("Navigazione alla scena: ${nextScene.id}")
+                // Pulisci le scelte della scena precedente
+                _activeNarrativeChoices.value = emptyList()
+                _usableDisciplines.value = emptySet()
+
+                // Aggiorna la scena corrente e avvia la narrazione
+                _currentScene.value = nextScene
+                gameStateManager.loadSession()?.let {
+                    it.usedScenes.add(nextScene.id)
+                    gameStateManager.saveSession(it)
+                }
+
+                processCurrentSceneNarrative()
+            } else {
+                log("ERRORE: Scena con ID '$sceneId' non trovata.")
+            }
+        }
+    }
+
+    // --- VECCHIO METODO (ORA CHIAMA IL NUOVO) ---
+    // Lo manteniamo per ora per non rompere la logica di avvio iniziale
+    suspend fun sendInitialDmPrompt(
+        sessionData: SessionData,
+        currentScene: Scene?
+    ) {
+        // Questa funzione ora si occupa solo di avviare il processo
+        // per la primissima scena.
+        if (sessionData.isStarted) {
+            log("DEBUG: La sessione è già iniziata, non invio prompt iniziale DM.")
+            // Se la sessione è già iniziata, processiamo la scena corrente
+            processCurrentSceneNarrative()
+            return
+        }
+
+        val updatedSession = sessionData.copy(isStarted = true)
+        gameStateManager.saveSession(updatedSession)
+        log("DEBUG: Sessione marcata come avviata.")
+
+        processCurrentSceneNarrative()
     }
 
     fun onDisciplineClicked(disciplineId: String) {}

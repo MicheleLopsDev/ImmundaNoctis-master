@@ -1,42 +1,29 @@
 {
   "tags": [
     {
-      "id": "e963b8d1-7c9f-4e0a-b1e7-c1a9d0f4e6b2",
-      "type": "textSubstitution",
-      "regex": "\\{object\\}",
-      "replacement": {
-        "italian": "un antico tomo rilegato in pelle",
-        "english": "an ancient leather-bound tome"
-      },
-      "parameters": [],
-      "actor": "ANY",
-      "command": null,
-      "replace": true
-    },
-    {
-      "id": "start_adventure_prompt",
+      "id": "narrative_prompt",
       "type": "promptDescription",
-      "regex": "\\{start_adventure_prompt\\}",
-      "replacement": {
-        "italian": null,
-        "english": null
-      },
+      "regex": "\\{narrative_prompt\\}",
+      "replacement": null,
       "parameters": [
         {
-          "name": "baseText",
-          "value": "Sei il DM per un gioco di ruolo."
+          "name": "baseInstruction",
+          "value": "Il tuo compito è armonizzare questi tre elementi. Riformula il 'TESTO DELLA SCENA' per collegarlo in modo logico al 'CONTESTO' e per introdurre le 'OPZIONI DISPONIBILI' come naturale conclusione della narrazione. Se il testo delle opzioni è molto breve, arricchiscilo con dettagli evocativi senza cambiarne il significato. Non aggiungere eventi o dettagli non presenti nella scena. Mantieni lo stile del testo originale."
         },
         {
-          "name": "genreText",
-          "value": "Il genere della storia è: {genre}."
+          "name": "context",
+          "description": "Il testo che precede la scena attuale, per dare contesto.",
+          "value": "{context_text}"
         },
         {
           "name": "sceneText",
-          "value": "migliora e rendi vivida ed opprimente la narrazione  dalla seguente scena: {scene_narrative_text}."
+          "description": "Il testo principale della scena da narrare.",
+          "value": "{scene_narrative_text}"
         },
         {
-          "name": "continuationText",
-          "value": "Il personaggio successivamente avra queste due scelte : Se desideri prendere il sentiero di destra nel bosco,Se desideri seguire il sentiero di sinistra. ( arricchisci e rendi piu vivide le scelte ma non aggiungere altro trasmetti un senso di paura)"
+          "name": "choicesInstruction",
+          "description": "Le opzioni che il giocatore avrà a disposizione.",
+          "value": "{choices_list}"
         }
       ],
       "actor": "ANY",
@@ -44,417 +31,32 @@
       "replace": false
     },
     {
-      "id": "f5a2c1b0-8d3e-4f7c-9a2b-1c3d4e5f6a7b",
-      "type": "textSubstitution",
-      "regex": "\\{action\\}",
-      "replacement": {
-        "italian": "il personaggio si muove furtivamente tra le ombre",
-        "english": "the character moves stealthily through the shadows"
-      },
+      "id": "gameMechanic_challenge",
+      "type": "gameMechanic",
+      "regex": "\\{challenge\\:(.*?)\\}",
+      "replacement": null,
       "parameters": [],
       "actor": "ANY",
-      "command": null,
-      "replace": true
-    },
-    {
-      "id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
-      "type": "promptDescription",
-      "regex": "\\{prompt\\[(\\d+)\\]\\}",
-      "replacement": {
-        "italian": null,
-        "english": null
-      },
-      "parameters": [
-        {
-          "name": "paramIndex",
-          "description": "Indice del parametro all'interno del tag prompt",
-          "defaultValue": "0"
-        },
-        {
-          "name": "promptValue0",
-          "description": "Il primo valore per il prompt parametrizzato",
-          "value": "un maestoso drago che vola sopra montagne innevate"
-        },
-        {
-          "name": "promptValue1",
-          "description": "Il secondo valore per il prompt parametrizzato",
-          "value": "un eroe che brandisce una spada fiammeggiante"
-        },
-        {
-          "name": "promptValue2",
-          "description": "Il terzo valore per il prompt parametrizzato",
-          "value": "un misterioso manufatto antico avvolto in un'aura magica"
-        }
-      ],
-      "actor": "ANY",
-      "command": null,
-      "replace": true
-    },
-    {
-      "id": "b2c3d4e5-f6a7-8901-2345-67890abcdef0",
-      "type": "dndEnvironmentDescription",
-      "regex": "\\{ambiente_dnd\\[([^\\]]+)\\]\\}",
-      "replacement": {
-        "italian": null,
-        "english": null
-      },
-      "parameters": [
-        {
-          "name": "environmentType",
-          "description": "Il tipo di ambiente da descrivere (es. 'foresta', 'caverna', 'città')",
-          "defaultValue": "generico"
-        },
-        {
-          "name": "dettagliAggiuntivi",
-          "description": "Dettagli specifici per l'ambiente",
-          "defaultValue": ""
-        },
-        {
-          "name": "descriptionForest",
-          "value": "Ti trovi in una fitta foresta, alberi secolari si ergono imponenti e la luce filtra a stento tra le fronde, creando giochi d'ombra misteriosi. L'aria è umida e si sente il fruscio delle foglie sotto i tuoi piedi."
-        },
-        {
-          "name": "descriptionCave",
-          "value": "L'oscurità ti avvolge mentre entri nella caverna. L'eco dei tuoi passi si disperde nel silenzio, interrotto solo dal gocciolio dell'acqua. Un leggero odore di umidità e muschio pervade l'aria."
-        }
-      ],
-      "actor": "ANY",
-      "command": null,
-      "replace": true
-    },
-    {
-      "id": "c3d4e5f6-a7b8-9012-3456-7890abcdef1",
-      "type": "chatBotSaluto",
-      "regex": "\\{greeting\\}",
-      "replacement": {
-        "italian": "Ciao! Sono qui per aiutarti. Come posso assisterti oggi?",
-        "english": "Hello! I'm here to help you. How can I assist you today?"
-      },
-      "parameters": [],
-      "actor": "ANY",
-      "command": null,
-      "replace": true
-    },
-    {
-      "id": "d4e5f6a7-b8c9-0123-4567-890abcdef2",
-      "type": "gameMechanic",
-      "regex": "\\{strength\\[(base|medium|advanced|master)\\]\\}",
-      "replacement": {
-        "italian": null,
-        "english": null
-      },
-      "parameters": [
-        {
-          "name": "challengeLevel",
-          "description": "The challenge level for Strength check",
-          "defaultValue": "base"
-        },
-        {
-          "name": "strengthBaseDesc",
-          "value": "Perform a basic physical feat, like pushing a small crate."
-        },
-        {
-          "name": "strengthMediumDesc",
-          "value": "Attempt to open a rusty, stuck door."
-        },
-        {
-          "name": "strengthAdvancedDesc",
-          "value": "Try to lift a fallen stone pillar to clear a path."
-        },
-        {
-          "name": "strengthMasterDesc",
-          "value": "Exert immense power to break free from magical restraints."
-        }
-      ],
-      "actor": "ANY",
       "command": "gameChallenge",
       "replace": true
     },
     {
-      "id": "d4e5f6a7-b8c9-0123-4567-890abcdef_dexterity",
-      "type": "gameMechanic",
-      "regex": "\\{dexterity\\[(base|medium|advanced|master)\\]\\}",
-      "replacement": {
-        "italian": null,
-        "english": null
-      },
-      "parameters": [
-        {
-          "name": "challengeLevel",
-          "description": "The challenge level for Dexterity check",
-          "defaultValue": "base"
-        },
-        {
-          "name": "dexterityBaseDesc",
-          "value": "Perform a basic agility feat, like balancing on a narrow ledge."
-        },
-        {
-          "name": "dexterityMediumDesc",
-          "value": "Attempt to pick a complex lock silently."
-        },
-        {
-          "name": "dexterityAdvancedDesc",
-          "value": "Dodge a barrage of incoming arrows with incredible speed."
-        },
-        {
-          "name": "dexterityMasterDesc",
-          "value": "Navigate a field of magical traps without triggering any."
-        }
-      ],
-      "actor": "ANY",
-      "command": "gameChallenge",
-      "replace": true
-    },
-    {
-      "id": "d4e5f6a7-b8c9-0123-4567-890abcdef_intelligence",
-      "type": "gameMechanic",
-      "regex": "\\{intelligence\\[(base|medium|advanced|master)\\]\\}",
-      "replacement": {
-        "italian": null,
-        "english": null
-      },
-      "parameters": [
-        {
-          "name": "challengeLevel",
-          "description": "The challenge level for Intelligence check",
-          "defaultValue": "base"
-        },
-        {
-          "name": "intelligenceBaseDesc",
-          "value": "Recall a basic historical fact about the region."
-        },
-        {
-          "name": "intelligenceMediumDesc",
-          "value": "Decipher a cryptic ancient riddle or puzzle."
-        },
-        {
-          "name": "intelligenceAdvancedDesc",
-          "value": "Unravel a complex magical enigma or obscure prophecy."
-        },
-        {
-          "name": "intelligenceMasterDesc",
-          "value": "Solve a multi-layered mystery with limited clues."
-        }
-      ],
-      "actor": "ANY",
-      "command": "gameChallenge",
-      "replace": true
-    },
-    {
-      "id": "d4e5f6a7-b8c9-0123-4567-890abcdef_spellcraft",
-      "type": "gameMechanic",
-      "regex": "\\{spellcraft\\[(base|medium|advanced|master)\\]\\}",
-      "replacement": {
-        "italian": null,
-        "english": null
-      },
-      "parameters": [
-        {
-          "name": "challengeLevel",
-          "description": "The challenge level for Spellcraft check",
-          "defaultValue": "base"
-        },
-        {
-          "name": "spellcraftBaseDesc",
-          "value": "Identify the basic magical aura of an item."
-        },
-        {
-          "name": "spellcraftMediumDesc",
-          "value": "Attempt to dispel a minor magical ward."
-        },
-        {
-          "name": "spellcraftAdvancedDesc",
-          "value": "Counter a powerful enemy spell in the heat of battle."
-        },
-        {
-          "name": "spellcraftMasterDesc",
-          "value": "Manipulate raw arcane energy to alter the fabric of reality."
-        }
-      ],
-      "actor": "ANY",
-      "command": "gameChallenge",
-      "replace": true
-    },
-    {
-      "id": "e5f6a7b8-c9d0-1234-5678-90abcdef3",
+      "id": "play_audio_effect",
       "type": "triggerAudio",
-      "regex": "\\{play_audio\\[([^\\]]+)\\]\\}",
-      "replacement": {
-        "italian": null,
-        "english": null
-      },
-      "parameters": [
-        {
-          "name": "audioFile",
-          "description": "The name of the audio file to play",
-          "defaultValue": "default.mp3"
-        }
-      ],
+      "regex": "\\{play_audio:(.*?)\\}",
+      "replacement": null,
+      "parameters": [],
       "actor": "ANY",
       "command": "playAudio",
       "replace": false
-    },
-    {
-      "id": "f6a7b8c9-d0e1-2345-6789-0abcdef4",
-      "type": "generateImage",
-      "regex": "\\{generate_image\\[([^\\]]+)\\]\\}",
-      "replacement": {
-        "italian": null,
-        "english": null
-      },
-      "parameters": [
-        {
-          "name": "prompt",
-          "description": "The prompt to send to the stable diffusion model",
-          "defaultValue": "a default image"
-        }
-      ],
-      "actor": "ANY",
-      "command": "generateImage",
-      "replace": false
-    },
-    {
-      "id": "a7b8c9d0-e1f2-3456-7890-abcdef5",
-      "type": "triggerGraphicEffect",
-      "regex": "\\{graphic_effect\\[([^\\]]+)\\]\\}",
-      "replacement": {
-        "italian": null,
-        "english": null
-      },
-      "parameters": [
-        {
-          "name": "effectName",
-          "description": "The name of the graphic effect to trigger",
-          "defaultValue": "default_effect"
-        }
-      ],
-      "actor": "ANY",
-      "command": "triggerGraphicEffect",
-      "replace": false
-    },
-    {
-      "id": "b8c8d1e1-f2g3-7890-8901-bcdefg6",
-      "type": "triggerAudio",
-      "regex": "\\{TOKEN_LIMIT_REACHED\\}",
-      "replacement": {
-        "italian": null,
-        "english": null
-      },
-      "parameters": [
-        {
-          "name": "audioFile",
-          "value": "bell_chime.mp3"
-        }
-      ],
-      "actor": "ANY",
-      "command": "playAudio",
-      "replace": false
-    },
-    {
-      "id": "c1d2e3f4-a5b6-7890-1234-567890c01",
-      "type": "directionalChoice",
-      "regex": "\\{left_choice\\[([^\\]]+)\\]\\}",
-      "replacement": {
-        "italian": null,
-        "english": null
-      },
-      "parameters": [
-        { "name": "direction", "value": "LEFT" },
-        { "name": "colorHex", "value": "#FF0000" },
-        { "name": "choiceText", "value": "Vai a sinistra" },
-        { "name": "nextSceneId", "value": null }
-      ],
-      "actor": "DM",
-      "command": "displayDirectionalButton",
-      "replace": false
-    },
-    {
-      "id": "c1d2e3f4-a5b6-7890-1234-567890c02",
-      "type": "directionalChoice",
-      "regex": "\\{right_choice\\[([^\\]]+)\\]\\}",
-      "replacement": {
-        "italian": null,
-        "english": null
-      },
-      "parameters": [
-        { "name": "direction", "value": "RIGHT" },
-        { "name": "colorHex", "value": "#008000" },
-        { "name": "choiceText", "value": "Vai a destra" },
-        { "name": "nextSceneId", "value": null }
-      ],
-      "actor": "DM",
-      "command": "displayDirectionalButton",
-      "replace": false
-    },
-    {
-      "id": "c1d2e3f4-a5b6-7890-1234-567890c03",
-      "type": "directionalChoice",
-      "regex": "\\{forward_choice\\[([^\\]]+)\\]\\}",
-      "replacement": {
-        "italian": null,
-        "english": null
-      },
-      "parameters": [
-        { "name": "direction", "value": "FORWARD" },
-        { "name": "colorHex", "value": "#0000FF" },
-        { "name": "choiceText", "value": "Avanti" },
-        { "name": "nextSceneId", "value": null }
-      ],
-      "actor": "DM",
-      "command": "displayDirectionalButton",
-      "replace": false
-    },
-    {
-      "id": "c1d2e3f4-a5b6-7890-1234-567890c04",
-      "type": "directionalChoice",
-      "regex": "\\{back_choice\\[([^\\]]+)\\]\\}",
-      "replacement": {
-        "italian": null,
-        "english": null
-      },
-      "parameters": [
-        { "name": "direction", "value": "BACK" },
-        { "name": "colorHex", "value": "#FFFF00" },
-        { "name": "choiceText", "value": "Indietro" },
-        { "name": "nextSceneId", "value": null }
-      ],
-      "actor": "DM",
-      "command": "displayDirectionalButton",
-      "replace": false
-    },
-    {
-      "id": "crti_ok_tag",
-      "type": "textSubstitution",
-      "regex": "\\{CRTI_OK\\}",
-      "replacement": {
-        "italian": "SUCCESSO CRITICO! 🎉",
-        "english": "CRITICAL SUCCESS! 🎉"
-      },
-      "parameters": [],
-      "actor": "ANY",
-      "command": null,
-      "replace": true
-    },
-    {
-      "id": "crti_ko_tag",
-      "type": "textSubstitution",
-      "regex": "\\{CRTI_K0\\}",
-      "replacement": {
-        "italian": "FALLIMENTO CRITICO! 💀",
-        "english": "CRITICAL FAILURE! 💀"
-      },
-      "parameters": [],
-      "actor": "ANY",
-      "command": null,
-      "replace": true
     },
     {
       "id": "end_guff_tag",
       "type": "textSubstitution",
       "regex": "\\<\\|eot_id\\|",
       "replacement": {
-        "italian": null,
-        "english": null
+        "italian": "",
+        "english": ""
       },
       "parameters": [],
       "actor": "ANY",
