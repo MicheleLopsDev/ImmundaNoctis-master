@@ -4,7 +4,10 @@
       "id": "e963b8d1-7c9f-4e0a-b1e7-c1a9d0f4e6b2",
       "type": "textSubstitution",
       "regex": "\\{object\\}",
-      "replacement": "un antico tomo rilegato in pelle",
+      "replacement": {
+        "italian": "un antico tomo rilegato in pelle",
+        "english": "an ancient leather-bound tome"
+      },
       "parameters": [],
       "actor": "ANY",
       "command": null,
@@ -14,7 +17,10 @@
       "id": "start_adventure_prompt",
       "type": "promptDescription",
       "regex": "\\{start_adventure_prompt\\}",
-      "replacement": null,
+      "replacement": {
+        "italian": null,
+        "english": null
+      },
       "parameters": [
         {
           "name": "baseText",
@@ -26,11 +32,11 @@
         },
         {
           "name": "sceneText",
-          "value": "Inizia la narrazione dalla seguente scena: {scene_narrative_text}."
+          "value": "migliora e rendi vivida ed opprimente la narrazione  dalla seguente scena: {scene_narrative_text}."
         },
         {
           "name": "continuationText",
-          "value": "Ti prego di iniziare a narrare la storia basandoti su questa scena."
+          "value": "Il personaggio successivamente avra queste due scelte : Se desideri prendere il sentiero di destra nel bosco,Se desideri seguire il sentiero di sinistra. ( arricchisci e rendi piu vivide le scelte ma non aggiungere altro trasmetti un senso di paura)"
         }
       ],
       "actor": "ANY",
@@ -41,7 +47,10 @@
       "id": "f5a2c1b0-8d3e-4f7c-9a2b-1c3d4e5f6a7b",
       "type": "textSubstitution",
       "regex": "\\{action\\}",
-      "replacement": "il personaggio si muove furtivamente tra le ombre",
+      "replacement": {
+        "italian": "il personaggio si muove furtivamente tra le ombre",
+        "english": "the character moves stealthily through the shadows"
+      },
       "parameters": [],
       "actor": "ANY",
       "command": null,
@@ -51,12 +60,15 @@
       "id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
       "type": "promptDescription",
       "regex": "\\{prompt\\[(\\d+)\\]\\}",
-      "replacement": null,
+      "replacement": {
+        "italian": null,
+        "english": null
+      },
       "parameters": [
         {
           "name": "paramIndex",
           "description": "Indice del parametro all'interno del tag prompt",
-          "defaultValue": 0
+          "defaultValue": "0"
         },
         {
           "name": "promptValue0",
@@ -82,7 +94,10 @@
       "id": "b2c3d4e5-f6a7-8901-2345-67890abcdef0",
       "type": "dndEnvironmentDescription",
       "regex": "\\{ambiente_dnd\\[([^\\]]+)\\]\\}",
-      "replacement": null,
+      "replacement": {
+        "italian": null,
+        "english": null
+      },
       "parameters": [
         {
           "name": "environmentType",
@@ -111,7 +126,10 @@
       "id": "c3d4e5f6-a7b8-9012-3456-7890abcdef1",
       "type": "chatBotSaluto",
       "regex": "\\{greeting\\}",
-      "replacement": "Ciao! Sono qui per aiutarti. Come posso assisterti oggi?",
+      "replacement": {
+        "italian": "Ciao! Sono qui per aiutarti. Come posso assisterti oggi?",
+        "english": "Hello! I'm here to help you. How can I assist you today?"
+      },
       "parameters": [],
       "actor": "ANY",
       "command": null,
@@ -121,7 +139,10 @@
       "id": "d4e5f6a7-b8c9-0123-4567-890abcdef2",
       "type": "gameMechanic",
       "regex": "\\{strength\\[(base|medium|advanced|master)\\]\\}",
-      "replacement": null,
+      "replacement": {
+        "italian": null,
+        "english": null
+      },
       "parameters": [
         {
           "name": "challengeLevel",
@@ -153,7 +174,10 @@
       "id": "d4e5f6a7-b8c9-0123-4567-890abcdef_dexterity",
       "type": "gameMechanic",
       "regex": "\\{dexterity\\[(base|medium|advanced|master)\\]\\}",
-      "replacement": null,
+      "replacement": {
+        "italian": null,
+        "english": null
+      },
       "parameters": [
         {
           "name": "challengeLevel",
@@ -185,7 +209,10 @@
       "id": "d4e5f6a7-b8c9-0123-4567-890abcdef_intelligence",
       "type": "gameMechanic",
       "regex": "\\{intelligence\\[(base|medium|advanced|master)\\]\\}",
-      "replacement": null,
+      "replacement": {
+        "italian": null,
+        "english": null
+      },
       "parameters": [
         {
           "name": "challengeLevel",
@@ -217,7 +244,10 @@
       "id": "d4e5f6a7-b8c9-0123-4567-890abcdef_spellcraft",
       "type": "gameMechanic",
       "regex": "\\{spellcraft\\[(base|medium|advanced|master)\\]\\}",
-      "replacement": null,
+      "replacement": {
+        "italian": null,
+        "english": null
+      },
       "parameters": [
         {
           "name": "challengeLevel",
@@ -249,7 +279,10 @@
       "id": "e5f6a7b8-c9d0-1234-5678-90abcdef3",
       "type": "triggerAudio",
       "regex": "\\{play_audio\\[([^\\]]+)\\]\\}",
-      "replacement": null,
+      "replacement": {
+        "italian": null,
+        "english": null
+      },
       "parameters": [
         {
           "name": "audioFile",
@@ -265,7 +298,10 @@
       "id": "f6a7b8c9-d0e1-2345-6789-0abcdef4",
       "type": "generateImage",
       "regex": "\\{generate_image\\[([^\\]]+)\\]\\}",
-      "replacement": null,
+      "replacement": {
+        "italian": null,
+        "english": null
+      },
       "parameters": [
         {
           "name": "prompt",
@@ -281,7 +317,10 @@
       "id": "a7b8c9d0-e1f2-3456-7890-abcdef5",
       "type": "triggerGraphicEffect",
       "regex": "\\{graphic_effect\\[([^\\]]+)\\]\\}",
-      "replacement": null,
+      "replacement": {
+        "italian": null,
+        "english": null
+      },
       "parameters": [
         {
           "name": "effectName",
@@ -297,7 +336,10 @@
       "id": "b8c8d1e1-f2g3-7890-8901-bcdefg6",
       "type": "triggerAudio",
       "regex": "\\{TOKEN_LIMIT_REACHED\\}",
-      "replacement": "",
+      "replacement": {
+        "italian": null,
+        "english": null
+      },
       "parameters": [
         {
           "name": "audioFile",
@@ -312,7 +354,10 @@
       "id": "c1d2e3f4-a5b6-7890-1234-567890c01",
       "type": "directionalChoice",
       "regex": "\\{left_choice\\[([^\\]]+)\\]\\}",
-      "replacement": null,
+      "replacement": {
+        "italian": null,
+        "english": null
+      },
       "parameters": [
         { "name": "direction", "value": "LEFT" },
         { "name": "colorHex", "value": "#FF0000" },
@@ -327,7 +372,10 @@
       "id": "c1d2e3f4-a5b6-7890-1234-567890c02",
       "type": "directionalChoice",
       "regex": "\\{right_choice\\[([^\\]]+)\\]\\}",
-      "replacement": null,
+      "replacement": {
+        "italian": null,
+        "english": null
+      },
       "parameters": [
         { "name": "direction", "value": "RIGHT" },
         { "name": "colorHex", "value": "#008000" },
@@ -342,7 +390,10 @@
       "id": "c1d2e3f4-a5b6-7890-1234-567890c03",
       "type": "directionalChoice",
       "regex": "\\{forward_choice\\[([^\\]]+)\\]\\}",
-      "replacement": null,
+      "replacement": {
+        "italian": null,
+        "english": null
+      },
       "parameters": [
         { "name": "direction", "value": "FORWARD" },
         { "name": "colorHex", "value": "#0000FF" },
@@ -357,7 +408,10 @@
       "id": "c1d2e3f4-a5b6-7890-1234-567890c04",
       "type": "directionalChoice",
       "regex": "\\{back_choice\\[([^\\]]+)\\]\\}",
-      "replacement": null,
+      "replacement": {
+        "italian": null,
+        "english": null
+      },
       "parameters": [
         { "name": "direction", "value": "BACK" },
         { "name": "colorHex", "value": "#FFFF00" },
@@ -372,7 +426,10 @@
       "id": "crti_ok_tag",
       "type": "textSubstitution",
       "regex": "\\{CRTI_OK\\}",
-      "replacement": "SUCCESSO CRITICO! 🎉",
+      "replacement": {
+        "italian": "SUCCESSO CRITICO! 🎉",
+        "english": "CRITICAL SUCCESS! 🎉"
+      },
       "parameters": [],
       "actor": "ANY",
       "command": null,
@@ -382,7 +439,10 @@
       "id": "crti_ko_tag",
       "type": "textSubstitution",
       "regex": "\\{CRTI_K0\\}",
-      "replacement": "FALLIMENTO CRITICO! 💀",
+      "replacement": {
+        "italian": "FALLIMENTO CRITICO! 💀",
+        "english": "CRITICAL FAILURE! 💀"
+      },
       "parameters": [],
       "actor": "ANY",
       "command": null,
@@ -392,12 +452,14 @@
       "id": "end_guff_tag",
       "type": "textSubstitution",
       "regex": "\\<\\|eot_id\\|",
-      "replacement": "",
+      "replacement": {
+        "italian": null,
+        "english": null
+      },
       "parameters": [],
       "actor": "ANY",
       "command": null,
       "replace": true
     }
-
   ]
 }

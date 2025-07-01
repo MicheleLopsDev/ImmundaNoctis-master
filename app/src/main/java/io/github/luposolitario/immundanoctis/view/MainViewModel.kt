@@ -194,7 +194,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         if (actualIsNewAdventure) {
-            _currentScene.value = gameLogicManager.selectRandomStartScene(Genre.WESTERN)
+            _currentScene.value = gameLogicManager.selectRandomStartScene(Genre.FANTASY)
             log("Scena iniziale NUOVA AVVENTURA impostata da GameLogicManager: ${_currentScene.value?.id ?: "Nessuna scena iniziale"}")
             viewModelScope.launch {
                 sendInitialDmPrompt(currentSession, _currentScene.value)
@@ -206,7 +206,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _currentScene.value = if (lastSceneId != null) {
                 gameLogicManager.getSceneById(lastSceneId)
             } else {
-                gameLogicManager.selectRandomStartScene(Genre.WESTERN)
+                gameLogicManager.selectRandomStartScene(Genre.FANTASY)
             }
             log("Scena sessione esistente impostata a: ${_currentScene.value?.id ?: "Nessuna scena valida trovata. Riprovo con casuale START."}")
         }
@@ -527,8 +527,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
             engineToUse.resetSession(systemPromptForReset)
             log("Reset della sessione completato per ${engineToUse::class.simpleName}.")
-            _currentScene.value = gameLogicManager.selectRandomStartScene(Genre.WESTERN)
-            log("Scena reimpostata a una scena START casuale di genere WESTERN.")
+            _currentScene.value = gameLogicManager.selectRandomStartScene(Genre.FANTASY)
+            log("Scena reimpostata a una scena START casuale di genere FANTASY.")
             gameLogicManager.resetUsedScenes()
             val currentSession =
                 gameStateManager.loadSession() ?: gameStateManager.createDefaultSession()
@@ -546,7 +546,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         return totalRoll
     }
 
-    private suspend fun processCommands(commands: List<io.github.luposolitario.immundanoctis.data.EngineCommand>) {
+    private suspend fun processCommands(commands: List<EngineCommand>) {
         if (commands.isEmpty()) {
             return
         }
@@ -599,7 +599,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // NUOVA FUNZIONE: Invia il prompt iniziale del DM all'avvio di una nuova avventura
-    public suspend fun sendInitialDmPrompt(
+    suspend fun sendInitialDmPrompt(
         sessionData: SessionData,
         currentScene1: Scene?
     ) {
@@ -662,7 +662,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     sceneNarrativeText.toString(),
                     ignoreCase = true
                 )
-            }  // <-- ORA FUNZIONA
+            }  
     $continuationText
     """.trimIndent()
 

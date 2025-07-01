@@ -27,7 +27,7 @@ import io.github.luposolitario.immundanoctis.R
 
 class BackgroundGenerationService : Service() {
     private val serviceScope = CoroutineScope(Dispatchers.IO + Job())
-    private val notificationManager by lazy { getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager }
+    private val notificationManager by lazy { getSystemService(NOTIFICATION_SERVICE) as NotificationManager }
 
     companion object {
         private const val TAG = "StdfGenerationService"
@@ -194,7 +194,7 @@ class BackgroundGenerationService : Service() {
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val name = "STDF Image Generation"
-            val descriptionText = "Generazione immagini in background"
+            "Generazione immagini in background"
             val importance = NotificationManager.IMPORTANCE_LOW
             val channel = NotificationChannel(CHANNEL_ID, name, importance)
             notificationManager.createNotificationChannel(channel)

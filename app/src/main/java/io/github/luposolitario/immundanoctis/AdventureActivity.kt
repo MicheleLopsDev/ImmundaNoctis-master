@@ -160,7 +160,6 @@ class AdventureActivity : ComponentActivity() {
                             savePreferences.isAutoSaveEnabled // Leggiamo il valore
                         val tokenInfo by viewModel.activeTokenInfo.collectAsState()
                         val usableDisciplines by viewModel.usableDisciplines.collectAsState()
-                        val activeNarrativeChoices by viewModel.activeNarrativeChoices.collectAsState()
                         // Effetto per la lettura automatica dei nuovi messaggi
                         LaunchedEffect(chatMessages) {
                             if (isAutoReadEnabled) {
@@ -242,7 +241,7 @@ class AdventureActivity : ComponentActivity() {
         // NUOVO: Gestione dell'inizio di una nuova avventura o ripresa di una esistente
         if (!session.isStarted) {
             currentScene.value =
-                gameLogicManager.selectRandomStartScene(Genre.WESTERN) // Genere hardcoded per ora
+                gameLogicManager.selectRandomStartScene(Genre.FANTASY) // Genere hardcoded per ora
             Log.d(
                 tag,
                 "Scena iniziale NUOVA AVVENTURA impostata da GameLogicManager: ${currentScene.value?.id ?: "Nessuna scena iniziale"}"
@@ -268,7 +267,7 @@ class AdventureActivity : ComponentActivity() {
             currentScene.value = if (lastSceneId != null) {
                 gameLogicManager.getSceneById(lastSceneId)
             } else {
-                gameLogicManager.selectRandomStartScene(Genre.WESTERN) // Fallback a START casuale
+                gameLogicManager.selectRandomStartScene(Genre.FANTASY) // Fallback a START casuale
             }
             Log.d(
                 tag,

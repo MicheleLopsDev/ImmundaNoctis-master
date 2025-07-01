@@ -51,7 +51,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
         val notification: Notification = NotificationCompat.Builder(applicationContext, channelId)
             .setContentTitle("Download modello in corso")
             .setContentText("Scaricamento in background...")
-            .setSmallIcon(android.R.drawable.stat_sys_download)
+            .setSmallIcon(R.drawable.stat_sys_download)
             .setOngoing(true)
             .build()
 

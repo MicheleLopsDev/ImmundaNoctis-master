@@ -346,7 +346,7 @@ class ModelActivity : ComponentActivity() {
                 }
                 Spacer(Modifier.height(16.dp))
                 val isGgufEnabled = selectedEngine == EngineOption.MIXED
-                Column() {
+                Column {
                     // Chiamate a startDownload aggiornate
                     ModelSlotView(
                         title = "Motore del Dungeon Master (Gemma)",
