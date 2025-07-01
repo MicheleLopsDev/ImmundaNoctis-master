@@ -49,10 +49,12 @@ import io.github.luposolitario.immundanoctis.engine.TokenStatus
 fun AdventureHeader(
     characters: List<GameCharacter>,
     selectedCharacterId: String,
-    onCharacterClick: (String) -> Unit // onCharacterClick è già qui
+    onCharacterClick: (String) -> Unit
 ) {
+    // Ripristiniamo la logica di ordinamento originale per mostrare tutti i personaggi
     val characterOrder = mapOf("dm" to 0, "hero" to 1, "companion1" to 2, "companion2" to 3)
     val sortedCharacters = characters.sortedWith(compareBy { characterOrder[it.id] ?: Int.MAX_VALUE })
+    val context = LocalContext.current
 
     Box(
         modifier = Modifier
@@ -73,12 +75,24 @@ fun AdventureHeader(
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.Bottom
         ) {
+            // Mostriamo tutti i personaggi che sono visibili
             sortedCharacters.forEach { character ->
-               if (character.isVisible) {
+                if (character.isVisible) {
+                    val isHero = character.type == CharacterType.PLAYER
+
+                    // Applichiamo un'azione di click diversa per l'eroe
+                    val clickModifier = if (isHero) {
+                        Modifier.clickable {
+                            context.startActivity(Intent(context, CharacterSheetActivity::class.java))
+                        }
+                    } else {
+                        Modifier.clickable { onCharacterClick(character.id) }
+                    }
+
                     CharacterPortrait(
                         character = character,
                         isSelected = character.id == selectedCharacterId,
-                        modifier = Modifier.clickable { onCharacterClick(character.id) }, // Il click chiama onCharacterClick
+                        modifier = clickModifier,
                         size = if (character.type == CharacterType.DM) 72.dp else 60.dp
                     )
                 }

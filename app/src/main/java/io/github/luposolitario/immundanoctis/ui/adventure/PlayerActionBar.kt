@@ -40,57 +40,55 @@ fun PlayerActionsBar(
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 4.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        // --- MODIFICA AGGIUNTA QUI ---
         colors = CardDefaults.cardColors(
             containerColor = Color(0xFF8D6E63) // Colore personalizzato tipo legno
         )
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            // Sezione 1: Identità (Ritratto, Nome, Grado)
+        Column(modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp)) {
+            // --- SEZIONE UNIFICATA E ORIZZONTALE ---
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween // Distribuisce lo spazio
             ) {
-                Image(
-                    painter = painterResource(id = hero.portraitResId),
-                    contentDescription = "Ritratto di ${hero.name}",
-                    modifier = Modifier
-                        .size(64.dp)
-                        .clip(CircleShape)
-                        .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(verticalArrangement = Arrangement.Center) {
-                    Text(hero.name, style = MaterialTheme.typography.titleLarge, color = Color.White)
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.MilitaryTech, contentDescription = "Grado Kai", tint = Color(0xFFFFD700), modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = kaiRank,
-                            style = MaterialTheme.typography.titleSmall,
-                            color = Color(0xFFFFF59D) // Giallo chiaro per contrasto
-                        )
+                // Gruppo 1: Identità del Giocatore
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Image(
+                        painter = painterResource(id = hero.portraitResId),
+                        contentDescription = "Ritratto di ${hero.name}",
+                        modifier = Modifier
+                            .size(48.dp) // Leggermente più compatto
+                            .clip(CircleShape)
+                            .border(2.dp, Color(0xFFFFF59D), CircleShape)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Text(hero.name, style = MaterialTheme.typography.titleMedium, color = Color.White)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.MilitaryTech, contentDescription = "Grado Kai", tint = Color(0xFFFFD700), modifier = Modifier.size(14.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = kaiRank,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFFFFF59D)
+                            )
+                        }
                     }
+                }
+
+                // Gruppo 2: Statistiche Vitali
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    StatItem(icon = Icons.Default.FitnessCenter, value = hero.stats?.combattivita ?: 0)
+                    Spacer(modifier = Modifier.width(16.dp))
+                    StatItem(icon = Icons.Default.Favorite, value = hero.stats?.resistenza ?: 0, iconColor = Color(0xFFE57373))
+                    Spacer(modifier = Modifier.width(16.dp))
+                    StatItem(icon = Icons.Default.BakeryDining, value = hero.pasti)
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Sezione 2: Statistiche vitali
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceAround,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                StatItem(icon = Icons.Default.FitnessCenter, value = hero.stats?.combattivita ?: 0, label = "Combattività")
-                StatItem(icon = Icons.Default.Favorite, value = hero.stats?.resistenza ?: 0, label = "Resistenza", iconColor = Color(0xFFE57373))
-                StatItem(icon = Icons.Default.BakeryDining, value = hero.pasti, label = "Pasti")
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Sezione 3: Discipline possedute (solo icone)
+            // Sezione Discipline (rimane sotto, se presente)
             if (hero.kaiDisciplines.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(10.dp))
                 LazyRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.Center
@@ -100,7 +98,7 @@ fun PlayerActionsBar(
                             imageVector = getIconForDiscipline(disciplineId),
                             contentDescription = disciplineId,
                             modifier = Modifier.padding(horizontal = 4.dp).size(24.dp),
-                            tint = Color.White.copy(alpha = 0.8f)
+                            tint = Color.White.copy(alpha = 0.7f)
                         )
                     }
                 }
@@ -110,13 +108,13 @@ fun PlayerActionsBar(
 }
 
 /**
- * Composable per mostrare una singola statistica con icona, valore e etichetta.
+ * Composable per una singola statistica (solo icona e valore).
  */
 @Composable
-private fun StatItem(icon: ImageVector, value: Int, label: String, iconColor: Color = Color.White) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Icon(imageVector = icon, contentDescription = label, tint = iconColor, modifier = Modifier.size(28.dp))
-        Text(text = value.toString(), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color.White)
-        Text(text = label, fontSize = 12.sp, color = Color.White.copy(alpha = 0.8f))
+private fun StatItem(icon: ImageVector, value: Int, iconColor: Color = Color.White) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(imageVector = icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(20.dp))
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(text = value.toString(), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, color = Color.White)
     }
 }
