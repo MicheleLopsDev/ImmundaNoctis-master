@@ -52,10 +52,14 @@ data class LocalizedText(
     val italian: String?
 )
 
+// --- CLASSE MODIFICATA ---
 data class NarrativeChoice(
     val id: String,
     val choiceText: LocalizedText,
-    val nextSceneId: String
+    val nextSceneId: String,
+    // Nuovi campi per le scelte basate su un tiro di dado
+    val minRoll: Int? = null,
+    val maxRoll: Int? = null
 )
 
 data class LoneWolfStats(

@@ -3,6 +3,7 @@ package io.github.luposolitario.immundanoctis.view
 import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
@@ -130,9 +131,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private lateinit var gameLogicManager: GameLogicManager
 
-    private val _activeChallenges = MutableStateFlow<List<GameChallenge>>(emptyList())
-    val activeChallenges: StateFlow<List<GameChallenge>> = _activeChallenges.asStateFlow()
-
     private val _activeNarrativeChoices = MutableStateFlow<List<NarrativeChoice>>(emptyList())
     val activeNarrativeChoices: StateFlow<List<NarrativeChoice>> =
         _activeNarrativeChoices.asStateFlow()
@@ -141,14 +139,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val activeDisciplineChoices: StateFlow<List<DisciplineChoice>> =
         _activeDisciplineChoices.asStateFlow()
 
-
-    private val _usableDisciplines = MutableStateFlow<Set<String>>(emptySet())
-    val usableDisciplines = _usableDisciplines.asStateFlow()
-
     private val _kaiRank = MutableStateFlow("")
     val kaiRank: StateFlow<String> = _kaiRank.asStateFlow()
 
-    // --- NUOVI STATI PER IL LANCIO DEL DADO ---
     private val _isRandomNumberRollRequired = MutableStateFlow(false)
     val isRandomNumberRollRequired: StateFlow<Boolean> = _isRandomNumberRollRequired.asStateFlow()
 
@@ -211,10 +204,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _currentScene.value = gameLogicManager.selectRandomStartScene(Genre.FANTASY)
             log("Scena iniziale NUOVA AVVENTURA impostata da GameLogicManager: ${_currentScene.value?.id ?: "Nessuna scena iniziale"}")
             viewModelScope.launch {
-                sendInitialDmPrompt(currentSession, _currentScene.value)
+                sendInitialDmPrompt(currentSession)
             }
-            _currentScene.value?.let { currentSession.usedScenes.add(it.id) }
-            gameStateManager.saveSession(currentSession)
         } else {
             val lastSceneId = currentSession.usedScenes.lastOrNull()
             _currentScene.value = if (lastSceneId != null) {
@@ -254,7 +245,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
             } catch (e: Exception) {
                 log("Errore durante il caricamento della chat: ${e.message}")
-                Log.e(tag, "Errore caricamento chat", e)
             }
         }
     }
@@ -490,7 +480,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 val file = File(savesDir, "autosave_chat.json")
                 FileWriter(file).use { writer -> writer.write(jsonString) }
-                log("Chat salvata automaticamente.")
             } catch (e: Exception) {
                 log("Errore durante il salvataggio automatico della chat: ${e.message}")
                 Log.e(tag, "Errore salvataggio automatico", e)
@@ -511,7 +500,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         log("Ora stai parlando con: $characterId")
     }
 
+    // --- FUNZIONE DI LOG MODIFICATA ---
     fun log(message: String) {
+        // Stampa nel Logcat di Android Studio per il debug
+        Log.d(tag, message)
+        // Mantiene il log interno per una futura UI di debug
         _logMessages.update { it + message }
     }
 
@@ -520,147 +513,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         dmEngine.unload()
         Log.d(tag, "Motore DM (Gemma) scaricato.")
     }
-
-
-    // Funzione helper per popolare le scelte
-    private fun populateChoicesForCurrentScene() {
-        val scene = _currentScene.value ?: return
-        val hero = _gameCharacters.value.find { it.id == CharacterID.HERO }
-        if (hero != null) {
-            val availableNarrativeChoices = scene.choices ?: emptyList()
-            _activeNarrativeChoices.value = availableNarrativeChoices
-
-            val availableDisciplineChoices = scene.disciplineChoices?.filter { disciplineChoice ->
-                gameRules.canUseDiscipline(hero, disciplineChoice.disciplineId, scene)
-            } ?: emptyList()
-            _activeDisciplineChoices.value = availableDisciplineChoices
-
-            log("DEBUG: Scelte popolate per la scena ${scene.id}. Scelte narrative: ${availableNarrativeChoices.size}, Discipline: ${availableDisciplineChoices.size}")
-        }
-    }
-
-    fun onNarrativeChoiceSelected(choice: NarrativeChoice) {
-        val choiceMessage = ChatMessage(
-            authorId = CharacterID.HERO,
-            text = "*Sceglie di: ${choice.choiceText.italian}*",
-            position = messageCounter.getAndIncrement()
-        )
-        _chatMessages.update { it + choiceMessage }
-
-        navigateToScene(choice.nextSceneId)
-    }
-
-    fun onDisciplineChoiceSelected(choice: DisciplineChoice) {
-        // --- CORREZIONE QUI ---
-        // Se choiceText è nullo, usa il nome della disciplina come fallback.
-        val choiceText =
-            choice.choiceText?.italian
-                ?: KAI_DISCIPLINES.find { it.id == choice.disciplineId }?.name
-                ?: choice.disciplineId
-
-        val choiceMessage = ChatMessage(
-            authorId = CharacterID.HERO,
-            text = "*Usa la disciplina: $choiceText*",
-            position = messageCounter.getAndIncrement()
-        )
-        _chatMessages.update { it + choiceMessage }
-
-        navigateToScene(choice.nextSceneId)
-    }
-
-    private fun navigateToScene(sceneId: String) {
-        viewModelScope.launch {
-            val nextScene = gameLogicManager.getSceneById(sceneId)
-            if (nextScene != null) {
-                log("Navigazione alla scena: ${nextScene.id}")
-
-                _activeNarrativeChoices.value = emptyList()
-                _activeDisciplineChoices.value = emptyList()
-
-                _currentScene.value = nextScene
-                gameStateManager.loadSession()?.let {
-                    it.usedScenes.add(nextScene.id)
-                    gameStateManager.saveSession(it)
-                }
-
-                processCurrentSceneNarrative()
-            } else {
-                log("ERRORE: Scena con ID '$sceneId' non trovata.")
-            }
-        }
-    }
-
-    suspend fun sendInitialDmPrompt(
-        sessionData: SessionData,
-        currentScene: Scene?
-    ) {
-        if (sessionData.isStarted) {
-            log("DEBUG: La sessione è già iniziata, non invio prompt iniziale DM.")
-            processCurrentSceneNarrative(shouldGenerateNarration = false)
-            return
-        }
-
-        val updatedSession = sessionData.copy(isStarted = true)
-        gameStateManager.saveSession(updatedSession)
-        log("DEBUG: Sessione marcata come avviata.")
-
-        processCurrentSceneNarrative()
-    }
-
-    private fun updatePlayerStatus() {
-        val hero = _gameCharacters.value.find { it.id == CharacterID.HERO }
-        hero?.let {
-            val rank = gameRules.getKaiRank(it.kaiDisciplines.size)
-            _kaiRank.value = rank
-        }
-    }
-
-// --- NUOVE FUNZIONI PER IL LANCIO DEL DADO ---
-
-    /**
-     * Chiamata quando l'utente clicca sul pulsante del fato.
-     * Genera un numero casuale e lo espone alla UI tramite lo StateFlow.
-     */
-    fun onRollRandomNumber() {
-        if (!_isRandomNumberRollRequired.value) return
-        val result = Random.nextInt(0, 10) // Genera un numero da 0 a 9
-        _randomNumberResult.value = result
-    }
-
-    /**
-     * Chiamata quando il popup del risultato del dado viene chiuso.
-     * Determina la scelta corretta in base al numero e naviga alla scena successiva.
-     */
-    fun resolveRandomNumberChoice() {
-        val scene = _currentScene.value
-        val rolledNumber = _randomNumberResult.value
-        if (scene == null || rolledNumber == null) return
-
-        // Trova la scelta che corrisponde all'intervallo del numero uscito
-        val targetChoice = scene.choices?.find { choice ->
-            val text = choice.choiceText.italian ?: ""
-            // Estrae i numeri dalla stringa della scelta (es. "0-4" o "5-9")
-            val numbers = "-?\\d+".toRegex().findAll(text).map { it.value.toInt() }.toList()
-            if (numbers.size == 2) {
-                rolledNumber in numbers[0]..numbers[1]
-            } else if (numbers.size == 1) {
-                rolledNumber == numbers[0]
-            } else {
-                false
-            }
-        }
-
-        if (targetChoice != null) {
-            navigateToScene(targetChoice.nextSceneId)
-        } else {
-            log("ERRORE: Nessuna scelta trovata per il numero $rolledNumber nella scena ${scene.id}")
-        }
-
-        // Resetta gli stati
-        _randomNumberResult.value = null
-        _isRandomNumberRollRequired.value = false
-    }
-
 
     fun resetSession() {
         viewModelScope.launch {
@@ -686,7 +538,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val currentSession =
                 gameStateManager.loadSession() ?: gameStateManager.createDefaultSession()
             if (_currentScene.value?.id != null) {
-                sendInitialDmPrompt(currentSession, _currentScene.value)
+                sendInitialDmPrompt(currentSession)
             }
         }
     }
@@ -752,16 +604,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
-        if (_isGenerating.value && shouldGenerateNarration) return
-
-        // Controlla se la scena richiede un lancio di dado
-        val requiresRoll = scene.narrativeText.italian?.contains(
-            "Tabella dei Numeri Casuali",
-            ignoreCase = true
-        ) == true
-        _isRandomNumberRollRequired.value = requiresRoll
-
         if (shouldGenerateNarration) {
+            if (_isGenerating.value) return
             _isGenerating.value = true
             _streamingText.value = ""
             _respondingCharacterId.value = CharacterID.DM
@@ -811,14 +655,143 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _isGenerating.value = false
                 _streamingText.value = ""
                 _respondingCharacterId.value = null
-                // Se non è richiesto un lancio di dado, popola subito le scelte
-                if (!requiresRoll) {
-                    populateChoicesForCurrentScene()
-                }
             }
+        }
 
+        prepareChoicesForScene(scene)
+    }
 
+    private fun prepareChoicesForScene(scene: Scene) {
+        val requiresRoll = scene.narrativeText.italian?.contains(
+            "Tabella dei Numeri Casuali",
+            ignoreCase = true
+        ) == true
+        _isRandomNumberRollRequired.value = requiresRoll
+
+        if (requiresRoll) {
+            _activeNarrativeChoices.value = emptyList()
+            _activeDisciplineChoices.value = emptyList()
+        } else {
+            populateChoicesForCurrentScene()
         }
     }
-}
 
+    private fun populateChoicesForCurrentScene() {
+        val scene = _currentScene.value ?: return
+        val hero = _gameCharacters.value.find { it.id == CharacterID.HERO }
+        if (hero != null) {
+            val availableNarrativeChoices = scene.choices ?: emptyList()
+            _activeNarrativeChoices.value = availableNarrativeChoices
+
+            val availableDisciplineChoices = scene.disciplineChoices?.filter { disciplineChoice ->
+                gameRules.canUseDiscipline(hero, disciplineChoice.disciplineId, scene)
+            } ?: emptyList()
+            _activeDisciplineChoices.value = availableDisciplineChoices
+
+            log("DEBUG: Scelte popolate per la scena ${scene.id}. Scelte narrative: ${availableNarrativeChoices.size}, Discipline: ${availableDisciplineChoices.size}")
+        }
+    }
+
+    fun onNarrativeChoiceSelected(choice: NarrativeChoice) {
+        val choiceMessage = ChatMessage(
+            authorId = CharacterID.HERO,
+            text = "*Sceglie di: ${choice.choiceText.italian}*",
+            position = messageCounter.getAndIncrement()
+        )
+        _chatMessages.update { it + choiceMessage }
+        navigateToScene(choice.nextSceneId)
+    }
+
+    fun onDisciplineChoiceSelected(choice: DisciplineChoice) {
+        val choiceText =
+            choice.choiceText?.italian
+                ?: KAI_DISCIPLINES.find { it.id == choice.disciplineId }?.name
+                ?: choice.disciplineId
+
+        val choiceMessage = ChatMessage(
+            authorId = CharacterID.HERO,
+            text = "*Usa la disciplina: $choiceText*",
+            position = messageCounter.getAndIncrement()
+        )
+        _chatMessages.update { it + choiceMessage }
+        navigateToScene(choice.nextSceneId)
+    }
+
+    private fun navigateToScene(sceneId: String) {
+        viewModelScope.launch {
+            val nextScene = gameLogicManager.getSceneById(sceneId)
+            if (nextScene != null) {
+                log("Navigazione alla scena: ${nextScene.id}")
+
+                _activeNarrativeChoices.value = emptyList()
+                _activeDisciplineChoices.value = emptyList()
+                _isRandomNumberRollRequired.value = false
+
+                _currentScene.value = nextScene
+                gameStateManager.loadSession()?.let {
+                    if (!it.usedScenes.contains(nextScene.id)) {
+                        it.usedScenes.add(nextScene.id)
+                        gameStateManager.saveSession(it)
+                    }
+                }
+                processCurrentSceneNarrative()
+            } else {
+                val errorMessage = "ERRORE CRITICO: Scena con ID '$sceneId' non trovata nel file scenes.json."
+                Log.e(tag, errorMessage)
+                log(errorMessage)
+            }
+        }
+    }
+
+    suspend fun sendInitialDmPrompt(sessionData: SessionData) {
+        if (sessionData.isStarted) {
+            log("DEBUG: La sessione è già iniziata, non invio prompt iniziale DM.")
+            processCurrentSceneNarrative(shouldGenerateNarration = false)
+            return
+        }
+
+        val updatedSession = sessionData.copy(isStarted = true)
+        gameStateManager.saveSession(updatedSession)
+        log("DEBUG: Sessione marcata come avviata.")
+        processCurrentSceneNarrative(shouldGenerateNarration = true)
+    }
+
+    private fun updatePlayerStatus() {
+        val hero = _gameCharacters.value.find { it.id == CharacterID.HERO }
+        hero?.let {
+            val rank = gameRules.getKaiRank(it.kaiDisciplines.size)
+            _kaiRank.value = rank
+        }
+    }
+
+    fun onRollRandomNumber() {
+        if (!_isRandomNumberRollRequired.value) return
+        val result = Random.nextInt(0, 10)
+        _randomNumberResult.value = result
+    }
+
+    fun resolveRandomNumberChoice() {
+        val scene = _currentScene.value
+        val rolledNumber = _randomNumberResult.value
+        if (scene == null || rolledNumber == null) return
+
+        val targetChoice = scene.choices?.find { choice ->
+            val min = choice.minRoll
+            val max = choice.maxRoll
+            if (min != null && max != null) {
+                rolledNumber in min..max
+            } else {
+                false
+            }
+        }
+
+        if (targetChoice != null) {
+            navigateToScene(targetChoice.nextSceneId)
+        } else {
+            log("ERRORE: Nessuna scelta trovata per il numero $rolledNumber nella scena ${scene.id}")
+        }
+
+        _randomNumberResult.value = null
+        _isRandomNumberRollRequired.value = false
+    }
+}

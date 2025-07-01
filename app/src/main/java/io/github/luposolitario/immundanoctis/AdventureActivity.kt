@@ -285,18 +285,8 @@ class AdventureActivity : ComponentActivity() {
             )
 
             lifecycleScope.launch {
-                viewModel.sendInitialDmPrompt(
-                    session, currentSceneFlow.value
-                )
+                viewModel.sendInitialDmPrompt(session)
             }
-            gameStateManager.saveSession(
-                SessionData(
-                    sessionName = "L'Ultimo dei Kai",
-                    lastUpdate = System.currentTimeMillis(),
-                    characters = session.characters,
-                    isStarted = true
-                )
-            )
         } else {
             val lastSceneId = session.usedScenes.lastOrNull()
             currentSceneFlow.value = if (lastSceneId != null) {
@@ -309,7 +299,7 @@ class AdventureActivity : ComponentActivity() {
                 "Scena sessione esistente impostata a: ${currentSceneFlow.value?.id ?: "Nessuna scena valida trovata. Riprovo con casuale START."}"
             )
             lifecycleScope.launch {
-                viewModel.sendInitialDmPrompt(session, currentSceneFlow.value)
+                viewModel.sendInitialDmPrompt(session)
             }
         }
     }
