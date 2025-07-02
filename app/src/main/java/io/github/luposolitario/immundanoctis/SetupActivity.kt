@@ -22,9 +22,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Backpack
 import androidx.compose.material.icons.filled.BrokenImage
-import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material3.*
@@ -54,6 +52,13 @@ import io.github.luposolitario.immundanoctis.util.GameStateManager
 import io.github.luposolitario.immundanoctis.util.ThemePreferences
 import io.github.luposolitario.immundanoctis.view.SetupUiState
 import io.github.luposolitario.immundanoctis.view.SetupViewModel
+
+// Importazioni aggiunte e modificate per GameItem e le liste globali
+import io.github.luposolitario.immundanoctis.data.GameItem
+import io.github.luposolitario.immundanoctis.data.INITIAL_WEAPONS
+import io.github.luposolitario.immundanoctis.data.INITIAL_SPECIAL_ITEMS
+import io.github.luposolitario.immundanoctis.data.ItemType // Necessario per il fallback delle icone
+
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -153,10 +158,11 @@ fun CharacterCreationScreen(
             onRandomizeClick = { viewModel.rollStats() }
         )
 
+        // Callback aggiornate per passare GameItem
         EquipmentChoiceCard(
             uiState = uiState,
-            onWeaponSelected = { viewModel.onWeaponSelected(it) },
-            onSpecialItemSelected = { viewModel.onSpecialItemSelected(it) }
+            onWeaponSelected = { item -> viewModel.onWeaponSelected(item) }, // Passa GameItem
+            onSpecialItemSelected = { item -> viewModel.onSpecialItemSelected(item) } // Passa GameItem
         )
 
         DisciplineGridCard(
@@ -203,18 +209,12 @@ fun RandomStatsCard(combatSkill: Int, endurance: Int, onRandomizeClick: () -> Un
 @Composable
 fun EquipmentChoiceCard(
     uiState: SetupUiState,
-    onWeaponSelected: (String) -> Unit,
-    onSpecialItemSelected: (String) -> Unit
+    onWeaponSelected: (GameItem) -> Unit, // Ora accetta GameItem
+    onSpecialItemSelected: (GameItem) -> Unit // Ora accetta GameItem
 ) {
-    val weapons = listOf(
-        EquipmentItem("Ascia", "Un'arma affidabile e bilanciata.", R.drawable.ic_axe),
-        EquipmentItem("Spada", "Veloce e letale, un classico per ogni avventuriero.", R.drawable.ic_sword)
-    )
-    val specialItems = listOf(
-        EquipmentItem("Mappa", "Rivela la tua posizione nel mondo di gioco.", R.drawable.ic_map),
-        EquipmentItem("Zaino", "Permette di trasportare fino a 8 oggetti.", R.drawable.ic_backpack),
-        EquipmentItem("Pozione di Vigorilla", "Ripristina 4 punti Resistenza quando usata.", R.drawable.ic_potion)
-    )
+    // Ora usiamo le liste definite in GameData.kt
+    val weapons = INITIAL_WEAPONS
+    val specialItems = INITIAL_SPECIAL_ITEMS
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
@@ -231,8 +231,9 @@ fun EquipmentChoiceCard(
                 weapons.forEach { item ->
                     EquipmentChoiceRow(
                         item = item,
-                        isSelected = (uiState.selectedWeapon == item.name),
-                        onClick = { onWeaponSelected(item.name) }
+                        // Confronto ora tra GameItem? e GameItem (per il nome)
+                        isSelected = (uiState.selectedWeapon?.name == item.name),
+                        onClick = { onWeaponSelected(item) } // Passiamo l'intero GameItem
                     )
                 }
             }
@@ -247,8 +248,9 @@ fun EquipmentChoiceCard(
                 specialItems.forEach { item ->
                     EquipmentChoiceRow(
                         item = item,
-                        isSelected = (uiState.selectedSpecialItem == item.name),
-                        onClick = { onSpecialItemSelected(item.name) }
+                        // Confronto ora tra GameItem? e GameItem (per il nome)
+                        isSelected = (uiState.selectedSpecialItem?.name == item.name),
+                        onClick = { onSpecialItemSelected(item) } // Passiamo l'intero GameItem
                     )
                 }
             }
@@ -256,11 +258,12 @@ fun EquipmentChoiceCard(
     }
 }
 
-private data class EquipmentItem(val name: String, val description: String, @DrawableRes val iconResId: Int)
+// Rimuoviamo la classe EquipmentItem interna, useremo direttamente GameItem
+// private data class EquipmentItem(val name: String, val description: String, @DrawableRes val iconResId: Int)
 
 @Composable
 private fun EquipmentChoiceRow(
-    item: EquipmentItem,
+    item: GameItem, // Ora accetta GameItem
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
@@ -279,15 +282,28 @@ private fun EquipmentChoiceRow(
             modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Qui dobbiamo gestire l'icona. GameItem ha iconResId?, quindi dobbiamo assegnare un default
+            val iconResId = item.iconResId ?: when (item.type) {
+                ItemType.WEAPON -> R.drawable.ic_sword // Icona di default per armi
+                ItemType.HELMET -> R.drawable.ic_helmet // Icona di default per elmi
+                ItemType.ARMOR -> R.drawable.ic_armor // Icona di default per armature
+                ItemType.SPECIAL_ITEM -> R.drawable.ic_potion // Icona di default per SPECIAL_ITEM
+                ItemType.BACKPACK_ITEM -> R.drawable.ic_backpack // Icona di default per BACKPACK_ITEM
+                ItemType.GOLD -> R.drawable.ic_gold // Icona di default per GOLD
+                ItemType.SHIELD -> R.drawable.lupo_solitario // Icona di default per SHIELD
+                else -> R.drawable.ic_unknown_item // Icona generica per altri tipi se non specificato
+            }
+
             Image(
-                painter = painterResource(id = item.iconResId),
+                painter = painterResource(id = iconResId),
                 contentDescription = item.name,
                 modifier = Modifier.size(40.dp)
             )
             Spacer(Modifier.width(16.dp))
             Column {
                 Text(item.name, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyLarge)
-                Text(item.description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                // Usiamo la descrizione di GameItem, se presente, altrimenti una stringa vuota
+                Text(item.description ?: "", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }

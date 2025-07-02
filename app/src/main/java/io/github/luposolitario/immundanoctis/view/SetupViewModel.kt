@@ -1,3 +1,4 @@
+// File: SetupViewModel.kt
 package io.github.luposolitario.immundanoctis.view
 
 import android.app.Application
@@ -10,7 +11,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.luposolitario.immundanoctis.R
-import io.github.luposolitario.immundanoctis.data.*
+import io.github.luposolitario.immundanoctis.data.* // Assicurati che questo import sia presente
 import io.github.luposolitario.immundanoctis.util.SavePreferences
 import io.github.luposolitario.immundanoctis.util.getAppSpecificDirectory
 import kotlinx.coroutines.Dispatchers
@@ -22,16 +23,14 @@ import java.io.File
 import java.io.FileOutputStream
 import kotlin.random.Random
 
-// Stato della UI per la schermata di creazione
 data class SetupUiState(
     val heroName: String = "Lupo Solitario",
     val combattivita: Int = 0,
     val resistenza: Int = 0,
     val stdfPrompt: String = "",
     val currentScenesJsonPath: String? = null,
-    // --- NUOVI STATI PER L'EQUIPAGGIAMENTO ---
-    val selectedWeapon: String? = null,      // Es. "Ascia" o "Spada"
-    val selectedSpecialItem: String? = null // Es. "Mappa" o "Zaino"
+    val selectedWeapon: GameItem? = null,
+    val selectedSpecialItem: GameItem? = null
 )
 
 class SetupViewModel() : ViewModel() {
@@ -102,52 +101,50 @@ class SetupViewModel() : ViewModel() {
         }
     }
 
-    // --- NUOVE FUNZIONI PER GESTIRE LE SCELTE DELL'EQUIPAGGIAMENTO ---
-    fun onWeaponSelected(weaponName: String) {
-        _uiState.update { it.copy(selectedWeapon = weaponName) }
+    fun onWeaponSelected(weapon: GameItem) {
+        _uiState.update { it.copy(selectedWeapon = weapon) }
     }
 
-    fun onSpecialItemSelected(itemName: String) {
-        _uiState.update { it.copy(selectedSpecialItem = itemName) }
+    fun onSpecialItemSelected(item: GameItem) {
+        _uiState.update { it.copy(selectedSpecialItem = item) }
     }
-    // --- FINE NUOVE FUNZIONI ---
 
     fun finalizeSessionCreation(defaultSession: SessionData): SessionData {
         val currentState = _uiState.value
         val hero = defaultSession.characters.find { it.id == CharacterID.HERO }!!
 
-        // --- NUOVA LOGICA PER CREARE L'INVENTARIO ---
         val initialInventory = mutableListOf<GameItem>()
+        var finalResistenza = currentState.resistenza
 
         // 1. Aggiungi l'arma scelta
         currentState.selectedWeapon?.let {
-            initialInventory.add(GameItem(name = it, type = ItemType.WEAPON))
+            initialInventory.add(it)
         }
 
-        // 2. Aggiungi l'oggetto speciale scelto
-        currentState.selectedSpecialItem?.let {
-            val itemType = when(it) {
-                "Mappa" -> ItemType.SPECIAL_ITEM
-                "Zaino" -> ItemType.SPECIAL_ITEM
-                "Pozione di Guarigione" -> ItemType.BACKPACK_ITEM
-                else -> ItemType.BACKPACK_ITEM
+        // 2. Aggiungi l'oggetto speciale scelto e applica i bonus
+        currentState.selectedSpecialItem?.let { item ->
+            initialInventory.add(item)
+            item.bonuses?.get("RESISTENZA")?.let { bonus ->
+                finalResistenza += bonus
+                Log.d("SetupViewModel", "Bonus Resistenza applicato da ${item.name}: +$bonus. Nuova Resistenza: $finalResistenza")
             }
-            initialInventory.add(GameItem(name = it, type = itemType))
         }
 
-        // 3. Aggiungi le Corone d'Oro
-        val goldCoins = Random.nextInt(10, 20)
-        initialInventory.add(GameItem(name = "Corone d'Oro", type = ItemType.GOLD, quantity = goldCoins))
-
-        // 4. Aggiungi i Pasti
-        initialInventory.add(GameItem(name = "Pasto", type = ItemType.BACKPACK_ITEM, quantity = 2))
-        // --- FINE LOGICA INVENTARIO ---
+        // 3. Aggiungi tutti gli oggetti comuni iniziali
+        INITIAL_COMMON_ITEMS.forEach { commonItem ->
+            val itemToAdd = commonItem.copy() // Crea una copia per evitare modifiche alla lista originale
+            if (itemToAdd.type == ItemType.GOLD) {
+                // Randomizza la quantità di oro
+                itemToAdd.quantity = Random.nextInt(10, 20)
+            }
+            initialInventory.add(itemToAdd)
+        }
 
         val updatedHero = hero.copy(
             name = currentState.heroName,
             stats = LoneWolfStats(
                 combattivita = currentState.combattivita,
-                resistenza = currentState.resistenza
+                resistenza = finalResistenza
             ),
             kaiDisciplines = selectedDisciplines.toList(),
             details = HeroDetails(

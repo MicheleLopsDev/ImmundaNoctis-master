@@ -1,5 +1,7 @@
+// File: GameData.kt
 package io.github.luposolitario.immundanoctis.data
 
+import io.github.luposolitario.immundanoctis.R
 import androidx.annotation.DrawableRes
 import com.fasterxml.jackson.annotation.JsonProperty
 import java.util.UUID
@@ -25,7 +27,6 @@ enum class ItemType {
     GOLD
 }
 
-// --- CLASSE MODIFICATA ---
 data class GameItem(
     val id: String = UUID.randomUUID().toString(),
     val name: String,
@@ -33,10 +34,8 @@ data class GameItem(
     var quantity: Int = 1,
     @DrawableRes val iconResId: Int? = null,
     val description: String? = null,
-    // --- 👇 PARAMETRO MANCANTE AGGIUNTO QUI 👇 ---
     val bonuses: Map<String, Int>? = null
 )
-
 
 enum class ChallengeLevel {
     BASE,
@@ -149,6 +148,31 @@ val KAI_DISCIPLINES = listOf(
     KaiDisciplineInfo("ANIMAL_KINSHIP", "Affinità Animale", "Permette di comunicare con gli animali."),
     KaiDisciplineInfo("MIND_OVER_MATTER", "Telecinesi", "Permette di muovere piccoli oggetti con la mente.")
 )
+
+val INITIAL_WEAPONS = listOf(
+    GameItem(name = "Ascia", type = ItemType.WEAPON, description = "Un'arma affidabile e bilanciata.", iconResId = R.drawable.ic_axe),
+    GameItem(name = "Spada", type = ItemType.WEAPON, description = "Veloce e letale, un classico per ogni avventuriero.", iconResId = R.drawable.ic_sword),
+    GameItem(name = "Mazza", type = ItemType.WEAPON, description = "Un'arma contundente e potente."),
+    GameItem(name = "Bastone", type = ItemType.WEAPON, description = "Utile per la difesa e come supporto."),
+    GameItem(name = "Lancia", type = ItemType.WEAPON, description = "Un'arma a lunga gittata."),
+    GameItem(name = "Spada Larga", type = ItemType.WEAPON, description = "Un'arma imponente per un guerriero possente.")
+)
+
+val INITIAL_SPECIAL_ITEMS = listOf(
+    GameItem(name = "Mappa", type = ItemType.SPECIAL_ITEM, description = "Rivela la tua posizione nel mondo di gioco.", iconResId = R.drawable.ic_map),
+    // Rimossa la Pozione di Vigorilla da qui, ora è un oggetto comune
+    GameItem(name = "Elmo", type = ItemType.HELMET, description = "Aggiunge 2 punti RESISTENZA al tuo totale.", bonuses = mapOf("RESISTENZA" to 2)),
+    GameItem(name = "Gilet di maglia di ferro", type = ItemType.ARMOR, description = "Aggiunge 4 punti RESISTENZA al tuo totale.", bonuses = mapOf("RESISTENZA" to 4))
+)
+
+// --- NUOVA LISTA PER GLI OGGETTI COMUNI INIZIALI ---
+val INITIAL_COMMON_ITEMS = listOf(
+    GameItem(name = "Zaino", type = ItemType.BACKPACK_ITEM, quantity = 1, description = "Permette di trasportare fino a 8 oggetti.", iconResId = R.drawable.ic_backpack),
+    GameItem(name = "Pozione Curativa", type = ItemType.BACKPACK_ITEM, quantity = 1, description = "Ripristina 4 punti Resistenza quando usata.", iconResId = R.drawable.ic_potion),
+    GameItem(name = "Pasto", type = ItemType.BACKPACK_ITEM, quantity = 2, description = "Un pasto nutriente per recuperare energie."),
+    GameItem(name = "Corone d'Oro", type = ItemType.GOLD, quantity = 0, description = "Monete d'oro per acquisti e scambi.") // La quantità sarà randomizzata nel ViewModel
+)
+// --- FINE NUOVA LISTA ---
 
 data class TagConfig(
     val id: String,
