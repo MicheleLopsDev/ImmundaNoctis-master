@@ -120,14 +120,6 @@ fun CharacterCreationScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // ... Contenuto di CharacterCreationScreen che abbiamo già definito ...
-        Text("Crea il tuo Lupo Solitario", style = MaterialTheme.typography.headlineLarge)
-        OutlinedTextField(
-            value = uiState.heroName,
-            onValueChange = { viewModel.updateHeroName(it) },
-            label = { Text("Nome del tuo Eroe") },
-            modifier = Modifier.fillMaxWidth()
-        )
 
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
