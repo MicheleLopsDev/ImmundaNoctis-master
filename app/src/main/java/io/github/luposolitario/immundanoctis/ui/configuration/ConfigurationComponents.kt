@@ -1,5 +1,21 @@
 package io.github.luposolitario.immundanoctis.ui.configuration
 
+
+
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material3.Button
+import androidx.compose.material3.Text
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.ui.unit.dp
+import android.widget.Toast
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import android.util.Log
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -66,6 +82,37 @@ fun EngineRadioButton(
     }
 }
 
+// Aggiungi questo componente al di fuori della classe ModelActivity o come funzione top-level
+@Composable
+fun SceneJsonPicker(defaultpath: String = "./scene.json",onFileSelected: (String) -> Unit) {
+    val context = LocalContext.current
+    val pickFileLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let {
+            try {
+                context.contentResolver.openInputStream(it)?.use { inputStream ->
+                    BufferedReader(InputStreamReader(inputStream)).use { reader ->
+                        val content = reader.readText()
+                        onFileSelected(content)
+                        Toast.makeText(context, "File JSON delle scene caricato!", Toast.LENGTH_SHORT).show()
+                        Log.d("SceneJsonPicker", "Contenuto del file JSON: $content")
+                    }
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "Errore nel caricare il file JSON: ${e.message}", Toast.LENGTH_LONG).show()
+                Log.e("SceneJsonPicker", "Errore nel caricare il file JSON", e)
+            }
+        }
+    }
+
+    OutlinedButton(
+        onClick = { pickFileLauncher.launch("application/json") },
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text("Carica File JSON Scene")
+    }
+}
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VoiceDropdown(

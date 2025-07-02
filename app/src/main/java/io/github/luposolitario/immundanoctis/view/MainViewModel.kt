@@ -75,6 +75,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     var isPickingForDm: Boolean = false
 
+
+
     private val _sessionName = MutableStateFlow("Immunda Noctis")
     val sessionName: StateFlow<String> = _sessionName.asStateFlow()
 
@@ -517,6 +519,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun resetSession() {
         viewModelScope.launch {
             log("Avvio reset sessione per il motore attivo...")
+
             val targetId = _conversationTargetId.value
             val engineToUse = if (!useGemmaForAll && targetId.startsWith("Companion", true)) {
                 playerEngine

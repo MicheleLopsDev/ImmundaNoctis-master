@@ -8,6 +8,9 @@ import io.github.luposolitario.immundanoctis.data.Genre
 import io.github.luposolitario.immundanoctis.data.Scene
 import io.github.luposolitario.immundanoctis.data.SceneType
 import io.github.luposolitario.immundanoctis.data.ScenesWrapper
+import io.github.luposolitario.immundanoctis.util.SavePreferences
+import io.github.luposolitario.immundanoctis.util.getAppSpecificDirectory
+import java.io.FileInputStream
 import java.io.InputStream
 import java.util.Collections
 import kotlin.random.Random
@@ -19,6 +22,7 @@ import kotlin.random.Random
  */
 class GameLogicManager(private val context: Context) {
 
+    private val savePreferences by lazy { SavePreferences(context) }
     private val tag = "GameLogicManager"
     private var allScenes: List<Scene> = emptyList()
     private val usedScenesInSession: MutableSet<String> = Collections.synchronizedSet(mutableSetOf())
@@ -30,7 +34,7 @@ class GameLogicManager(private val context: Context) {
     private fun loadAllScenes() {
         var scenesStream: InputStream? = null
         try {
-            scenesStream = context.assets.open("scenes.json")
+            scenesStream = FileInputStream(savePreferences.scenesPath!!)
             val gson = GsonBuilder().create()
             val type = object : TypeToken<ScenesWrapper>() {}.type
             val wrapper: ScenesWrapper = gson.fromJson(scenesStream.reader(), type)

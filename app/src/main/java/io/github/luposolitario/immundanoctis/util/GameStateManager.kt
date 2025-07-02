@@ -18,6 +18,9 @@ class GameStateManager(private val context: Context) {
     private val gson: Gson = GsonBuilder().setPrettyPrinting().create()
     private val saveFile: File = File(context.filesDir, "session.json")
 
+    private val savesDir = getAppSpecificDirectory(context, "saves")
+    private val chatFile:File = File(savesDir, "autosave_chat.json")
+
     fun saveSession(sessionData: SessionData) {
         try {
             FileWriter(saveFile).use { writer ->
@@ -43,8 +46,9 @@ class GameStateManager(private val context: Context) {
     }
 
     fun deleteSession(): Boolean {
-        return if (saveFile.exists()) {
+        return if (saveFile.exists() && chatFile.exists()) {
             saveFile.delete()
+            chatFile.delete()
         } else {
             true // Il file non esiste, quindi è già "cancellato"
         }

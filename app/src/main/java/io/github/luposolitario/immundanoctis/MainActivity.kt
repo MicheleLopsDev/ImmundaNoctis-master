@@ -3,6 +3,7 @@ package io.github.luposolitario.immundanoctis
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.clickable
@@ -23,13 +24,43 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import io.github.luposolitario.immundanoctis.ui.theme.ImmundaNoctisTheme
+import io.github.luposolitario.immundanoctis.util.SavePreferences
 import io.github.luposolitario.immundanoctis.util.ThemePreferences
+import io.github.luposolitario.immundanoctis.util.copyAssetToFile
+import io.github.luposolitario.immundanoctis.util.getAppSpecificDirectory
 
 class MainActivity : ComponentActivity() {
     private val themePreferences by lazy { ThemePreferences(applicationContext) }
+    private val savePreferences by lazy { SavePreferences(applicationContext) } // Inizializza SavePreferences qui
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+
+        // ******* LOGICA DI COPIA DEL FILE CONFIG.JSON ALL'AVVIO DELL'APP *******
+        if (!savePreferences.isConfigCopied) {
+            val scenesDir = getAppSpecificDirectory(applicationContext, "scenes")
+            if (scenesDir != null) {
+                val success = copyAssetToFile(
+                    context = applicationContext,
+                    assetFileName = "scenes.json", // Il nome del file negli assets
+                    destinationDirectory = scenesDir,
+                    destinationFileName = "scenes.json" // Il nome del file di destinazione
+                )
+                if (success) {
+                    savePreferences.isConfigCopied = true // Imposta il flag a true
+                    Log.i("ModelActivity", "scenes.json copiato con successo.")
+                    // Puoi anche aggiornare scenesPath se scenes.json è il file di default per le scene
+                    // savePreferences.scenesPath = File(scenesDir, "scenes.json").absolutePath
+                } else {
+                    Log.e("ModelActivity", "Fallimento nella copia di scenes.json.")
+                }
+            } else {
+                Log.e("ModelActivity", "Impossibile ottenere la directory delle scene per la copia di scenes.json.")
+            }
+        }
+        // ******* FINE LOGICA DI COPIA *******
+
         setContent {
             // --- 👇 LOGICA DEL TEMA RIPRISTINATA 👇 ---
             val isSystemDark = isSystemInDarkTheme()

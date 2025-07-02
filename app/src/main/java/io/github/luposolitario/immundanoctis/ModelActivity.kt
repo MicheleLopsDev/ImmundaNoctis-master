@@ -33,7 +33,7 @@ import io.github.luposolitario.immundanoctis.ui.theme.ImmundaNoctisTheme
 import io.github.luposolitario.immundanoctis.util.*
 import io.github.luposolitario.immundanoctis.view.MainViewModel
 import java.io.File
-import io.github.luposolitario.immundanoctis.util.getAppSpecificDirectory
+// import io.github.luposolitario.immundanoctis.util.getAppSpecificDirectory // Già importato o da importare
 import io.github.luposolitario.immundanoctis.util.GemmaPreferences
 import io.github.luposolitario.immundanoctis.util.LlamaPreferences
 import androidx.compose.material3.Slider
@@ -49,6 +49,8 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.workDataOf
 import io.github.luposolitario.immundanoctis.worker.DownloadWorker
 
+import io.github.luposolitario.immundanoctis.view.SetupViewModel
+
 class ModelActivity : ComponentActivity() {
 
     private val viewModel: MainViewModel by viewModels()
@@ -59,10 +61,44 @@ class ModelActivity : ComponentActivity() {
     private val gemmaPreferences by lazy { GemmaPreferences(applicationContext) }
     private val llamaPreferences by lazy { LlamaPreferences(applicationContext) }
 
+    private lateinit var setupViewModel: SetupViewModel
+    private val savePreferences by lazy { SavePreferences(applicationContext) } // Inizializza SavePreferences qui
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enginePreferences = EnginePreferences(applicationContext)
+
+        setupViewModel = SetupViewModel()
+        setupViewModel.initialize(applicationContext)
+
+        // ******* LOGICA DI COPIA DEL FILE CONFIG.JSON ALL'AVVIO DELL'APP *******
+        // Ho assunto che tu voglia copiare 'scenes.json' come file predefinito per le scene,
+        // basandomi sul tuo MainActivity.kt fornito. Se vuoi 'config.json', modifica il nome file qui.
+        if (!savePreferences.isConfigCopied) {
+            val scenesDir = getAppSpecificDirectory(applicationContext, "scenes")
+            if (scenesDir != null) {
+                val success = copyAssetToFile(
+                    context = applicationContext,
+                    assetFileName = "scenes.json", // Il nome del file negli assets
+                    destinationDirectory = scenesDir,
+                    destinationFileName = "scenes.json" // Il nome del file di destinazione
+                )
+                if (success) {
+                    savePreferences.isConfigCopied = true // Imposta il flag a true
+                    Log.i("ModelActivity", "scenes.json copiato con successo.")
+                    // Se scenes.json deve essere il default iniziale per l'app
+                    savePreferences.scenesPath = File(scenesDir, "scenes.json").absolutePath
+                } else {
+                    Log.e("ModelActivity", "Fallimento nella copia di scenes.json.")
+                }
+            } else {
+                Log.e("ModelActivity", "Impossibile ottenere la directory delle scene per la copia di scenes.json.")
+            }
+        }
+        // ******* FINE LOGICA DI COPIA *******
+
+
         val dmDirectory = getAppSpecificDirectory(applicationContext, "dm")
         val plDirectory = getAppSpecificDirectory(applicationContext, "pl")
 
@@ -111,6 +147,7 @@ class ModelActivity : ComponentActivity() {
                         enginePreferences = enginePreferences,
                         gemmaPrefs = gemmaPreferences,
                         llamaPrefs = llamaPreferences,
+                        setupViewModel = setupViewModel
                     )
                 }
             }
@@ -133,6 +170,7 @@ class ModelActivity : ComponentActivity() {
         enginePreferences: EnginePreferences,
         gemmaPrefs: GemmaPreferences, // <-- Parametro gemmaPrefs
         llamaPrefs: LlamaPreferences, // <-- Parametro llamaPrefs
+        setupViewModel: SetupViewModel,
     ) {
         // Inizializzazione degli stati usando i parametri passati
         var dmModelState by remember { mutableStateOf(initialDmModel) }
@@ -144,7 +182,7 @@ class ModelActivity : ComponentActivity() {
             mutableStateOf(if (enginePreferences.useGemmaForAll) EngineOption.GEMMA_ONLY else EngineOption.MIXED)
         }
 
-
+        val currentScenesJsonPath by setupViewModel.uiState.collectAsState()
         var nLen by remember { mutableStateOf(gemmaPrefs.nLen.toString()) }
         var temperature by remember { mutableStateOf(gemmaPrefs.temperature) }
         var topP by remember { mutableStateOf(gemmaPrefs.topP) }
@@ -299,20 +337,48 @@ class ModelActivity : ComponentActivity() {
                 }
             )
 
-            // INCOLLA QUESTO BLOCCO DOVE VUOI AGGIUNGERE IL PULSANTE
-            // Assicurati che 'viewModel' sia accessibile nello scope in cui lo incolli.
-
-            Spacer(Modifier.height(16.dp))
-            OutlinedButton(
-                onClick = { viewModel.resetSession() },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Resetta Sessione Chatbot")
-            }
-
-            Spacer(Modifier.height(16.dp))
-
             if (!hfToken.isEmpty()) {
+
+                Spacer(Modifier.height(16.dp))
+                OutlinedButton(
+                    onClick = { viewModel.resetSession() },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Resetta Sessione Chatbot")
+                }
+
+                Spacer(Modifier.height(16.dp))
+                Divider()
+                Spacer(Modifier.height(16.dp))
+
+                // BLOCCO PER IL FILE PICKER DELLE SCENE
+                Text("Gestione Scene", style = MaterialTheme.typography.titleLarge)
+                Text(
+                    "Carica un file JSON contenente le definizioni delle scene per la tua applicazione.",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                SceneJsonPicker(
+                    onFileSelected = { selectedUri ->
+                        setupViewModel.copyAndSaveScenesJson(selectedUri)
+                        Toast.makeText(context, "File JSON delle scene in elaborazione...", Toast.LENGTH_SHORT).show()
+                    }
+                )
+
+                // Mostra il percorso del file salvato
+                if (currentScenesJsonPath.currentScenesJsonPath != null) {
+                    Text(
+                        "Percorso file scene salvato: ${currentScenesJsonPath.currentScenesJsonPath}",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                } else {
+                    Text(
+                        "Nessun file scene JSON selezionato.",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
 
                 Spacer(Modifier.height(16.dp))
                 Divider()
@@ -582,8 +648,6 @@ class ModelActivity : ComponentActivity() {
 
                     Spacer(Modifier.height(16.dp))
 
-                    // Incolla questo blocco nel tuo file ModelActivity.kt, in MainEngineScreen, sotto TokenInputSection
-
                     Spacer(Modifier.height(16.dp))
                     Divider()
                     Spacer(Modifier.height(16.dp))
@@ -725,11 +789,28 @@ class ModelActivity : ComponentActivity() {
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         enabled = isGgufEnabled
                     )
-
-
                 }
-
             }
         }
+    }
+}
+
+// SceneJsonPicker rimane invariato e può essere in un file separato o qui.
+@Composable
+fun SceneJsonPicker(onFileSelected: (Uri) -> Unit) { // Modificato per ricevere Uri
+    val context = LocalContext.current
+    val pickFileLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let {
+            onFileSelected(it) // Passa l'URI al chiamante
+        }
+    }
+
+    OutlinedButton(
+        onClick = { pickFileLauncher.launch("application/json") },
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text("Carica File JSON Scene")
     }
 }

@@ -76,6 +76,7 @@ dependencies {
 
     implementation(libs.material.icons.extended)
 
+    implementation(libs.activity.compose)
 
     implementation(project(":llama"))
     implementation(project(":stdf"))
