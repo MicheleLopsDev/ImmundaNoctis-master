@@ -152,17 +152,17 @@ val KAI_DISCIPLINES = listOf(
 val INITIAL_WEAPONS = listOf(
     GameItem(name = "Ascia", type = ItemType.WEAPON, description = "Un'arma affidabile e bilanciata.", iconResId = R.drawable.ic_axe),
     GameItem(name = "Spada", type = ItemType.WEAPON, description = "Veloce e letale, un classico per ogni avventuriero.", iconResId = R.drawable.ic_sword),
-    GameItem(name = "Mazza", type = ItemType.WEAPON, description = "Un'arma contundente e potente."),
-    GameItem(name = "Bastone", type = ItemType.WEAPON, description = "Utile per la difesa e come supporto."),
-    GameItem(name = "Lancia", type = ItemType.WEAPON, description = "Un'arma a lunga gittata."),
-    GameItem(name = "Spada Larga", type = ItemType.WEAPON, description = "Un'arma imponente per un guerriero possente.")
+    GameItem(name = "Mazza", type = ItemType.WEAPON, description = "Un'arma contundente e potente.", iconResId = R.drawable.ic_mace),
+    GameItem(name = "Bastone", type = ItemType.WEAPON, description = "Utile per la difesa e come supporto.", iconResId = R.drawable.ic_staff),
+    GameItem(name = "Lancia", type = ItemType.WEAPON, description = "Un'arma a lunga gittata.", iconResId = R.drawable.ic_spear),
+    GameItem(name = "Spada Larga", type = ItemType.WEAPON, description = "Un'arma imponente per un guerriero possente.", iconResId = R.drawable.ic_broadsword)
 )
 
 val INITIAL_SPECIAL_ITEMS = listOf(
     GameItem(name = "Mappa", type = ItemType.SPECIAL_ITEM, description = "Rivela la tua posizione nel mondo di gioco.", iconResId = R.drawable.ic_map),
     // Rimossa la Pozione di Vigorilla da qui, ora è un oggetto comune
-    GameItem(name = "Elmo", type = ItemType.HELMET, description = "Aggiunge 2 punti RESISTENZA al tuo totale.", bonuses = mapOf("RESISTENZA" to 2)),
-    GameItem(name = "Gilet di maglia di ferro", type = ItemType.ARMOR, description = "Aggiunge 4 punti RESISTENZA al tuo totale.", bonuses = mapOf("RESISTENZA" to 4))
+    GameItem(name = "Elmo", type = ItemType.HELMET, description = "Aggiunge 2 punti RESISTENZA al tuo totale.", bonuses = mapOf("RESISTENZA" to 2), iconResId = R.drawable.ic_helmet),
+    GameItem(name = "Gilet di maglia di ferro", type = ItemType.ARMOR, description = "Aggiunge 4 punti RESISTENZA al tuo totale.", bonuses = mapOf("RESISTENZA" to 4), iconResId = R.drawable.ic_armor)
 )
 
 // --- NUOVA LISTA PER GLI OGGETTI COMUNI INIZIALI ---
