@@ -15,25 +15,26 @@ enum class CharacterType {
     NPC
 }
 
-// --- NUOVA CLASSE ENUM PER I TIPI DI OGGETTO ---
 enum class ItemType {
-    WEAPON,         // Armi (Spada, Ascia, etc.)
-    HELMET,         // Elmi o copricapi
-    ARMOR,          // Armature
-    SHIELD,         // Scudi
-    BACKPACK_ITEM,  // Oggetti che vanno nello zaino (Pozioni, Cibo, etc.)
-    SPECIAL_ITEM,   // Oggetti di missione che non occupano spazio (Mappa, Gemme)
-    GOLD            // Le Corone d'Oro
+    WEAPON,
+    HELMET,
+    ARMOR,
+    SHIELD,
+    BACKPACK_ITEM,
+    SPECIAL_ITEM,
+    GOLD
 }
 
-// --- NUOVA DATA CLASS PER GLI OGGETTI ---
+// --- CLASSE MODIFICATA ---
 data class GameItem(
     val id: String = UUID.randomUUID().toString(),
     val name: String,
     val type: ItemType,
-    var quantity: Int = 1, // 'var' per poterla modificare facilmente (es. consumando pasti)
-    @DrawableRes val iconResId: Int? = null, // Icona opzionale per l'inventario
-    val description: String? = null // Descrizione opzionale
+    var quantity: Int = 1,
+    @DrawableRes val iconResId: Int? = null,
+    val description: String? = null,
+    // --- 👇 PARAMETRO MANCANTE AGGIUNTO QUI 👇 ---
+    val bonuses: Map<String, Int>? = null
 )
 
 
@@ -78,7 +79,6 @@ data class NarrativeChoice(
     val id: String,
     val choiceText: LocalizedText,
     val nextSceneId: String,
-    // Nuovi campi per le scelte basate su un tiro di dado
     val minRoll: Int? = null,
     val maxRoll: Int? = null
 )
@@ -91,7 +91,6 @@ data class LoneWolfStats(
 data class HeroDetails(
     val id: String = UUID.randomUUID().toString(),
     val specialAbilities: List<String>,
-    // Usiamo una lista di GameItem per l'inventario
     val inventory: MutableList<GameItem> = mutableListOf()
 )
 
@@ -107,7 +106,6 @@ data class GameCharacter(
     val stats: LoneWolfStats?,
     val kaiDisciplines: List<String> = emptyList(),
     val notes: String = "",
-    // 'pasti' rimosso, ora è un GameItem nell'inventario
     val details: HeroDetails? = null
 )
 
@@ -182,6 +180,9 @@ data class LocationInfo(
     val coordinates: String? = null,
     val isMajorLocation: Boolean = false
 )
+
+data class EquipmentItem(val name: String, val description: String, @DrawableRes val iconResId: Int, val type: ItemType)
+
 
 data class ScenesWrapper(
     val scenes: List<Scene>
