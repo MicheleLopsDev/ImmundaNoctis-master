@@ -1,11 +1,13 @@
 // File: app/src/main/java/io/github/luposolitario/immundanoctis/CharacterSheetActivity.kt
+
 package io.github.luposolitario.immundanoctis
 
 import android.app.Activity
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.annotation.DrawableRes
+import androidx.compose.foundation.clickable // <--- AGGIUNGI QUESTA RIGA!
+import androidx.compose.material.icons.filled.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -19,19 +21,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.foundation.BorderStroke
-import io.github.luposolitario.immundanoctis.ui.adventure.getIconForDiscipline
-import androidx.compose.material.icons.filled.Healing
-import androidx.compose.material.icons.filled.Hearing
-import androidx.compose.material.icons.filled.HelpOutline
-import androidx.compose.material.icons.filled.Info // Rimosso se non più usato
-import androidx.compose.material.icons.filled.LocationSearching
-import androidx.compose.material.icons.filled.Pets
-import androidx.compose.material.icons.filled.Psychology
-import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material.icons.outlined.Help
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.HelpOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
@@ -40,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
@@ -55,12 +47,12 @@ import io.github.luposolitario.immundanoctis.ui.theme.ImmundaNoctisTheme
 import io.github.luposolitario.immundanoctis.data.GameItem
 import io.github.luposolitario.immundanoctis.data.ItemType
 import io.github.luposolitario.immundanoctis.data.LoneWolfStats
-// Import per le discipline Kai (KAI_DISCIPLINES non è più KaiDiscipline, ma KaiDisciplineInfo)
 import io.github.luposolitario.immundanoctis.data.KaiDisciplineInfo
+import io.github.luposolitario.immundanoctis.data.FISTS_WEAPON // Importa FISTS_WEAPON
 import io.github.luposolitario.immundanoctis.view.CharacterSheetViewModel
 import io.github.luposolitario.immundanoctis.view.CharacterSheetUiState
-// Import delle icone delle discipline (saranno necessarie se non le hai già)
-import io.github.luposolitario.immundanoctis.R // Per R.drawable
+import io.github.luposolitario.immundanoctis.R
+import io.github.luposolitario.immundanoctis.ui.adventure.getIconForDiscipline
 
 class CharacterSheetActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -77,16 +69,19 @@ class CharacterSheetActivity : ComponentActivity() {
                 }
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     val viewModel: CharacterSheetViewModel = viewModel()
-                    val uiState = viewModel.uiState.collectAsStateWithLifecycle().value
-                    CharacterSheetScreen(uiState = uiState)
+                    // Passiamo il ViewModel alla Screen per accedere a tutto lo stato
+                    CharacterSheetScreen(viewModel = viewModel)
                 }
             }
         }
     }
 }
 
+// --- CHARACTER SHEET SCREEN MODIFICATA ---
 @Composable
-fun CharacterSheetScreen(uiState: CharacterSheetUiState) {
+fun CharacterSheetScreen(viewModel: CharacterSheetViewModel) { // Accetta il ViewModel
+    val uiState = viewModel.uiState.collectAsStateWithLifecycle().value
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -103,7 +98,7 @@ fun CharacterSheetScreen(uiState: CharacterSheetUiState) {
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
                 Image(
-                    painter = painterResource(id = R.drawable.lupo_solitario),
+                    painter = painterResource(id = R.drawable.ic_hero_portrait_placeholder),
                     contentDescription = "Ritratto Eroe",
                     modifier = Modifier
                         .size(96.dp)
@@ -126,35 +121,95 @@ fun CharacterSheetScreen(uiState: CharacterSheetUiState) {
         }
         Spacer(modifier = Modifier.height(16.dp))
 
-        // 1. Card "Statistiche e Pasti"
         StatsAndMealsCard(
             combatSkill = uiState.combatSkill,
             endurance = uiState.endurance,
             meals = uiState.mealsCount
         )
 
-        // 2. Card "Armi"
+        // Passiamo direttamente la lista di 2 armi (o pugni) visibili
         WeaponsCard(
-            primaryWeapon = uiState.equippedWeapon,
-            secondaryWeapons = uiState.otherWeapons
+            visibleWeapons = uiState.visibleWeapons,
+            selectedWeapon = uiState.selectedWeapon,
+            onWeaponSelected = { weapon -> viewModel.selectWeapon(weapon) }
         )
 
-        // NUOVA CARD: Abilità Kai - Ora riceve List<KaiDisciplineInfo>
         KaiDisciplinesCard(
-            kaiDisciplines = uiState.kaiDisciplines // Qui passiamo la lista di KaiDisciplineInfo
+            kaiDisciplines = uiState.kaiDisciplines
         )
 
-        // 3. Card "Oggetti Comuni" (Zaino)
         CommonItemsCard(
             commonItems = uiState.backpackItems
         )
 
-        // 4. Card "Oggetti Speciali" (Tabella)
         SpecialItemsTableCard(
             specialItems = uiState.specialItems
         )
     }
 }
+
+@Composable
+fun CommonItemsCard(commonItems: List<GameItem>) {
+    val paddedCommonItems = commonItems.toMutableList()
+    while (paddedCommonItems.size < 8) {
+        paddedCommonItems.add(GameItem(name = "", type = ItemType.BACKPACK_ITEM, quantity = 0, iconResId = R.drawable.ic_unknown_item))
+    }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("Oggetti Comuni (Zaino)", style = MaterialTheme.typography.titleLarge, modifier = Modifier.align(Alignment.CenterHorizontally))
+            Spacer(Modifier.height(16.dp))
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(4),
+                modifier = Modifier.fillMaxWidth().height(200.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(paddedCommonItems) { item ->
+                    CommonItemSlot(item = item)
+                }
+            }
+        }
+    }
+}
+
+
+@Composable
+fun CommonItemSlot(item: GameItem) {
+    val isEmpty = item.name.isEmpty() || item.quantity == 0
+    // L'errore è qui: iconRes può essere un Any, ma painterResource vuole Int
+    val iconRes: Any = if (isEmpty) R.drawable.ic_unknown_item else item.iconResId ?: R.drawable.ic_unknown_item
+
+    OutlinedCard(
+        modifier = Modifier
+            .aspectRatio(1f)
+            .fillMaxSize(),
+        shape = RoundedCornerShape(8.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Image(
+                // Correggiamo passando iconRes come Int con un cast sicuro
+                painter = painterResource(id = iconRes as Int),
+                contentDescription = item.name.ifEmpty { "Slot Vuoto" },
+                modifier = Modifier.size(40.dp)
+            )
+            if (!isEmpty) {
+                Text(item.name, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
+                if (item.quantity > 1) {
+                    Text("x${item.quantity}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                }
+            } else {
+                Text("Vuoto", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
+            }
+        }
+    }
+}
+
 
 @Composable
 fun StatsAndMealsCard(combatSkill: Int, endurance: Int, meals: Int) {
@@ -208,36 +263,66 @@ fun StatsAndMealsCard(combatSkill: Int, endurance: Int, meals: Int) {
     }
 }
 
+// --- WEAPONS CARD MODIFICATA: USA visibleWeapons ---
 @Composable
-fun WeaponsCard(primaryWeapon: GameItem?, secondaryWeapons: List<GameItem>) {
+fun WeaponsCard(
+    visibleWeapons: List<GameItem>, // Riceve la lista di 2 armi/pugni
+    selectedWeapon: GameItem,
+    onWeaponSelected: (GameItem?) -> Unit
+) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(vertical = 12.dp, horizontal = 16.dp)) {
             Text("Armi", style = MaterialTheme.typography.titleLarge, modifier = Modifier.align(Alignment.CenterHorizontally))
             Spacer(Modifier.height(12.dp))
-            Row(
+
+            Row( // Usiamo una Row per affiancare gli slot arma e pugni
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceAround,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                WeaponSlot(weapon = primaryWeapon, isActive = true)
-                val secondaryWeapon = secondaryWeapons.firstOrNull()
-                WeaponSlot(weapon = secondaryWeapon, isActive = false)
+                // Visualizza le 2 armi/pugni dalla lista visibleWeapons
+                visibleWeapons.forEach { weapon ->
+                    WeaponSlot(
+                        weapon = weapon,
+                        isSelected = weapon.id == selectedWeapon.id,
+                        onClick = onWeaponSelected
+                    )
+                }
+                // Lo slot per i pugni, se non è già presente in visibleWeapons
+                // Questa parte è opzionale se i pugni sono SEMPRE garantiti in visibleWeapons
+                // Se la tua logica prevede che visibleWeapons sia SOLO armi reali (max 2)
+                // e i pugni siano un'opzione SEMPRE a parte, riabilitiamo un terzo slot.
+                // Per la tua richiesta "2 armi all'inizio conterrano un arma e i pugni"
+                // e "non è mai vuota anche se perdi 2 armi rimani con 2 pugni",
+                // la lista visibleWeapons dovrebbe già contenere i pugni se non ci sono armi.
+                // Quindi, iteriamo solo su visibleWeapons che ha sempre 2 elementi.
             }
+            Spacer(Modifier.height(16.dp))
+            Text(
+                text = "Arma selezionata: ${selectedWeapon.name} (CS: ${selectedWeapon.bonuses?.get("CombatSkill") ?: 0})",
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            )
         }
     }
 }
 
+// --- WEAPON SLOT MODIFICATO ---
 @Composable
-fun WeaponSlot(weapon: GameItem?, isActive: Boolean) {
-    val borderColor = if (isActive) Color(0xFFFFD700) else MaterialTheme.colorScheme.outline
-    val backgroundColor = if (isActive) Color(0xFFFFD700).copy(alpha = 0.2f) else Color.Transparent
-    val isEmpty = weapon == null || weapon.name.isEmpty()
+fun WeaponSlot(
+    weapon: GameItem?,
+    isSelected: Boolean,
+    onClick: (GameItem?) -> Unit
+) {
+    val borderColor = if (isSelected) Color(0xFFFFD700) else MaterialTheme.colorScheme.outline
+    val backgroundColor = if (isSelected) Color(0xFFFFD700).copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant
 
     OutlinedCard(
         modifier = Modifier
-            .width(150.dp)
-            .height(120.dp)
-            .padding(4.dp),
+            .width(100.dp) // Larghezza fissa dello slot
+            .height(120.dp) // Altezza fissa dello slot
+            .padding(4.dp)
+            .clickable { onClick(weapon) }, // Rende cliccabile
         shape = RoundedCornerShape(8.dp),
         border = BorderStroke(2.dp, borderColor),
         colors = CardDefaults.cardColors(containerColor = backgroundColor)
@@ -247,29 +332,40 @@ fun WeaponSlot(weapon: GameItem?, isActive: Boolean) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            if (isEmpty) {
+            if (weapon == null || weapon.name.isEmpty()) { // Se lo slot è vuoto
                 Image(
-                    painter = painterResource(id = R.drawable.ic_map_icon), // Usiamo ic_empty_slot
+                    painter = painterResource(id = R.drawable.ic_unknown_item), // Icona per slot vuoto
                     contentDescription = "Slot Arma Vuoto",
-                    modifier = Modifier.size(48.dp),
+                    modifier = Modifier.size(48.dp)
                 )
-                Text("Slot Arma", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Vuoto", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
             } else {
-                val weaponIconRes = when (weapon?.name?.lowercase()) {
-                    "spada suprema", "spada" -> R.drawable.ic_sword
-                    "ascia da battaglia", "ascia" -> R.drawable.ic_axe
-                    "broadsword" -> R.drawable.ic_broadsword
-                    "mace" -> R.drawable.ic_mace
-                    "spear" -> R.drawable.ic_spear
-                    "staff" -> R.drawable.ic_staff
-                    else -> R.drawable.ic_sword // Fallback se non c'è un'icona specifica
+                val weaponIconRes = when (weapon.id) { // Usiamo l'ID dell'arma per le icone specifiche
+                    "FISTS" -> R.drawable.ic_fists
+                    "Ascia" -> R.drawable.ic_axe
+                    "Spada" -> R.drawable.ic_sword
+                    "Mazza" -> R.drawable.ic_mace
+                    "Bastone" -> R.drawable.ic_staff
+                    "Lancia" -> R.drawable.ic_spear
+                    "Spada Larga" -> R.drawable.ic_broadsword
+                    else -> R.drawable.ic_unknown_item // Fallback
                 }
                 Image(
                     painter = painterResource(id = weaponIconRes),
-                    contentDescription = weapon?.name ?: "Arma",
+                    contentDescription = weapon.name,
                     modifier = Modifier.size(48.dp)
                 )
-                Text(weapon?.name ?: "N/A", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                Text(weapon.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                // Mostra il bonus di combattività dall'oggetto
+                val combatSkillBonus = weapon.bonuses?.get("CombatSkill") ?: 0
+                if (combatSkillBonus != 0) {
+                    Text(
+                        text = "CS: +$combatSkillBonus",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     }
@@ -319,70 +415,6 @@ fun KaiDisciplinesCard(kaiDisciplines: List<KaiDisciplineInfo>) {
         }
     }
 }
-
-@Composable
-fun CommonItemsCard(commonItems: List<GameItem>) {
-    val paddedCommonItems = commonItems.toMutableList()
-    while (paddedCommonItems.size < 8) {
-        paddedCommonItems.add(GameItem(name = "", type = ItemType.BACKPACK_ITEM, quantity = 0, iconResId = R.drawable.ic_unknown_item))
-    }
-
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text("Oggetti Comuni (Zaino)", style = MaterialTheme.typography.titleLarge, modifier = Modifier.align(Alignment.CenterHorizontally))
-            Spacer(Modifier.height(16.dp))
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(4),
-                modifier = Modifier.fillMaxWidth().height(200.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(paddedCommonItems) { item ->
-                    CommonItemSlot(item = item)
-                }
-            }
-        }
-    }
-}
-
-// File: app/src/main/java/io/github/luposolitario/immundanoctis/CharacterSheetActivity.kt
-
-@Composable
-fun CommonItemSlot(item: GameItem) {
-    val isEmpty = item.name.isEmpty() || item.quantity == 0
-    // L'errore è qui: iconRes può essere un Any, ma painterResource vuole Int
-    val iconRes: Any = if (isEmpty) R.drawable.ic_gold else item.iconResId ?: R.drawable.ic_unknown_item
-
-    OutlinedCard(
-        modifier = Modifier
-            .aspectRatio(1f)
-            .fillMaxSize(),
-        shape = RoundedCornerShape(8.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize().padding(4.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Image(
-                // Correggiamo passando iconRes come Int con un cast sicuro
-                painter = painterResource(id = iconRes as Int),
-                contentDescription = item.name.ifEmpty { "Slot Vuoto" },
-                modifier = Modifier.size(40.dp)
-            )
-            if (!isEmpty) {
-                Text(item.name, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
-                if (item.quantity > 1) {
-                    Text("x${item.quantity}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
-                }
-            } else {
-                Text("Vuoto", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
-            }
-        }
-    }
-}
-
 @Composable
 fun SpecialItemsTableCard(specialItems: List<GameItem>) {
     val paddedSpecialItems = specialItems.toMutableList()
@@ -432,4 +464,3 @@ fun SpecialItemsTableCard(specialItems: List<GameItem>) {
         }
     }
 }
-

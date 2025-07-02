@@ -27,6 +27,7 @@ enum class ItemType {
     MEAL
 }
 
+// --- CLASSE GameItem MODIFICATA ---
 data class GameItem(
     val id: String = UUID.randomUUID().toString(),
     val name: String,
@@ -34,7 +35,22 @@ data class GameItem(
     var quantity: Int = 1,
     @DrawableRes val iconResId: Int? = null,
     val description: String? = null,
-    val bonuses: Map<String, Int>? = null
+    val bonuses: Map<String, Int>? = null,
+    // --- NUOVI CAMPI PER I BONUS DELLE ARMI ---
+    val combatSkillBonus: Int = 0,
+    val enduranceBonus: Int = 0
+)
+
+// --- NUOVA DEFINIZIONE DI FISTS_WEAPON ---
+val FISTS_WEAPON = GameItem(
+    id = "FISTS",
+    name = "Pugni",
+    type = ItemType.WEAPON,
+    quantity = 1,
+    iconResId = R.drawable.ic_fists, // Potresti voler creare questa icona
+    description = "Attacco a mani nude. Non fornisce bonus significativi.",
+    combatSkillBonus = 0, // Bonus di combattività per i pugni
+    enduranceBonus = 0
 )
 
 enum class ChallengeLevel {
@@ -150,29 +166,25 @@ val KAI_DISCIPLINES = listOf(
 )
 
 val INITIAL_WEAPONS = listOf(
-    GameItem(name = "Ascia", type = ItemType.WEAPON, description = "Un'arma affidabile e bilanciata.", iconResId = R.drawable.ic_axe),
-    GameItem(name = "Spada", type = ItemType.WEAPON, description = "Veloce e letale, un classico per ogni avventuriero.", iconResId = R.drawable.ic_sword),
-    GameItem(name = "Mazza", type = ItemType.WEAPON, description = "Un'arma contundente e potente.", iconResId = R.drawable.ic_mace),
-    GameItem(name = "Bastone", type = ItemType.WEAPON, description = "Utile per la difesa e come supporto.", iconResId = R.drawable.ic_staff),
-    GameItem(name = "Lancia", type = ItemType.WEAPON, description = "Un'arma a lunga gittata.", iconResId = R.drawable.ic_spear),
-    GameItem(name = "Spada Larga", type = ItemType.WEAPON, description = "Un'arma imponente per un guerriero possente.", iconResId = R.drawable.ic_broadsword)
+    GameItem(name = "Ascia", type = ItemType.WEAPON, description = "Un'arma affidabile e bilanciata.", iconResId = R.drawable.ic_axe, combatSkillBonus = 3),
+    GameItem(name = "Spada", type = ItemType.WEAPON, description = "Veloce e letale, un classico per ogni avventuriero.", iconResId = R.drawable.ic_sword, combatSkillBonus = 4),
+    GameItem(name = "Mazza", type = ItemType.WEAPON, description = "Un'arma contundente e potente.", iconResId = R.drawable.ic_mace, combatSkillBonus = 2),
+    GameItem(name = "Bastone", type = ItemType.WEAPON, description = "Utile per la difesa e come supporto.", iconResId = R.drawable.ic_staff, combatSkillBonus = 1),
+    GameItem(name = "Lancia", type = ItemType.WEAPON, description = "Un'arma a lunga gittata.", iconResId = R.drawable.ic_spear, combatSkillBonus = 3),
+    GameItem(name = "Spada Larga", type = ItemType.WEAPON, description = "Un'arma imponente per un guerriero possente.", iconResId = R.drawable.ic_broadsword, combatSkillBonus = 5)
 )
 
 val INITIAL_SPECIAL_ITEMS = listOf(
     GameItem(name = "Mappa", type = ItemType.SPECIAL_ITEM, description = "Rivela la tua posizione nel mondo di gioco.", iconResId = R.drawable.ic_map_icon),
-    // Rimossa la Pozione di Vigorilla da qui, ora è un oggetto comune
     GameItem(name = "Elmo", type = ItemType.HELMET, description = "Aggiunge 2 punti RESISTENZA al tuo totale.", bonuses = mapOf("RESISTENZA" to 2), iconResId = R.drawable.ic_helmet),
     GameItem(name = "Gilet di maglia di ferro", type = ItemType.ARMOR, description = "Aggiunge 4 punti RESISTENZA al tuo totale.", bonuses = mapOf("RESISTENZA" to 4), iconResId = R.drawable.ic_armor)
 )
 
-// --- NUOVA LISTA PER GLI OGGETTI COMUNI INIZIALI ---
 val INITIAL_COMMON_ITEMS = listOf(
-    GameItem(name = "Zaino", type = ItemType.BACKPACK_ITEM, quantity = 1, description = "Permette di trasportare fino a 8 oggetti.", iconResId = R.drawable.ic_backpack),
     GameItem(name = "Pozione Curativa", type = ItemType.BACKPACK_ITEM, quantity = 1, description = "Ripristina 4 punti Resistenza quando usata.", iconResId = R.drawable.ic_potion),
-    GameItem(name = "Pasto", type = ItemType.BACKPACK_ITEM, quantity = 2, description = "Un pasto nutriente per recuperare energie."),
-    GameItem(name = "Corone d'Oro", type = ItemType.GOLD, quantity = 0, description = "Monete d'oro per acquisti e scambi.") // La quantità sarà randomizzata nel ViewModel
+    GameItem(name = "Pasto", type = ItemType.BACKPACK_ITEM, quantity = 2, description = "Un pasto nutriente per recuperare energie.", iconResId = R.drawable.ic_meal),
+    GameItem(name = "Corone d'Oro", type = ItemType.GOLD, quantity = 12, description = "Monete d'oro per acquisti e scambi.", iconResId = R.drawable.ic_gold)
 )
-// --- FINE NUOVA LISTA ---
 
 data class TagConfig(
     val id: String,
