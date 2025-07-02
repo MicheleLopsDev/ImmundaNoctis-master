@@ -34,32 +34,26 @@ import androidx.core.view.WindowCompat
 import io.github.luposolitario.immundanoctis.data.*
 import io.github.luposolitario.immundanoctis.ui.theme.ImmundaNoctisTheme
 import io.github.luposolitario.immundanoctis.util.ThemePreferences
+import io.github.luposolitario.immundanoctis.data.ItemType
+import io.github.luposolitario.immundanoctis.util.GameStateManager
 
 class CharacterSheetActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val themePreferences = ThemePreferences(applicationContext)
 
+        // Per ora usiamo un MOCK, in futuro lo riceveremo dal ViewModel
+        val gameStateManager = GameStateManager(applicationContext)
+        val currentSession = gameStateManager.loadSession()
+        val heroCharacter = currentSession?.characters?.find { it.id == CharacterID.HERO }
+            ?: gameStateManager.createDefaultSession().characters.find { it.id == CharacterID.HERO }!!
+
         setContent {
             val useDarkTheme = themePreferences.useDarkTheme(isSystemInDarkTheme())
             ImmundaNoctisTheme(darkTheme = useDarkTheme) {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    // Creiamo un personaggio MOCK con dati aggiornati per il preview
-                    val mockHero = GameCharacter(
-                        id = "hero",
-                        name = "Lupo Solitario",
-                        type = CharacterType.PLAYER,
-                        characterClass = "Iniziato Kai", // Rango invece di classe
-                        portraitResId = R.drawable.portrait_hero_male,
-                        gender = "MALE",
-                        language = "it",
-                        stats = LoneWolfStats(combattivita = 18, resistenza = 25),
-                        kaiDisciplines = listOf("HEALING", "WEAPONSKILL", "MINDSHIELD", "SIXTH_SENSE", "HUNTING"),
-                        notes = "Ricordarsi di cercare la mappa al bivio della foresta.",
-                        pasti =2
-                    )
                     CharacterSheetScreen(
-                        character = mockHero,
+                        character = heroCharacter,
                         onNavigateBack = { finish() }
                     )
                 }
@@ -225,7 +219,9 @@ fun KaiDisciplinesCard(disciplineIds: List<String>) {
 
 @Composable
 fun PortraitCard(character: GameCharacter, onOpenNotes: () -> Unit) {
-    var mealCount by remember { mutableStateOf(character.pasti) }
+    // --- LOGICA PER TROVARE I PASTI NELL'INVENTARIO ---
+    val mealItem = character.details?.inventory?.find { it.name == "Pasto" }
+    val mealCount = mealItem?.quantity ?: 0
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text("Rango: ${character.characterClass}", style = MaterialTheme.typography.titleMedium)
@@ -248,24 +244,23 @@ fun PortraitCard(character: GameCharacter, onOpenNotes: () -> Unit) {
             horizontalArrangement = Arrangement.Center,
             modifier = Modifier.fillMaxWidth()
         ) {
-            // ...
-            IconButton(onClick = { if (mealCount > 0) mealCount-- }) {
+            // Pulsanti resi non funzionali per ora, mostrano solo il dato corretto
+            IconButton(onClick = { /* TODO: Implementare logica di modifica inventario */ }, enabled = false) {
                 Icon(
-                    painter = painterResource(id = R.drawable.ic_remove), // <-- CORREZIONE
+                    painter = painterResource(id = R.drawable.ic_remove),
                     contentDescription = "Rimuovi Pasto"
                 )
             }
             Text("$mealCount", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            IconButton(onClick = { mealCount++ }) {
+            IconButton(onClick = { /* TODO: Implementare logica di modifica inventario */ }, enabled = false) {
                 Icon(
-                    painter = painterResource(id = R.drawable.ic_add), // <-- CORREZIONE
+                    painter = painterResource(id = R.drawable.ic_add),
                     contentDescription = "Aggiungi Pasto"
                 )
             }
         }
 
         Spacer(Modifier.height(8.dp))
-        // Il pulsante delle note ora ha un'azione
         OutlinedButton(onClick = onOpenNotes) {
             Text("Apri Note")
         }

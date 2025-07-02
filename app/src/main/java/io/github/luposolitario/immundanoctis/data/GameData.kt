@@ -15,6 +15,28 @@ enum class CharacterType {
     NPC
 }
 
+// --- NUOVA CLASSE ENUM PER I TIPI DI OGGETTO ---
+enum class ItemType {
+    WEAPON,         // Armi (Spada, Ascia, etc.)
+    HELMET,         // Elmi o copricapi
+    ARMOR,          // Armature
+    SHIELD,         // Scudi
+    BACKPACK_ITEM,  // Oggetti che vanno nello zaino (Pozioni, Cibo, etc.)
+    SPECIAL_ITEM,   // Oggetti di missione che non occupano spazio (Mappa, Gemme)
+    GOLD            // Le Corone d'Oro
+}
+
+// --- NUOVA DATA CLASS PER GLI OGGETTI ---
+data class GameItem(
+    val id: String = UUID.randomUUID().toString(),
+    val name: String,
+    val type: ItemType,
+    var quantity: Int = 1, // 'var' per poterla modificare facilmente (es. consumando pasti)
+    @DrawableRes val iconResId: Int? = null, // Icona opzionale per l'inventario
+    val description: String? = null // Descrizione opzionale
+)
+
+
 enum class ChallengeLevel {
     BASE,
     MEDIUM,
@@ -52,7 +74,6 @@ data class LocalizedText(
     val italian: String?
 )
 
-// --- CLASSE MODIFICATA ---
 data class NarrativeChoice(
     val id: String,
     val choiceText: LocalizedText,
@@ -70,10 +91,8 @@ data class LoneWolfStats(
 data class HeroDetails(
     val id: String = UUID.randomUUID().toString(),
     val specialAbilities: List<String>,
-    val equippedWeapon: String,
-    val equippedArmor: String,
-    val equippedShield: String?,
-    val coins: Map<String, Int>
+    // Usiamo una lista di GameItem per l'inventario
+    val inventory: MutableList<GameItem> = mutableListOf()
 )
 
 data class GameCharacter(
@@ -88,14 +107,13 @@ data class GameCharacter(
     val stats: LoneWolfStats?,
     val kaiDisciplines: List<String> = emptyList(),
     val notes: String = "",
-    val pasti: Int = 0,
+    // 'pasti' rimosso, ora è un GameItem nell'inventario
     val details: HeroDetails? = null
 )
 
-// --- CLASSE MODIFICATA ---
 data class DisciplineChoice(
     val disciplineId: String,
-    val choiceText: LocalizedText?, // <-- CAMPO RESO OPZIONALE (NULLABLE)
+    val choiceText: LocalizedText?,
     val nextSceneId: String
 )
 
@@ -152,14 +170,6 @@ data class TagsConfigWrapper(
 data class EngineCommand(
     val commandName: String,
     val parameters: Map<String, Any?>
-)
-
-data class GameChallenge(
-    val id: String = UUID.randomUUID().toString(),
-    val abilityType: String,
-    val description: String,
-    val successText: String,
-    val failureText: String
 )
 
 data class SceneImage(

@@ -3,7 +3,6 @@ package io.github.luposolitario.immundanoctis.view
 import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
@@ -12,7 +11,6 @@ import io.github.luposolitario.immundanoctis.data.CharacterType
 import io.github.luposolitario.immundanoctis.data.ChatMessage
 import io.github.luposolitario.immundanoctis.data.DisciplineChoice
 import io.github.luposolitario.immundanoctis.data.EngineCommand
-import io.github.luposolitario.immundanoctis.data.GameChallenge
 import io.github.luposolitario.immundanoctis.data.GameCharacter
 import io.github.luposolitario.immundanoctis.data.Genre
 import io.github.luposolitario.immundanoctis.data.KAI_DISCIPLINES

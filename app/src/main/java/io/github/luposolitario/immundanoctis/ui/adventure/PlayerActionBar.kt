@@ -26,14 +26,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.luposolitario.immundanoctis.R
 import io.github.luposolitario.immundanoctis.data.GameCharacter
+import io.github.luposolitario.immundanoctis.data.ItemType
 
-/**
- * La nuova barra di stato del giocatore, che mostra tutte le informazioni vitali.
- * @param hero L'oggetto GameCharacter dell'eroe.
- * @param kaiRank Il grado Kai calcolato dal ViewModel.
- * @param isDiceRollEnabled True se il giocatore deve lanciare il dado del destino.
- * @param onDiceRollClicked Funzione da chiamare quando l'icona del fato viene cliccata.
- */
 @Composable
 fun PlayerActionsBar(
     hero: GameCharacter,
@@ -41,8 +35,10 @@ fun PlayerActionsBar(
     isDiceRollEnabled: Boolean,
     onDiceRollClicked: () -> Unit
 ) {
-    // --- LOGICA PER IL COLORE DEL BORDO DEL DADO ---
     val borderColor = if (isDiceRollEnabled) Color(0xFFFFD700) else Color(0xFFC0C0C0) // Oro se abilitato, altrimenti Argento
+    // --- LOGICA PER TROVARE I PASTI NELL'INVENTARIO ---
+    val mealItem = hero.details?.inventory?.find { it.name == "Pasto" }
+    val mealCount = mealItem?.quantity ?: 0
 
     Card(
         modifier = Modifier
@@ -50,7 +46,7 @@ fun PlayerActionsBar(
             .padding(horizontal = 8.dp, vertical = 4.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF8D6E63) // Colore personalizzato tipo legno
+            containerColor = Color(0xFF8D6E63)
         )
     ) {
         Column(modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp)) {
@@ -67,7 +63,6 @@ fun PlayerActionsBar(
                             .size(48.dp)
                             .clip(CircleShape)
                             .border(2.dp, borderColor, CircleShape)
-                            // Il click è abilitato solo quando necessario
                             .clickable(enabled = isDiceRollEnabled, onClick = onDiceRollClicked)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
@@ -90,7 +85,8 @@ fun PlayerActionsBar(
                     Spacer(modifier = Modifier.width(16.dp))
                     StatItem(icon = Icons.Default.Favorite, value = hero.stats?.resistenza ?: 0, iconColor = Color(0xFFE57373))
                     Spacer(modifier = Modifier.width(16.dp))
-                    StatItem(icon = Icons.Default.BakeryDining, value = hero.pasti)
+                    // --- MODIFICA QUI ---
+                    StatItem(icon = Icons.Default.BakeryDining, value = mealCount)
                 }
             }
 

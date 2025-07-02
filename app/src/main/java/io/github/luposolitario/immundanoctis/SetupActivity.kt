@@ -1,7 +1,5 @@
 package io.github.luposolitario.immundanoctis
 
-// Aggiungi questo import all'inizio del file SetupActivity.kt
-import androidx.compose.foundation.rememberScrollState
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
@@ -11,13 +9,21 @@ import androidx.activity.viewModels
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Backpack
 import androidx.compose.material.icons.filled.BrokenImage
+import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.Science
+import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
@@ -39,6 +46,7 @@ import io.github.luposolitario.immundanoctis.data.SessionData
 import io.github.luposolitario.immundanoctis.ui.theme.ImmundaNoctisTheme
 import io.github.luposolitario.immundanoctis.util.GameStateManager
 import io.github.luposolitario.immundanoctis.util.ThemePreferences
+import io.github.luposolitario.immundanoctis.view.SetupUiState
 import io.github.luposolitario.immundanoctis.view.SetupViewModel
 import java.text.SimpleDateFormat
 import java.util.*
@@ -52,6 +60,7 @@ class SetupActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         gameStateManager = GameStateManager(this)
+        viewModel.initialize(applicationContext)
 
         setContent {
             val useDarkTheme = themePreferences.useDarkTheme(isSystemInDarkTheme())
@@ -110,7 +119,12 @@ fun CharacterCreationScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val selectedDisciplines = viewModel.selectedDisciplines
-    val canProceed = uiState.combattivita > 0 && uiState.resistenza > 0 && selectedDisciplines.size == 5 && uiState.heroName.isNotBlank()
+
+    val canProceed = uiState.combattivita > 0 &&
+            uiState.resistenza > 0 &&
+            selectedDisciplines.size == 5 &&
+            uiState.selectedWeapon != null &&
+            uiState.selectedSpecialItem != null
 
     Column(
         modifier = Modifier
@@ -120,74 +134,29 @@ fun CharacterCreationScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        Text("Crea il Tuo Eroe", style = MaterialTheme.typography.headlineLarge)
+        Text(
+            "Lupo Solitario",
+            style = MaterialTheme.typography.headlineMedium,
+            color = MaterialTheme.colorScheme.primary
+        )
 
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Statistiche di Combattimento", style = MaterialTheme.typography.titleLarge)
-                Spacer(Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceAround
-                ) {
-                    Text("Combattività: ${uiState.combattivita}", fontWeight = FontWeight.Bold)
-                    Text("Resistenza: ${uiState.resistenza}", fontWeight = FontWeight.Bold)
-                }
-                Spacer(Modifier.height(16.dp))
-                Button(onClick = { viewModel.rollStats() }) {
-                    Text("Tira le Statistiche")
-                }
-            }
-        }
+        RandomStatsCard(
+            combatSkill = uiState.combattivita,
+            endurance = uiState.resistenza,
+            onRandomizeClick = { viewModel.rollStats() }
+        )
 
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp)) {
-                Text(
-                    "Scegli 5 Discipline Kai (${selectedDisciplines.size}/5)",
-                    style = MaterialTheme.typography.titleLarge,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(Modifier.height(8.dp))
-                KAI_DISCIPLINES.forEach { discipline ->
-                    val isSelected = selectedDisciplines.contains(discipline.id)
-                    val isEnabled = isSelected || selectedDisciplines.size < 5
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .toggleable(
-                                value = isSelected,
-                                enabled = isEnabled,
-                                role = Role.Checkbox,
-                                onValueChange = { viewModel.toggleDiscipline(discipline.id) }
-                            )
-                            .padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Checkbox(checked = isSelected, onCheckedChange = null, enabled = isEnabled)
-                        Spacer(Modifier.width(16.dp))
-                        Text(discipline.name, color = if (isEnabled) MaterialTheme.colorScheme.onSurface else Color.Gray)
-                    }
-                }
-            }
-        }
+        EquipmentChoiceCard(
+            uiState = uiState,
+            onWeaponSelected = { viewModel.onWeaponSelected(it) },
+            onSpecialItemSelected = { viewModel.onSpecialItemSelected(it) }
+        )
 
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Genera il tuo Ritratto", style = MaterialTheme.typography.titleLarge)
-                Text("Descrivi l'aspetto del tuo personaggio.", style = MaterialTheme.typography.bodySmall)
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = uiState.stdfPrompt,
-                    onValueChange = { viewModel.updateStdfPrompt(it) },
-                    label = { Text("es. capelli neri, occhi di ghiaccio...") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(Modifier.height(8.dp))
-                OutlinedButton(onClick = { /* TODO: Avviare generazione STDF */ }) {
-                    Text("Genera Ritratto (non implementato)")
-                }
-            }
-        }
+        DisciplineGridCard(
+            selectedDisciplines = selectedDisciplines.toList(),
+            onDisciplineSelected = { viewModel.toggleDiscipline(it) }
+        )
 
         Spacer(Modifier.weight(1f))
 
@@ -204,8 +173,164 @@ fun CharacterCreationScreen(
     }
 }
 
+@Composable
+fun RandomStatsCard(combatSkill: Int, endurance: Int, onRandomizeClick: () -> Unit) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("Statistiche di Combattimento", style = MaterialTheme.typography.titleLarge)
+            Spacer(Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceAround
+            ) {
+                Text("Combattività: $combatSkill", fontWeight = FontWeight.Bold)
+                Text("Resistenza: $endurance", fontWeight = FontWeight.Bold)
+            }
+            Spacer(Modifier.height(16.dp))
+            Button(onClick = onRandomizeClick) {
+                Text("Tira le Statistiche")
+            }
+        }
+    }
+}
 
-// --- FUNZIONI RIPRISTINATE ---
+// --- CARD EQUIPAGGIAMENTO COMPLETAMENTE RIDISEGNATA ---
+@Composable
+fun EquipmentChoiceCard(
+    uiState: SetupUiState,
+    onWeaponSelected: (String) -> Unit,
+    onSpecialItemSelected: (String) -> Unit
+) {
+    // Definiamo gli oggetti con tutti i loro dati
+    val weapons = listOf(
+        EquipmentItem("Ascia", "Un'arma affidabile e bilanciata.", R.drawable.ic_axe),
+        EquipmentItem("Spada", "Veloce e letale, un classico per ogni avventuriero.", R.drawable.ic_sword)
+    )
+    val specialItems = listOf(
+        EquipmentItem("Mappa", "Rivela la tua posizione nel mondo di gioco.", R.drawable.ic_map),
+        EquipmentItem("Zaino", "Permette di trasportare fino a 8 oggetti.", R.drawable.ic_backpack),
+        EquipmentItem("Pozione di Vigorilla", "Ripristina 4 punti Resistenza quando usata.", R.drawable.ic_potion)
+    )
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp)) {
+            Text(
+                "Scegli Equipaggiamento Iniziale",
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            )
+            Spacer(Modifier.height(16.dp))
+
+            // Sezione Arma
+            Text("Scegli un'arma (obbligatorio):", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(8.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                weapons.forEach { item ->
+                    EquipmentChoiceRow(
+                        item = item,
+                        isSelected = (uiState.selectedWeapon == item.name),
+                        onClick = { onWeaponSelected(item.name) }
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+            Divider()
+            Spacer(Modifier.height(16.dp))
+
+            // Sezione Oggetto Speciale
+            Text("Scegli UN solo oggetto speciale:", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(8.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                specialItems.forEach { item ->
+                    EquipmentChoiceRow(
+                        item = item,
+                        isSelected = (uiState.selectedSpecialItem == item.name),
+                        onClick = { onSpecialItemSelected(item.name) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+// Data class per aiutare a strutturare i dati degli oggetti nella UI
+private data class EquipmentItem(val name: String, val description: String, @DrawableRes val iconResId: Int)
+
+// --- NUOVO COMPONENTE PER UNA SINGOLA RIGA DI SCELTA ---
+@Composable
+private fun EquipmentChoiceRow(
+    item: EquipmentItem,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    val borderColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+    val backgroundColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else Color.Transparent
+
+    OutlinedCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(8.dp),
+        border = BorderStroke(if(isSelected) 2.dp else 1.dp, borderColor),
+        colors = CardDefaults.cardColors(containerColor = backgroundColor)
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Image(
+                painter = painterResource(id = item.iconResId),
+                contentDescription = item.name,
+                modifier = Modifier.size(40.dp)
+            )
+            Spacer(Modifier.width(16.dp))
+            Column {
+                Text(item.name, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyLarge)
+                Text(item.description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}
+
+
+@Composable
+fun DisciplineGridCard(
+    selectedDisciplines: List<String>,
+    onDisciplineSelected: (String) -> Unit
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp)) {
+            Text(
+                "Scegli 5 Discipline Kai (${selectedDisciplines.size}/5)",
+                style = MaterialTheme.typography.titleLarge,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(8.dp))
+            KAI_DISCIPLINES.forEach { discipline ->
+                val isSelected = selectedDisciplines.contains(discipline.id)
+                val isEnabled = isSelected || selectedDisciplines.size < 5
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .toggleable(
+                            value = isSelected,
+                            enabled = isEnabled,
+                            role = Role.Checkbox,
+                            onValueChange = { onDisciplineSelected(discipline.id) }
+                        )
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Checkbox(checked = isSelected, onCheckedChange = null, enabled = isEnabled)
+                    Spacer(Modifier.width(16.dp))
+                    Text(discipline.name, color = if (isEnabled) MaterialTheme.colorScheme.onSurface else Color.Gray)
+                }
+            }
+        }
+    }
+}
 
 @Composable
 fun ExistingSessionScreen(
