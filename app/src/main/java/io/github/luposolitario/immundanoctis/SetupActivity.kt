@@ -12,6 +12,9 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.selection.toggleable
@@ -28,6 +31,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
@@ -41,8 +45,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import io.github.luposolitario.immundanoctis.data.CharacterID
+import io.github.luposolitario.immundanoctis.data.KaiDisciplineInfo
 import io.github.luposolitario.immundanoctis.data.KAI_DISCIPLINES
 import io.github.luposolitario.immundanoctis.data.SessionData
+import io.github.luposolitario.immundanoctis.ui.adventure.getIconForDiscipline
 import io.github.luposolitario.immundanoctis.ui.theme.ImmundaNoctisTheme
 import io.github.luposolitario.immundanoctis.util.GameStateManager
 import io.github.luposolitario.immundanoctis.util.ThemePreferences
@@ -194,14 +200,12 @@ fun RandomStatsCard(combatSkill: Int, endurance: Int, onRandomizeClick: () -> Un
     }
 }
 
-// --- CARD EQUIPAGGIAMENTO COMPLETAMENTE RIDISEGNATA ---
 @Composable
 fun EquipmentChoiceCard(
     uiState: SetupUiState,
     onWeaponSelected: (String) -> Unit,
     onSpecialItemSelected: (String) -> Unit
 ) {
-    // Definiamo gli oggetti con tutti i loro dati
     val weapons = listOf(
         EquipmentItem("Ascia", "Un'arma affidabile e bilanciata.", R.drawable.ic_axe),
         EquipmentItem("Spada", "Veloce e letale, un classico per ogni avventuriero.", R.drawable.ic_sword)
@@ -221,7 +225,6 @@ fun EquipmentChoiceCard(
             )
             Spacer(Modifier.height(16.dp))
 
-            // Sezione Arma
             Text("Scegli un'arma (obbligatorio):", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(8.dp))
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -238,7 +241,6 @@ fun EquipmentChoiceCard(
             Divider()
             Spacer(Modifier.height(16.dp))
 
-            // Sezione Oggetto Speciale
             Text("Scegli UN solo oggetto speciale:", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(8.dp))
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -254,10 +256,8 @@ fun EquipmentChoiceCard(
     }
 }
 
-// Data class per aiutare a strutturare i dati degli oggetti nella UI
 private data class EquipmentItem(val name: String, val description: String, @DrawableRes val iconResId: Int)
 
-// --- NUOVO COMPONENTE PER UNA SINGOLA RIGA DI SCELTA ---
 @Composable
 private fun EquipmentChoiceRow(
     item: EquipmentItem,
@@ -294,6 +294,7 @@ private fun EquipmentChoiceRow(
 }
 
 
+// --- SEZIONE DISCIPLINE COMPLETAMENTE RIDISEGNATA ---
 @Composable
 fun DisciplineGridCard(
     selectedDisciplines: List<String>,
@@ -307,27 +308,74 @@ fun DisciplineGridCard(
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
             )
-            Spacer(Modifier.height(8.dp))
-            KAI_DISCIPLINES.forEach { discipline ->
-                val isSelected = selectedDisciplines.contains(discipline.id)
-                val isEnabled = isSelected || selectedDisciplines.size < 5
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .toggleable(
-                            value = isSelected,
-                            enabled = isEnabled,
-                            role = Role.Checkbox,
-                            onValueChange = { onDisciplineSelected(discipline.id) }
-                        )
-                        .padding(vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Checkbox(checked = isSelected, onCheckedChange = null, enabled = isEnabled)
-                    Spacer(Modifier.width(16.dp))
-                    Text(discipline.name, color = if (isEnabled) MaterialTheme.colorScheme.onSurface else Color.Gray)
+            Spacer(Modifier.height(16.dp))
+
+            // Usiamo una griglia per un layout più compatto e piacevole
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(minSize = 140.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.height(380.dp) // Altezza fissa per evitare scroll dentro scroll
+            ) {
+                items(KAI_DISCIPLINES) { discipline ->
+                    val isSelected = selectedDisciplines.contains(discipline.id)
+                    val isEnabled = isSelected || selectedDisciplines.size < 5
+                    DisciplineChoiceCard(
+                        discipline = discipline,
+                        isSelected = isSelected,
+                        enabled = isEnabled,
+                        onClick = { onDisciplineSelected(discipline.id) }
+                    )
                 }
             }
+        }
+    }
+}
+
+// --- NUOVO COMPONENTE PER LA CARD DELLA DISCIPLINA ---
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DisciplineChoiceCard(
+    discipline: KaiDisciplineInfo,
+    isSelected: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    val borderColor = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
+
+    Card(
+        onClick = onClick,
+        enabled = enabled,
+        shape = RoundedCornerShape(8.dp),
+        border = BorderStroke(2.dp, borderColor),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 8.dp else 2.dp),
+        modifier = Modifier.alpha(if (enabled) 1f else 0.5f)
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = getIconForDiscipline(discipline.id),
+                contentDescription = discipline.name,
+                modifier = Modifier.size(40.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = discipline.name,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = discipline.description,
+                style = MaterialTheme.typography.bodySmall,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
