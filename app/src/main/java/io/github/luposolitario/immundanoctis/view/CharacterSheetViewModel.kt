@@ -10,6 +10,9 @@ import io.github.luposolitario.immundanoctis.data.GameCharacter
 import io.github.luposolitario.immundanoctis.data.GameItem
 import io.github.luposolitario.immundanoctis.data.ItemType
 import io.github.luposolitario.immundanoctis.data.LoneWolfStats
+import io.github.luposolitario.immundanoctis.data.KAI_DISCIPLINES // Import KAI_DISCIPLINES
+import io.github.luposolitario.immundanoctis.data.KaiDisciplineInfo // Import KaiDisciplineInfo
+import io.github.luposolitario.immundanoctis.engine.rules.LoneWolfRules // Import LoneWolfRules per getKaiRank
 import io.github.luposolitario.immundanoctis.util.GameStateManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,6 +31,7 @@ data class CharacterSheetUiState(
     val otherWeapons: List<GameItem> = emptyList(), // Le altre armi nell'inventario
     val specialItems: List<GameItem> = emptyList(), // Oggetti speciali (non zaino)
     val backpackItems: List<GameItem> = emptyList(), // Oggetti nello zaino
+    val kaiDisciplines: List<KaiDisciplineInfo> = emptyList(), // Aggiunto per le discipline complete
     val kaiRank: String = ""
 )
 
@@ -35,12 +39,12 @@ class CharacterSheetViewModel(application: Application) : AndroidViewModel(appli
 
     private val tag = "CharacterSheetViewModel"
     private val gameStateManager = GameStateManager(application)
+    private val gameRules = LoneWolfRules() // Istanzia le regole per ottenere il rango Kai
 
     private val _uiState = MutableStateFlow(CharacterSheetUiState())
     val uiState: StateFlow<CharacterSheetUiState> = _uiState.asStateFlow()
 
     init {
-        // Carica i dati del personaggio all'inizializzazione del ViewModel
         loadCharacterData()
     }
 
@@ -51,21 +55,15 @@ class CharacterSheetViewModel(application: Application) : AndroidViewModel(appli
 
             if (hero == null) {
                 Log.e(tag, "Eroe non trovato nella sessione di gioco.")
-                // Potresti voler gestire uno stato di errore qui nella UI
                 return@launch
             }
 
-            // Calcolo del rango Kai (da GameRulesEngine)
-            // Per ora lo mettiamo qui, ma in un ViewModel più complesso si userebbe GameRulesEngine.
-            val currentKaiRank = when (hero.kaiDisciplines.size) {
-                in 0..4 -> "Novizio Kai"
-                5 -> "Iniziato Kai"
-                6 -> "Discepolo Kai"
-                7 -> "Viandante Kai"
-                8 -> "Guerriero Kai"
-                9 -> "Maestro Kai"
-                10 -> "Gran Maestro Kai"
-                else -> "Gran Maestro Kai Supremo"
+            // Calcolo del rango Kai usando le regole del gioco
+            val currentKaiRank = gameRules.getKaiRank(hero.kaiDisciplines.size)
+
+            // Mappatura delle stringhe delle discipline a oggetti KaiDisciplineInfo completi
+            val heroKaiDisciplines = hero.kaiDisciplines.mapNotNull { disciplineId ->
+                KAI_DISCIPLINES.find { it.id == disciplineId }
             }
 
             // Categorizzazione degli oggetti dell'inventario
@@ -79,11 +77,9 @@ class CharacterSheetViewModel(application: Application) : AndroidViewModel(appli
 
             for (item in inventory) {
                 when (item.type) {
-                    ItemType.MEAL -> meals += item.quantity // Assumendo che ItemType.MEAL esista o sia gestito da BACKPACK_ITEM
                     ItemType.GOLD -> gold += item.quantity
                     ItemType.WEAPON -> {
                         // Per ora, assumiamo la prima arma nell'inventario come equipaggiata
-                        // In futuro, avremo una proprietà specifica per l'arma equipaggiata
                         if (equippedWeapon == null) {
                             equippedWeapon = item
                         } else {
@@ -94,18 +90,16 @@ class CharacterSheetViewModel(application: Application) : AndroidViewModel(appli
                         specialItems.add(item)
                     }
                     ItemType.BACKPACK_ITEM -> {
-                        if (item.name == "Pasto") { // Gestione specifica per i pasti se non c'è ItemType.MEAL
+                        if (item.name == "Pasto") {
                             meals += item.quantity
                         } else {
                             backpackItems.add(item)
                         }
                     }
+                    ItemType.MEAL -> meals += item.quantity // Gestisce anche ItemType.MEAL se definito
                 }
             }
-            // Assicuriamoci che i pasti siano sempre il conteggio totale e non un item nello zaino individuale dopo questa categorizzazione
-            // Se i pasti sono solo un contatore, potresti voler filtrare l'item "Pasto" dalla lista backpackItems
             val finalBackpackItems = backpackItems.filter { it.name != "Pasto" }.toMutableList()
-            // Se il Conteggio Pasti è una somma, assicurati di non aggiungere GameItem("Pasto") alla lista normale dello zaino
 
             _uiState.update { currentState ->
                 currentState.copy(
@@ -118,6 +112,7 @@ class CharacterSheetViewModel(application: Application) : AndroidViewModel(appli
                     otherWeapons = otherWeapons,
                     specialItems = specialItems,
                     backpackItems = finalBackpackItems,
+                    kaiDisciplines = heroKaiDisciplines, // Assegna la lista di KaiDisciplineInfo
                     kaiRank = currentKaiRank
                 )
             }

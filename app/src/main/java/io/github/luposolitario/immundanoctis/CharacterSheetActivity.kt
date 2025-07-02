@@ -19,7 +19,19 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.material.icons.filled.Info // Potrebbe non servire più se si usano icone specifiche per slot vuoti
+import io.github.luposolitario.immundanoctis.ui.adventure.getIconForDiscipline
+import androidx.compose.material.icons.filled.Healing
+import androidx.compose.material.icons.filled.Hearing
+import androidx.compose.material.icons.filled.HelpOutline
+import androidx.compose.material.icons.filled.Info // Rimosso se non più usato
+import androidx.compose.material.icons.filled.LocationSearching
+import androidx.compose.material.icons.filled.Pets
+import androidx.compose.material.icons.filled.Psychology
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.outlined.Help
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
@@ -37,14 +49,18 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
-import androidx.lifecycle.compose.collectAsStateWithLifecycle // Import per osservare StateFlow
-import androidx.lifecycle.viewmodel.compose.viewModel // Import per ottenere il ViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.luposolitario.immundanoctis.ui.theme.ImmundaNoctisTheme
 import io.github.luposolitario.immundanoctis.data.GameItem
 import io.github.luposolitario.immundanoctis.data.ItemType
 import io.github.luposolitario.immundanoctis.data.LoneWolfStats
-import io.github.luposolitario.immundanoctis.view.CharacterSheetViewModel // Import del nuovo ViewModel
-import io.github.luposolitario.immundanoctis.view.CharacterSheetUiState // Import dello stato UI
+// Import per le discipline Kai (KAI_DISCIPLINES non è più KaiDiscipline, ma KaiDisciplineInfo)
+import io.github.luposolitario.immundanoctis.data.KaiDisciplineInfo
+import io.github.luposolitario.immundanoctis.view.CharacterSheetViewModel
+import io.github.luposolitario.immundanoctis.view.CharacterSheetUiState
+// Import delle icone delle discipline (saranno necessarie se non le hai già)
+import io.github.luposolitario.immundanoctis.R // Per R.drawable
 
 class CharacterSheetActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -60,10 +76,7 @@ class CharacterSheetActivity : ComponentActivity() {
                     }
                 }
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    // Ottiene un'istanza del CharacterSheetViewModel
-                    // Il ViewModel viene creato e gestito dal sistema Android
                     val viewModel: CharacterSheetViewModel = viewModel()
-                    // Osserva lo stato della UI dal ViewModel
                     val uiState = viewModel.uiState.collectAsStateWithLifecycle().value
                     CharacterSheetScreen(uiState = uiState)
                 }
@@ -73,7 +86,7 @@ class CharacterSheetActivity : ComponentActivity() {
 }
 
 @Composable
-fun CharacterSheetScreen(uiState: CharacterSheetUiState) { // Ora accetta lo stato UI
+fun CharacterSheetScreen(uiState: CharacterSheetUiState) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -89,9 +102,8 @@ fun CharacterSheetScreen(uiState: CharacterSheetUiState) { // Ora accetta lo sta
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
-                // Ritratto Eroe - Usa l'icona lupo_solitario.png
                 Image(
-                    painter = painterResource(id = R.drawable.lupo_solitario), // Icona specifica per il ritratto
+                    painter = painterResource(id = R.drawable.lupo_solitario),
                     contentDescription = "Ritratto Eroe",
                     modifier = Modifier
                         .size(96.dp)
@@ -100,48 +112,52 @@ fun CharacterSheetScreen(uiState: CharacterSheetUiState) { // Ora accetta lo sta
                     contentScale = ContentScale.Crop
                 )
                 Text(uiState.heroCharacter?.name ?: "Eroe Sconosciuto", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                Text(uiState.kaiRank, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.secondary) // Rango Kai dinamico
+                Text(uiState.kaiRank, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.secondary)
             }
-            // ORO - Usa il conteggio reale dall'uiState
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(0.5f)) {
                 Image(
-                    painter = painterResource(id = R.drawable.ic_gold), // Icona specifica per l'oro
+                    painter = painterResource(id = R.drawable.ic_gold),
                     contentDescription = "Oro",
                     modifier = Modifier.size(48.dp)
                 )
                 Text("Oro", style = MaterialTheme.typography.titleMedium)
-                Text("${uiState.goldCount}", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold) // Oro dinamico
+                Text("${uiState.goldCount}", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
             }
         }
         Spacer(modifier = Modifier.height(16.dp))
 
         // 1. Card "Statistiche e Pasti"
-        StatsAndMealsCard( // Rimosso "Mock" dal nome
-            combatSkill = uiState.combatSkill, // Dati dinamici
-            endurance = uiState.endurance,     // Dati dinamici
-            meals = uiState.mealsCount         // Dati dinamici
+        StatsAndMealsCard(
+            combatSkill = uiState.combatSkill,
+            endurance = uiState.endurance,
+            meals = uiState.mealsCount
         )
 
         // 2. Card "Armi"
-        WeaponsCard( // Rimosso "Mock" dal nome
-            primaryWeapon = uiState.equippedWeapon, // Arma equipaggiata dinamica
-            secondaryWeapons = uiState.otherWeapons // Altre armi dinamiche
+        WeaponsCard(
+            primaryWeapon = uiState.equippedWeapon,
+            secondaryWeapons = uiState.otherWeapons
+        )
+
+        // NUOVA CARD: Abilità Kai - Ora riceve List<KaiDisciplineInfo>
+        KaiDisciplinesCard(
+            kaiDisciplines = uiState.kaiDisciplines // Qui passiamo la lista di KaiDisciplineInfo
         )
 
         // 3. Card "Oggetti Comuni" (Zaino)
-        CommonItemsCard( // Rimosso "Mock" dal nome
-            commonItems = uiState.backpackItems // Oggetti zaino dinamici
+        CommonItemsCard(
+            commonItems = uiState.backpackItems
         )
 
         // 4. Card "Oggetti Speciali" (Tabella)
-        SpecialItemsTableCard( // Rimosso "Mock" dal nome
-            specialItems = uiState.specialItems // Oggetti speciali dinamici
+        SpecialItemsTableCard(
+            specialItems = uiState.specialItems
         )
     }
 }
 
 @Composable
-fun StatsAndMealsCard(combatSkill: Int, endurance: Int, meals: Int) { // Rimosso "Mock" dal nome
+fun StatsAndMealsCard(combatSkill: Int, endurance: Int, meals: Int) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("Statistiche e Pasti", style = MaterialTheme.typography.titleLarge, modifier = Modifier.align(Alignment.CenterHorizontally))
@@ -162,10 +178,9 @@ fun StatsAndMealsCard(combatSkill: Int, endurance: Int, meals: Int) { // Rimosso
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("Pasti", style = MaterialTheme.typography.titleMedium)
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Image(painter = painterResource(id = R.drawable.ic_meal), contentDescription = "Pasti", modifier = Modifier.size(32.dp)) // Icona pasti
+                        Image(painter = painterResource(id = R.drawable.ic_meal), contentDescription = "Pasti", modifier = Modifier.size(32.dp))
                         Spacer(Modifier.width(8.dp))
                         Text("$meals", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                        // RIMOSSI i pulsanti (+) e (-) come richiesto
                     }
                 }
             }
@@ -174,18 +189,16 @@ fun StatsAndMealsCard(combatSkill: Int, endurance: Int, meals: Int) { // Rimosso
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceAround
             ) {
-                // Pulsante Note - Icona aggiornata
                 Button(onClick = { /* Mock: Open Notes */ }, modifier = Modifier.weight(1f).padding(horizontal = 4.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Image(painter = painterResource(id = R.drawable.ic_map), contentDescription = "Note", modifier = Modifier.size(24.dp)) // Icona specifica
+                        Image(painter = painterResource(id = R.drawable.ic_map_icon), contentDescription = "Note", modifier = Modifier.size(24.dp))
                         Spacer(Modifier.width(8.dp))
                         Text("Note", fontSize = 14.sp)
                     }
                 }
-                // Pulsante Mappa - Icona aggiornata
                 Button(onClick = { /* Mock: Open Map */ }, modifier = Modifier.weight(1f).padding(horizontal = 4.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Image(painter = painterResource(id = R.drawable.ic_map), contentDescription = "Mappa", modifier = Modifier.size(24.dp)) // Icona specifica
+                        Image(painter = painterResource(id = R.drawable.ic_map), contentDescription = "Mappa", modifier = Modifier.size(24.dp))
                         Spacer(Modifier.width(8.dp))
                         Text("Mappa", fontSize = 14.sp)
                     }
@@ -196,7 +209,7 @@ fun StatsAndMealsCard(combatSkill: Int, endurance: Int, meals: Int) { // Rimosso
 }
 
 @Composable
-fun WeaponsCard(primaryWeapon: GameItem?, secondaryWeapons: List<GameItem>) { // Rimosso "Mock" dal nome, accetta GameItem
+fun WeaponsCard(primaryWeapon: GameItem?, secondaryWeapons: List<GameItem>) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(vertical = 12.dp, horizontal = 16.dp)) {
             Text("Armi", style = MaterialTheme.typography.titleLarge, modifier = Modifier.align(Alignment.CenterHorizontally))
@@ -206,12 +219,7 @@ fun WeaponsCard(primaryWeapon: GameItem?, secondaryWeapons: List<GameItem>) { //
                 horizontalArrangement = Arrangement.SpaceAround,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Primo Slot Arma (l'arma primaria/attiva)
                 WeaponSlot(weapon = primaryWeapon, isActive = true)
-
-                // Secondo Slot Arma (se presente, altrimenti vuoto)
-                // Se otherWeapons è vuota, mostriamo uno slot vuoto
-                // Altrimenti, mostriamo la prima arma dalla lista otherWeapons
                 val secondaryWeapon = secondaryWeapons.firstOrNull()
                 WeaponSlot(weapon = secondaryWeapon, isActive = false)
             }
@@ -220,7 +228,7 @@ fun WeaponsCard(primaryWeapon: GameItem?, secondaryWeapons: List<GameItem>) { //
 }
 
 @Composable
-fun WeaponSlot(weapon: GameItem?, isActive: Boolean) { // Rimosso "Mock" dal nome, accetta GameItem
+fun WeaponSlot(weapon: GameItem?, isActive: Boolean) {
     val borderColor = if (isActive) Color(0xFFFFD700) else MaterialTheme.colorScheme.outline
     val backgroundColor = if (isActive) Color(0xFFFFD700).copy(alpha = 0.2f) else Color.Transparent
     val isEmpty = weapon == null || weapon.name.isEmpty()
@@ -241,14 +249,12 @@ fun WeaponSlot(weapon: GameItem?, isActive: Boolean) { // Rimosso "Mock" dal nom
         ) {
             if (isEmpty) {
                 Image(
-                    painter = painterResource(id = R.drawable.ic_unknown_item), // Icona specifica per slot vuoto
+                    painter = painterResource(id = R.drawable.ic_map_icon), // Usiamo ic_empty_slot
                     contentDescription = "Slot Arma Vuoto",
                     modifier = Modifier.size(48.dp),
-                    // tint = MaterialTheme.colorScheme.onSurfaceVariant // Rimosso tint per Image
                 )
                 Text("Slot Arma", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             } else {
-                // Determina l'icona dell'arma in base al nome o tipo
                 val weaponIconRes = when (weapon?.name?.lowercase()) {
                     "spada suprema", "spada" -> R.drawable.ic_sword
                     "ascia da battaglia", "ascia" -> R.drawable.ic_axe
@@ -270,8 +276,52 @@ fun WeaponSlot(weapon: GameItem?, isActive: Boolean) { // Rimosso "Mock" dal nom
 }
 
 @Composable
-fun CommonItemsCard(commonItems: List<GameItem>) { // Rimosso "Mock" dal nome, accetta lista reale
-    // Riempiamo gli slot vuoti per un totale di 8, se ci sono meno di 8 oggetti
+fun KaiDisciplinesCard(kaiDisciplines: List<KaiDisciplineInfo>) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("Abilità Kai", style = MaterialTheme.typography.titleLarge, modifier = Modifier.align(Alignment.CenterHorizontally))
+            Spacer(Modifier.height(16.dp))
+
+            // Non più LazyVerticalGrid, ma una semplice Column scrollabile se necessario
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 200.dp, max = 400.dp) // Altezza flessibile, ma con limiti
+                    .verticalScroll(rememberScrollState()), // Aggiungiamo lo scroll qui se la lista è lunga
+                verticalArrangement = Arrangement.spacedBy(12.dp) // Spazio tra le discipline
+            ) {
+                kaiDisciplines.forEach { discipline ->
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.Start // Allinea a sinistra
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            val disciplineIconRes = getIconForDiscipline(discipline.id)
+                            Icon(
+                                imageVector = disciplineIconRes,
+                                contentDescription = discipline.name,
+                                modifier = Modifier.size(28.dp), // Icona leggermente più grande
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            Text(discipline.name, style = MaterialTheme.typography.titleMedium) // Nome un po' più grande
+                        }
+                        Spacer(Modifier.height(4.dp))
+                        // Descrizione dell'abilità
+                        Text(
+                            discipline.description,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CommonItemsCard(commonItems: List<GameItem>) {
     val paddedCommonItems = commonItems.toMutableList()
     while (paddedCommonItems.size < 8) {
         paddedCommonItems.add(GameItem(name = "", type = ItemType.BACKPACK_ITEM, quantity = 0, iconResId = R.drawable.ic_unknown_item))
@@ -282,8 +332,8 @@ fun CommonItemsCard(commonItems: List<GameItem>) { // Rimosso "Mock" dal nome, a
             Text("Oggetti Comuni (Zaino)", style = MaterialTheme.typography.titleLarge, modifier = Modifier.align(Alignment.CenterHorizontally))
             Spacer(Modifier.height(16.dp))
             LazyVerticalGrid(
-                columns = GridCells.Fixed(4), // 4 colonne
-                modifier = Modifier.fillMaxWidth().height(200.dp), // Altezza fissa per 2 righe di 4
+                columns = GridCells.Fixed(4),
+                modifier = Modifier.fillMaxWidth().height(200.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -295,14 +345,17 @@ fun CommonItemsCard(commonItems: List<GameItem>) { // Rimosso "Mock" dal nome, a
     }
 }
 
+// File: app/src/main/java/io/github/luposolitario/immundanoctis/CharacterSheetActivity.kt
+
 @Composable
-fun CommonItemSlot(item: GameItem) { // Rimosso "Mock" dal nome
+fun CommonItemSlot(item: GameItem) {
     val isEmpty = item.name.isEmpty() || item.quantity == 0
-    val iconRes = if (isEmpty) R.drawable.ic_unknown_item else item.iconResId ?: R.drawable.ic_unknown_item // Usa ic_empty_slot per vuoto
+    // L'errore è qui: iconRes può essere un Any, ma painterResource vuole Int
+    val iconRes: Any = if (isEmpty) R.drawable.ic_gold else item.iconResId ?: R.drawable.ic_unknown_item
 
     OutlinedCard(
         modifier = Modifier
-            .aspectRatio(1f) // Rende gli slot quadrati
+            .aspectRatio(1f)
             .fillMaxSize(),
         shape = RoundedCornerShape(8.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
@@ -313,7 +366,8 @@ fun CommonItemSlot(item: GameItem) { // Rimosso "Mock" dal nome
             verticalArrangement = Arrangement.Center
         ) {
             Image(
-                painter = painterResource(id = iconRes),
+                // Correggiamo passando iconRes come Int con un cast sicuro
+                painter = painterResource(id = iconRes as Int),
                 contentDescription = item.name.ifEmpty { "Slot Vuoto" },
                 modifier = Modifier.size(40.dp)
             )
@@ -330,11 +384,10 @@ fun CommonItemSlot(item: GameItem) { // Rimosso "Mock" dal nome
 }
 
 @Composable
-fun SpecialItemsTableCard(specialItems: List<GameItem>) { // Rimosso "Mock" dal nome, accetta lista reale
-    // Riempiamo fino a 10 righe se ci sono meno di 10 oggetti
+fun SpecialItemsTableCard(specialItems: List<GameItem>) {
     val paddedSpecialItems = specialItems.toMutableList()
     while (paddedSpecialItems.size < 10) {
-        paddedSpecialItems.add(GameItem(name = "", description = "", type = ItemType.SPECIAL_ITEM)) // Oggetto vuoto
+        paddedSpecialItems.add(GameItem(name = "", description = "", type = ItemType.SPECIAL_ITEM))
     }
 
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -343,7 +396,6 @@ fun SpecialItemsTableCard(specialItems: List<GameItem>) { // Rimosso "Mock" dal 
             Spacer(Modifier.height(16.dp))
 
             Column(modifier = Modifier.fillMaxWidth()) {
-                // Intestazione della tabella
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -354,7 +406,6 @@ fun SpecialItemsTableCard(specialItems: List<GameItem>) { // Rimosso "Mock" dal 
                     Text("Nome", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(0.4f), textAlign = TextAlign.Center)
                     Text("Descrizione", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(0.6f), textAlign = TextAlign.Center)
                 }
-                // Righe della tabella
                 paddedSpecialItems.forEachIndexed { index, item ->
                     Row(
                         modifier = Modifier
@@ -381,3 +432,4 @@ fun SpecialItemsTableCard(specialItems: List<GameItem>) { // Rimosso "Mock" dal 
         }
     }
 }
+
