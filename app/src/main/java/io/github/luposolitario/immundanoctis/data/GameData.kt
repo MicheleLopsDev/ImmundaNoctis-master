@@ -3,7 +3,6 @@ package io.github.luposolitario.immundanoctis.data
 
 import io.github.luposolitario.immundanoctis.R
 import androidx.annotation.DrawableRes
-import com.fasterxml.jackson.annotation.JsonProperty
 import java.util.UUID
 
 object CharacterID {
@@ -24,7 +23,8 @@ enum class ItemType {
     SHIELD,
     BACKPACK_ITEM,
     SPECIAL_ITEM,
-    GOLD
+    GOLD,
+    MEAL
 }
 
 data class GameItem(
@@ -159,7 +159,7 @@ val INITIAL_WEAPONS = listOf(
 )
 
 val INITIAL_SPECIAL_ITEMS = listOf(
-    GameItem(name = "Mappa", type = ItemType.SPECIAL_ITEM, description = "Rivela la tua posizione nel mondo di gioco.", iconResId = R.drawable.ic_map),
+    GameItem(name = "Mappa", type = ItemType.SPECIAL_ITEM, description = "Rivela la tua posizione nel mondo di gioco.", iconResId = R.drawable.ic_map_icon),
     // Rimossa la Pozione di Vigorilla da qui, ora è un oggetto comune
     GameItem(name = "Elmo", type = ItemType.HELMET, description = "Aggiunge 2 punti RESISTENZA al tuo totale.", bonuses = mapOf("RESISTENZA" to 2), iconResId = R.drawable.ic_helmet),
     GameItem(name = "Gilet di maglia di ferro", type = ItemType.ARMOR, description = "Aggiunge 4 punti RESISTENZA al tuo totale.", bonuses = mapOf("RESISTENZA" to 4), iconResId = R.drawable.ic_armor)

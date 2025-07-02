@@ -51,7 +51,7 @@ class GameStateManager(private val context: Context) {
             name = "Lupo Solitario",
             type = CharacterType.PLAYER,
             characterClass = "Guerriero Kai",
-            portraitResId = R.drawable.portrait_hero_male,
+            portraitResId = R.drawable.ic_hero_portrait_placeholder,
             gender = "MALE",
             language = "it",
             stats = LoneWolfStats(combattivita = 15, resistenza = 25),

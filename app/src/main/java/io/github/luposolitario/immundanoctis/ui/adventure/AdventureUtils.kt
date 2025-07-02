@@ -65,7 +65,7 @@ private fun getIconForItem(item: GameItem?): Int? {
     return item.iconResId ?: when(item.name) {
         "Ascia" -> R.drawable.ic_axe
         "Spada" -> R.drawable.ic_sword
-        "Mappa" -> R.drawable.ic_map
+        "Mappa" -> R.drawable.ic_map_icon
         "Zaino" -> R.drawable.ic_backpack
         "Pozione di Vigorilla" -> R.drawable.ic_potion
         "Pasto" -> R.drawable.ic_meal
