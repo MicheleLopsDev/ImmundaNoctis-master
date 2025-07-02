@@ -4,20 +4,24 @@ import android.app.Activity
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Shield
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.material.icons.filled.Info // Rimosso se non più usato per pasti +/-
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -28,188 +32,149 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
-import io.github.luposolitario.immundanoctis.data.*
 import io.github.luposolitario.immundanoctis.ui.theme.ImmundaNoctisTheme
-import io.github.luposolitario.immundanoctis.util.ThemePreferences
-import io.github.luposolitario.immundanoctis.data.ItemType
-import io.github.luposolitario.immundanoctis.util.GameStateManager
+import io.github.luposolitario.immundanoctis.data.GameItem // Necessario per i tipi
+import io.github.luposolitario.immundanoctis.data.ItemType // Necessario per i tipi
+import io.github.luposolitario.immundanoctis.data.LoneWolfStats // Necessario per i tipi
+
 
 class CharacterSheetActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val themePreferences = ThemePreferences(applicationContext)
-
-        // Per ora usiamo un MOCK, in futuro lo riceveremo dal ViewModel
-        val gameStateManager = GameStateManager(applicationContext)
-        val currentSession = gameStateManager.loadSession()
-        val heroCharacter = currentSession?.characters?.find { it.id == CharacterID.HERO }
-            ?: gameStateManager.createDefaultSession().characters.find { it.id == CharacterID.HERO }!!
-
         setContent {
-            val useDarkTheme = themePreferences.useDarkTheme(isSystemInDarkTheme())
-            ImmundaNoctisTheme(darkTheme = useDarkTheme) {
+            ImmundaNoctisTheme {
+                val view = LocalView.current
+                if (!view.isInEditMode) {
+                    SideEffect {
+                        val window = (view.context as? Activity)?.window
+                        window?.statusBarColor = Color.Black.toArgb()
+                        WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
+                    }
+                }
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    CharacterSheetScreen(
-                        character = heroCharacter,
-                        onNavigateBack = { finish() }
-                    )
+                    CharacterSheetScreenMock()
                 }
             }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CharacterSheetScreen(character: GameCharacter, onNavigateBack: () -> Unit) {
-    var showNotesDialog by remember { mutableStateOf(false) }
-
-    val view = LocalView.current
-    if (!view.isInEditMode) {
-        SideEffect {
-            val window = (view.context as? Activity)?.window
-            window?.statusBarColor = Color.Black.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
-        }
-    }
-
-    // --- GESTIONE DEL DIALOGO ---
-    if (showNotesDialog) {
-        NotesDialog(
-            initialNotes = character.notes,
-            onDismiss = { showNotesDialog = false },
-            onSave = { newNotes ->
-                // TODO: Chiamare una funzione del ViewModel per salvare le nuove note
-                // Esempio: viewModel.updateNotes(newNotes)
-                showNotesDialog = false
-            }
-        )
-    }
-
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Scheda Personaggio") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Torna indietro")
-                    }
-                }
-            )
-        }
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .padding(innerPadding)
-                .padding(horizontal = 16.dp)
-                .verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally
+fun CharacterSheetScreenMock() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // Sezione Superiore (Ritratto, Nome, Rango e ORO)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(character.name, style = MaterialTheme.typography.headlineMedium)
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
+                // Placeholder per il ritratto - Icona aggiornata
+                Image(
+                    painter = painterResource(id = R.drawable.portrait_hero_male), // Icona specifica per il ritratto
+                    contentDescription = "Ritratto Eroe",
+                    modifier = Modifier
+                        .size(96.dp)
+                        .clip(CircleShape)
+                        .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape),
+                    contentScale = ContentScale.Crop
+                )
+                Text("Lupo Solitario", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text("Cavaliere Kai", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.secondary)
+            }
+            // ORO - Icona aggiornata
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(0.5f)) {
+                Image(
+                    painter = painterResource(id = R.drawable.ic_gold), // Icona specifica per l'oro
+                    contentDescription = "Oro",
+                    modifier = Modifier.size(48.dp)
+                )
+                Text("Oro", style = MaterialTheme.typography.titleMedium)
+                Text("15", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold) // Mock data per oro
+            }
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // 1. Card "Stats e Pasti" con pulsanti Note e Mappa
+        StatsAndMealsCardMock(
+            combatSkill = 25, // Mock data
+            endurance = 30, // Mock data
+            meals = 2 // Mock data
+        )
+
+        // 2. Card "Armi"
+        WeaponsCardMock(
+            primaryWeaponName = "Spada Suprema", // Arma attiva
+            secondaryWeaponName = "Ascia da Battaglia" // Seconda arma (o null se vuota)
+        )
+
+        // 3. Card "Oggetti Comuni" (Zaino)
+        CommonItemsCardMock()
+
+        // 4. Card "Oggetti Speciali" (Tabella)
+        SpecialItemsTableCardMock()
+    }
+}
+
+@Composable
+fun StatsAndMealsCardMock(combatSkill: Int, endurance: Int, meals: Int) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("Statistiche e Pasti", style = MaterialTheme.typography.titleLarge, modifier = Modifier.align(Alignment.CenterHorizontally))
             Spacer(Modifier.height(16.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                horizontalArrangement = Arrangement.SpaceAround,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    StatsCard(character.stats)
-                    KaiDisciplinesCard(character.kaiDisciplines)
-                }
-                Column(
-                    modifier = Modifier.weight(0.8f),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    // Passiamo l'azione per aprire il dialogo
-                    PortraitCard(character = character, onOpenNotes = { showNotesDialog = true })
-                }
-            }
-            Spacer(Modifier.height(16.dp))
-            Divider()
-            Spacer(Modifier.height(16.dp))
-            Text("Equipaggiamento", style = MaterialTheme.typography.headlineSmall)
-            Spacer(Modifier.height(16.dp))
-            InventorySection()
-            Spacer(Modifier.height(16.dp))
-        }
-    }
-}
-
-// --- Sezione dei Composable Helper Aggiornati ---
-
-@Composable
-fun StatsCard(stats: LoneWolfStats?) {
-    if (stats == null) return
-
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), Arrangement.spacedBy(8.dp)) {
-            Text("Statistiche", style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.CenterHorizontally))
-            Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.SpaceAround, modifier = Modifier.fillMaxWidth()) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Combattività", style = MaterialTheme.typography.titleSmall)
-                    Text("${stats.combattivita}", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                    Text("Combattività", style = MaterialTheme.typography.titleMedium)
+                    Text("$combatSkill", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Resistenza", style = MaterialTheme.typography.titleSmall)
-                    Text("${stats.resistenza}", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                    Text("Resistenza", style = MaterialTheme.typography.titleMedium)
+                    Text("$endurance", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                 }
-            }
-        }
-    }
-}
-
-// --- NUOVO COMPOSABLE PER IL DIALOGO ---
-@Composable
-fun NotesDialog(
-    initialNotes: String,
-    onDismiss: () -> Unit,
-    onSave: (String) -> Unit
-) {
-    var notesText by remember { mutableStateOf(initialNotes) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Note del Personaggio") },
-        text = {
-            OutlinedTextField(
-                value = notesText,
-                onValueChange = { notesText = it },
-                modifier = Modifier.fillMaxWidth().height(200.dp),
-                label = { Text("Scrivi qui i tuoi appunti...") }
-            )
-        },
-        confirmButton = {
-            Button(onClick = { onSave(notesText) }) {
-                Text("Salva")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Annulla")
-            }
-        }
-    )
-}
-
-
-@Composable
-fun KaiDisciplinesCard(disciplineIds: List<String>) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), Arrangement.spacedBy(8.dp)) {
-            Text("Discipline Kai", style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.CenterHorizontally))
-            disciplineIds.forEach { disciplineId ->
-                val disciplineInfo = KAI_DISCIPLINES.find { it.id == disciplineId }
-                if (disciplineInfo != null) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Pasti", style = MaterialTheme.typography.titleMedium)
+                    // Rimosso i pulsanti (+) e (-) per i pasti
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Shield, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Image(painter = painterResource(id = R.drawable.ic_meal), contentDescription = "Pasti", modifier = Modifier.size(32.dp)) // Icona pasti
                         Spacer(Modifier.width(8.dp))
-                        Text(disciplineInfo.name, style = MaterialTheme.typography.bodyLarge)
+                        Text("$meals", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceAround
+            ) {
+                // Pulsante Note - Icona aggiornata
+                Button(onClick = { /* Mock: Open Notes */ }, modifier = Modifier.weight(1f).padding(horizontal = 4.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Image(painter = painterResource(id = R.drawable.ic_unknown_item), contentDescription = "Note", modifier = Modifier.size(24.dp)) // Icona specifica
+                        Spacer(Modifier.width(8.dp))
+                        Text("Note", fontSize = 14.sp)
+                    }
+                }
+                // Pulsante Mappa - Icona aggiornata
+                Button(onClick = { /* Mock: Open Map */ }, modifier = Modifier.weight(1f).padding(horizontal = 4.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Image(painter = painterResource(id = R.drawable.ic_map), contentDescription = "Mappa", modifier = Modifier.size(24.dp)) // Icona specifica
+                        Spacer(Modifier.width(8.dp))
+                        Text("Mappa", fontSize = 14.sp)
                     }
                 }
             }
@@ -218,89 +183,197 @@ fun KaiDisciplinesCard(disciplineIds: List<String>) {
 }
 
 @Composable
-fun PortraitCard(character: GameCharacter, onOpenNotes: () -> Unit) {
-    // --- LOGICA PER TROVARE I PASTI NELL'INVENTARIO ---
-    val mealItem = character.details?.inventory?.find { it.name == "Pasto" }
-    val mealCount = mealItem?.quantity ?: 0
+fun WeaponsCardMock(primaryWeaponName: String, secondaryWeaponName: String?) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(vertical = 12.dp, horizontal = 16.dp)) { // Riduci padding per compattezza
+            Text("Armi", style = MaterialTheme.typography.titleLarge, modifier = Modifier.align(Alignment.CenterHorizontally))
+            Spacer(Modifier.height(12.dp)) // Riduci altezza per compattezza
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceAround,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Primo Slot Arma (l'arma primaria/attiva) - Icona aggiornata
+                WeaponSlotMock(weaponName = primaryWeaponName, isActive = true)
 
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("Rango: ${character.characterClass}", style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(8.dp))
-        Card(
-            modifier = Modifier.fillMaxWidth().aspectRatio(3f / 4f)
-        ) {
-            Image(
-                painter = painterResource(id = character.portraitResId),
-                contentDescription = "Ritratto di ${character.name}",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
-        }
-        Spacer(Modifier.height(16.dp))
-
-        Text("Pasti", style = MaterialTheme.typography.titleMedium)
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            // Pulsanti resi non funzionali per ora, mostrano solo il dato corretto
-            IconButton(onClick = { /* TODO: Implementare logica di modifica inventario */ }, enabled = false) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_remove),
-                    contentDescription = "Rimuovi Pasto"
-                )
+                // Secondo Slot Arma - Icona aggiornata
+                WeaponSlotMock(weaponName = secondaryWeaponName ?: "Slot Arma", isActive = false, isEmpty = secondaryWeaponName == null)
             }
-            Text("$mealCount", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            IconButton(onClick = { /* TODO: Implementare logica di modifica inventario */ }, enabled = false) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_add),
-                    contentDescription = "Aggiungi Pasto"
-                )
-            }
-        }
-
-        Spacer(Modifier.height(8.dp))
-        OutlinedButton(onClick = onOpenNotes) {
-            Text("Apri Note")
         }
     }
 }
 
 @Composable
-fun InventorySection() {
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        // Sezione Armi e Oro
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            OutlinedTextField(value = "Ascia", onValueChange = {}, label = { Text("Arma 1") }, modifier = Modifier.weight(1f))
-            OutlinedTextField(value = "", onValueChange = {}, label = { Text("Arma 2") }, modifier = Modifier.weight(1f))
-            OutlinedTextField(value = "10", onValueChange = {}, label = { Text("Corone d'Oro") }, modifier = Modifier.width(100.dp))
-        }
-        // Sezione Oggetti Speciali
-        Text("Oggetti Speciali", style = MaterialTheme.typography.titleMedium)
-        // Qui potremmo avere una LazyColumn o una Column per mostrare gli oggetti
-        Text("Mappa di Sommerlund", style = MaterialTheme.typography.bodyMedium)
+fun WeaponSlotMock(weaponName: String, isActive: Boolean, isEmpty: Boolean = false) {
+    val borderColor = if (isActive) Color(0xFFFFD700) else MaterialTheme.colorScheme.outline
+    val backgroundColor = if (isActive) Color(0xFFFFD700).copy(alpha = 0.2f) else Color.Transparent
 
-        // Sezione Zaino
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(12.dp)) {
-                Text("Zaino (8 slot)", style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.height(8.dp))
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(4), // 4 colonne per essere più compatto
-                    modifier = Modifier.height(120.dp), // Altezza fissa per la griglia
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+    OutlinedCard(
+        modifier = Modifier
+            .width(150.dp)
+            .height(120.dp)
+            .padding(4.dp),
+        shape = RoundedCornerShape(8.dp),
+        border = BorderStroke(2.dp, borderColor),
+        colors = CardDefaults.cardColors(containerColor = backgroundColor)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            if (isEmpty) {
+                Icon(
+                    imageVector = Icons.Default.Info, // Placeholder per slot vuoto, o ic_empty_slot
+                    contentDescription = "Slot Arma Vuoto",
+                    modifier = Modifier.size(48.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text("Slot Arma", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else {
+                Image(
+                    painter = painterResource(id = R.drawable.ic_sword), // Icona specifica per armi
+                    contentDescription = weaponName,
+                    modifier = Modifier.size(48.dp)
+                )
+                Text(weaponName, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+            }
+        }
+    }
+}
+
+@Composable
+fun CommonItemsCardMock() {
+    val commonItems = listOf(
+        GameItem(name = "Pozione Curativa", type = ItemType.BACKPACK_ITEM, quantity = 1, iconResId = R.drawable.ic_potion), // Icona specifica
+        GameItem(name = "Pasto", type = ItemType.BACKPACK_ITEM, quantity = 2, iconResId = R.drawable.ic_meal), // Icona specifica
+        GameItem(name = "Fune", type = ItemType.BACKPACK_ITEM, quantity = 1, iconResId = R.drawable.ic_unknown_item),
+        GameItem(name = "Torcia", type = ItemType.BACKPACK_ITEM, quantity = 1, iconResId = R.drawable.ic_unknown_item),
+        // Riempiamo gli slot vuoti per un totale di 8
+        GameItem(name = "", type = ItemType.BACKPACK_ITEM, quantity = 0, iconResId = R.drawable.ic_unknown_item), // Icona specifica per slot vuoto
+        GameItem(name = "", type = ItemType.BACKPACK_ITEM, quantity = 0, iconResId = R.drawable.ic_unknown_item),
+        GameItem(name = "", type = ItemType.BACKPACK_ITEM, quantity = 0, iconResId = R.drawable.ic_unknown_item),
+        GameItem(name = "", type = ItemType.BACKPACK_ITEM, quantity = 0, iconResId = R.drawable.ic_unknown_item)
+    )
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("Oggetti Comuni (Zaino)", style = MaterialTheme.typography.titleLarge, modifier = Modifier.align(Alignment.CenterHorizontally))
+            Spacer(Modifier.height(16.dp))
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(4), // 4 colonne
+                modifier = Modifier.fillMaxWidth().height(200.dp), // Altezza fissa per 2 righe di 4
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(commonItems) { item ->
+                    CommonItemSlotMock(item = item)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CommonItemSlotMock(item: GameItem) {
+    val isEmpty = item.name.isEmpty() || item.quantity == 0
+    // L'icona dello slot vuoto è ora R.drawable.ic_empty_slot
+    val iconRes = if (isEmpty) R.drawable.ic_unknown_item else item.iconResId ?: R.drawable.ic_unknown_item
+
+    OutlinedCard(
+        modifier = Modifier
+            .aspectRatio(1f) // Rende gli slot quadrati
+            .fillMaxSize(),
+        shape = RoundedCornerShape(8.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Image(
+                painter = painterResource(id = iconRes),
+                contentDescription = item.name.ifEmpty { "Slot Vuoto" },
+                modifier = Modifier.size(40.dp)
+            )
+            if (!isEmpty) {
+                Text(item.name, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
+                if (item.quantity > 1) {
+                    Text("x${item.quantity}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                }
+            } else {
+                Text("Vuoto", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
+            }
+        }
+    }
+}
+
+@Composable
+fun SpecialItemsTableCardMock() {
+    val specialItems = listOf(
+        GameItem(name = "Mappa", description = "Rivela la tua posizione nel mondo di gioco.", type = ItemType.SPECIAL_ITEM),
+        GameItem(name = "Elmo", description = "Aggiunge 2 punti RESISTENZA al tuo totale.", type = ItemType.HELMET),
+        GameItem(name = "Gilet di maglia di ferro", description = "Aggiunge 4 punti RESISTENZA al tuo totale.", type = ItemType.ARMOR),
+        GameItem(name = "Amuleto di Protezione", description = "Un oggetto magico che fornisce una piccola protezione contro la magia oscura.", type = ItemType.SPECIAL_ITEM),
+        GameItem(name = "Chiave Misteriosa", description = "Una chiave antica e arrugginita, chissà cosa apre...", type = ItemType.SPECIAL_ITEM)
+    )
+    // Riempiamo fino a 10 righe se ci sono meno di 10 oggetti
+    val paddedSpecialItems = specialItems.toMutableList()
+    while (paddedSpecialItems.size < 10) {
+        paddedSpecialItems.add(GameItem(name = "", description = "", type = ItemType.SPECIAL_ITEM)) // Oggetto vuoto
+    }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("Oggetti Speciali", style = MaterialTheme.typography.titleLarge, modifier = Modifier.align(Alignment.CenterHorizontally))
+            Spacer(Modifier.height(16.dp))
+
+            Column(modifier = Modifier.fillMaxWidth()) {
+                // Intestazione della tabella
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.primaryContainer)
+                        .padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceAround
                 ) {
-                    items(8) {
-                        Box(
-                            modifier = Modifier
-                                .size(60.dp)
-                                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(4.dp))
+                    Text("Nome", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(0.4f), textAlign = TextAlign.Center)
+                    Text("Descrizione", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(0.6f), textAlign = TextAlign.Center)
+                }
+                // Righe della tabella
+                paddedSpecialItems.forEachIndexed { index, item ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(if (index % 2 == 0) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f))
+                            .padding(vertical = 8.dp, horizontal = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            item.name.ifEmpty { "---" },
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.weight(0.4f),
+                            textAlign = if (item.name.isEmpty()) TextAlign.Center else TextAlign.Start
+                        )
+                        Text(
+                            item.description!!.ifEmpty { "---" },
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.weight(0.6f),
+                            textAlign = if (item.description.isEmpty()) TextAlign.Center else TextAlign.Start
                         )
                     }
                 }
             }
         }
+    }
+}
+
+
+@Preview(showBackground = true)
+@Composable
+fun CharacterSheetScreenMockPreview() {
+    ImmundaNoctisTheme {
+        CharacterSheetScreenMock()
     }
 }
