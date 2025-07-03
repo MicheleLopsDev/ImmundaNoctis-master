@@ -201,8 +201,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         if (actualIsNewAdventure) {
+            _sessionName.value = gameLogicManager.adventureName // <--- Usa il nome dell'avventura dal file JSON
+            gameLogicManager.resetUsedScenes()
             _currentScene.value = gameLogicManager.selectRandomStartScene(Genre.FANTASY)
-            log("Scena iniziale NUOVA AVVENTURA impostata da GameLogicManager: ${_currentScene.value?.id ?: "Nessuna scena iniziale"}")
+            log("Scena iniziale NUOVA AVVENTURA impostata da GameLogicManager: ${_currentScene.value?.id ?: "Nessuna scena iniziale"}. Nome Avventura: ${_sessionName.value}")
             viewModelScope.launch {
                 sendInitialDmPrompt(currentSession)
             }

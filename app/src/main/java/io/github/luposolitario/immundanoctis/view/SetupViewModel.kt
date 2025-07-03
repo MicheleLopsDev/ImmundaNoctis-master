@@ -23,6 +23,9 @@ import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
 import kotlin.random.Random
+// NUOVO IMPORT
+import io.github.luposolitario.immundanoctis.engine.GameLogicManager
+
 
 // --- SetupUiState MODIFICATA per includere chosenWeaponSkillType ---
 data class SetupUiState(
@@ -55,10 +58,15 @@ class SetupViewModel() : ViewModel() {
 
     private lateinit var savePreferences: SavePreferences
     private lateinit var applicationContext: Context
+    // NUOVO: Dichiarazione di gameLogicManager
+    private lateinit var gameLogicManager: GameLogicManager
+
 
     fun initialize(context: Context) {
         this.applicationContext = context
         this.savePreferences = SavePreferences(context)
+        // NUOVO: Inizializzazione di gameLogicManager qui
+        this.gameLogicManager = GameLogicManager(context)
         _uiState.update { it.copy(currentScenesJsonPath = savePreferences.scenesPath) }
         Log.d(tag, "ViewModel Inizializzato.")
     }
@@ -239,13 +247,13 @@ class SetupViewModel() : ViewModel() {
         }
 
         val finalSession = defaultSession.copy(
-            sessionName = "Avventura di ${currentState.heroName}",
+            sessionName = gameLogicManager.adventureName,
             lastUpdate = System.currentTimeMillis(),
             characters = updatedCharacters,
             isStarted = false, // Verrà impostato a true da MainViewModel.sendInitialDmPrompt
             usedScenes = mutableListOf()
         )
-        Log.d(tag, "Sessione finalizzata e pronta per il salvataggio. Arma Skill Type: ${finalSession.characters.find{it.id == CharacterID.HERO}?.details?.weaponSkillType}")
+        Log.d(tag, "Sessione finalizzata e pronta per il salvataggio. Arma Skill Type: ${finalSession.characters.find{it.id == CharacterID.HERO}?.details?.weaponSkillType}\")")
         return finalSession
     }
 }

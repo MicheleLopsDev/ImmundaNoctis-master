@@ -305,9 +305,9 @@ data class EquipmentItem(val name: String, val description: String, @DrawableRes
 
 
 data class ScenesWrapper(
+    val adventureName: String, // <--- Assicurati che questo campo sia presente
     val scenes: List<Scene>
 )
-
 data class SessionData(
     val sessionName: String,
     val lastUpdate: Long,

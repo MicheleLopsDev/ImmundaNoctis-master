@@ -27,6 +27,9 @@ class GameLogicManager(private val context: Context) {
     private var allScenes: List<Scene> = emptyList()
     private val usedScenesInSession: MutableSet<String> = Collections.synchronizedSet(mutableSetOf())
 
+    private var _adventureName: String = "" // Nuovo campo per memorizzare il nome dell'avventura
+    val adventureName: String get() = _adventureName  // Esposizione pubblica del nome
+
     init {
         loadAllScenes()
     }
@@ -39,10 +42,13 @@ class GameLogicManager(private val context: Context) {
             val type = object : TypeToken<ScenesWrapper>() {}.type
             val wrapper: ScenesWrapper = gson.fromJson(scenesStream.reader(), type)
             allScenes = wrapper.scenes
-            Log.d(tag, "Scene di gioco caricate con successo (${allScenes.size} scene).")
+            // MODIFICATO: Gestione sicura di wrapper.adventureName
+            _adventureName = wrapper.adventureName ?: "Avventura Caricata" // <-- Gestione del null qui, con un fallback
+            Log.d(tag, "Scene di gioco caricate con successo (${allScenes.size} scene). Avventura: $_adventureName")
         } catch (e: Exception) {
             Log.e(tag, "Errore durante il caricamento delle scene di gioco da scenes.json: ${e.message}", e)
             allScenes = emptyList()
+            _adventureName = "Avventura Sconosciuta" // Fallback in caso di errore di caricamento
         } finally {
             scenesStream?.close()
         }
