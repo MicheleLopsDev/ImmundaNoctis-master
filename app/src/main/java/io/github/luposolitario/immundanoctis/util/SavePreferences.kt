@@ -36,6 +36,14 @@ class SavePreferences(context: Context) {
         set(value) = prefs.edit().putBoolean(KEY_CONFIG_COPIED, value).apply()
 
 
+    /**
+     * Salva e recupera il tono narrativo preferito.
+     * Il valore predefinito è "originale".
+     */
+    var narrativeTone: String
+        get() = prefs.getString(KEY_NARRATIVE_TONE, "originale") ?: "originale"
+        set(value) = prefs.edit().putString(KEY_NARRATIVE_TONE, value).apply()
+
     companion object {
         private const val PREFS_NAME = "save_preferences"
         private const val KEY_AUTOSAVE = "is_auto_save_enabled"
@@ -43,5 +51,8 @@ class SavePreferences(context: Context) {
         private const val KEY_JSON_SCNES_PATH = "json_scenes_path"
         // ******* NUOVA CHIAVE PER IL FLAG *******
         private const val KEY_CONFIG_COPIED = "is_config_copied"
+
+        private const val KEY_NARRATIVE_TONE = "narrative_tone" // <-- NUOVA CHIAVE
+
     }
 }

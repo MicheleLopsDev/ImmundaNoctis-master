@@ -614,23 +614,40 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 _engineLoadingState.first { it is EngineLoadingState.Success }
 
-                val sceneNarrativeText = scene.narrativeText.italian ?: ""
-                val choicesTextList =
-                    scene.choices?.mapNotNull { it.choiceText.italian } ?: emptyList()
-                val choicesString = choicesTextList.joinToString(", ")
-                val lastMessage = _chatMessages.value.lastOrNull()?.text ?: "L'avventura ha inizio."
+                val sceneNarrativeEnglish = scene.narrativeText.english ?: ""
+                val choicesTextListEnglish = scene.choices?.mapNotNull { it.choiceText.english } ?: emptyList()
+                val choicesStringEnglish = choicesTextListEnglish.joinToString(", ")
+                val lastMessageText = _chatMessages.value.lastOrNull()?.text ?: "L'avventura ha inizio."
 
-                val secretPrompt = """
-                CONTESTO: $lastMessage
-                TESTO DELLA SCENA: "$sceneNarrativeText"
-                OPZIONI DISPONIBILI: "$choicesString"
+                // Recupera il tono narrativo dalle preferenze
+                val currentTone = savePreferences.narrativeTone // <-- Recupera il tono salvato
+                val toneInstruction = if (currentTone != "originale") {
+                    "Adatta il tono generale della narrazione per essere $currentTone. Arricchisci la descrizione con dettagli vividi e sensoriali che rafforzino questo tono, senza però inventare nuovi eventi o stravolgere la trama originale della scena."
+                } else {
+                    "Mantieni lo stile del testo originale." // Quando è "originale", solo traduce senza alterazioni di tono
+                }
 
-                Il tuo compito è armonizzare questi tre elementi. Riformula il 'TESTO DELLA SCENA' per collegarlo in modo logico al 'CONTESTO' e per introdurre le 'OPZIONI DISPONIBILI' come naturale conclusione della narrazione. Se il testo delle opzioni è molto breve, arricchiscilo con dettagli evocativi senza cambiarne il significato. Non aggiungere eventi o dettagli non presenti nella scena. Mantieni lo stile del testo originale.
-                """.trimIndent()
 
-                log("DEBUG: Invio prompt di armonizzazione al DM per la scena ID=${scene.id}")
+                // MODIFICATO: Prompt per Gemma con istruzioni sul tono
+                val promptForGemma = """
+                    Il tuo compito è narrare la seguente scena del libro-gioco "Lupo Solitario".
+                    Il testo della scena è in inglese, devi tradurlo in italiano.
+                    $toneInstruction
+                    Integra fluidamente il CONTESTO precedente e le OPZIONI DISPONIBILI nella narrazione in modo che il giocatore possa facilmente scegliere la sua prossima azione.
+                    Se il testo di una scelta è breve (es. "Vai a destra"), espandilo con una frase più descrittiva e coinvolgente che rispecchi il tono dell'avventura, mantenendo il significato originale e la direzione.
+                    Non includere ringraziamenti, saluti o introduzioni personali. Inizia direttamente con la narrazione della scena tradotta e tonale.
 
-                dmEngine.sendMessage(secretPrompt)
+                    CONTESTO: $lastMessageText
+                    TESTO DELLA SCENA: "$sceneNarrativeEnglish"
+                    OPZIONI DISPONIBILI: "$choicesStringEnglish"
+
+                    NARRATORE (in italiano, tono $currentTone):
+                    """.trimIndent()
+
+                log("DEBUG: Invio prompt di armonizzazione, traduzione e tonale al DM per la scena ID=${scene.id}")
+                Log.d(tag, "DEBUG_GEMMA_PROMPT_SENT: \n---\n${promptForGemma}\n---") // Per debug
+
+                dmEngine.sendMessage(promptForGemma)
                     .collect { token ->
                         _streamingText.update { it + token }
                     }

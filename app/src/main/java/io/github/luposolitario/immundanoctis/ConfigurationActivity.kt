@@ -29,7 +29,7 @@ import io.github.luposolitario.immundanoctis.ui.configuration.VoiceDropdown
 import io.github.luposolitario.immundanoctis.ui.theme.ImmundaNoctisTheme
 import io.github.luposolitario.immundanoctis.util.*
 import kotlinx.coroutines.launch
-
+import java.util.Locale
 class ConfigurationActivity : ComponentActivity() {
 
     private val themePreferences by lazy { ThemePreferences(applicationContext) }
@@ -88,6 +88,7 @@ class ConfigurationActivity : ComponentActivity() {
         }
     }
 
+    @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     fun MainEngineScreen(
         ttsPrefs: TtsPreferences,
@@ -108,6 +109,19 @@ class ConfigurationActivity : ComponentActivity() {
 
         var isMaleDropdownExpanded by remember { mutableStateOf(false) }
         var isFemaleDropdownExpanded by remember { mutableStateOf(false) }
+
+        var selectedNarrativeTone by remember { mutableStateOf(savePrefs.narrativeTone) } // <-- NUOVO STATO
+        var showToneDropdown by remember { mutableStateOf(false) } // <-- NUOVO STATO per il dropdown
+
+        val narrativeTones = remember { // <-- NUOVA LISTA DI TONI
+            listOf(
+                "originale",
+                "horror",
+                "epico",
+                "ironico"
+            )
+        }
+
 
         DisposableEffect(context) {
             var ttsService: TtsService? = null
@@ -198,8 +212,54 @@ class ConfigurationActivity : ComponentActivity() {
                 )
             }
 
+
             Spacer(Modifier.height(16.dp))
             Divider()
+            Spacer(Modifier.height(16.dp))
+
+
+            Spacer(Modifier.height(16.dp))
+            Divider()
+            Spacer(Modifier.height(16.dp))
+
+            Text("Tono Narrativo", style = MaterialTheme.typography.titleLarge)
+            Text(
+                "Scegli lo stile narrativo preferito per il Dungeon Master.",
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            // NUOVO COMPONENTE DROPDOWN PER IL TONO
+            ExposedDropdownMenuBox(
+                expanded = showToneDropdown,
+                onExpandedChange = { showToneDropdown = !showToneDropdown },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                OutlinedTextField(
+                    value = selectedNarrativeTone.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }, // Formatta per la visualizzazione
+                    onValueChange = { /* Non modificabile direttamente qui */ },
+                    readOnly = true,
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = showToneDropdown) },
+                    modifier = Modifier.menuAnchor().fillMaxWidth(),
+                    colors = ExposedDropdownMenuDefaults.textFieldColors()
+                )
+
+                ExposedDropdownMenu(
+                    expanded = showToneDropdown,
+                    onDismissRequest = { showToneDropdown = false }
+                ) {
+                    narrativeTones.forEach { tone ->
+                        DropdownMenuItem(
+                            text = { Text(tone.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }) },
+                            onClick = {
+                                selectedNarrativeTone = tone
+                                savePrefs.narrativeTone = tone // <-- Salva la preferenza
+                                showToneDropdown = false
+                            }
+                        )
+                    }
+                }
+            }
+
             Spacer(Modifier.height(16.dp))
 
             Text("Impostazioni Audio", style = MaterialTheme.typography.titleLarge)
