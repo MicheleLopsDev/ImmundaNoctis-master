@@ -7,7 +7,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable // Importa combinedClickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.material.icons.filled.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -54,7 +54,7 @@ import io.github.luposolitario.immundanoctis.view.CharacterSheetViewModel
 import io.github.luposolitario.immundanoctis.view.CharacterSheetUiState
 import io.github.luposolitario.immundanoctis.R
 import io.github.luposolitario.immundanoctis.ui.adventure.getIconForDiscipline
-import androidx.compose.foundation.ExperimentalFoundationApi // Importa ExperimentalFoundationApi
+import androidx.compose.foundation.ExperimentalFoundationApi
 
 
 class CharacterSheetActivity : ComponentActivity() {
@@ -80,7 +80,7 @@ class CharacterSheetActivity : ComponentActivity() {
 }
 
 // --- CHARACTER SHEET SCREEN MODIFICATA ---
-@OptIn(ExperimentalMaterial3Api::class) // Per AlertDialog, se non già presente nel tuo tema
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CharacterSheetScreen(viewModel: CharacterSheetViewModel) {
     val uiState = viewModel.uiState.collectAsStateWithLifecycle().value
@@ -127,9 +127,10 @@ fun CharacterSheetScreen(viewModel: CharacterSheetViewModel) {
         }
         Spacer(modifier = Modifier.height(16.dp))
 
+        // --- MODIFICATO: Passiamo le statistiche effettive ---
         StatsAndMealsCard(
-            combatSkill = uiState.combatSkill,
-            endurance = uiState.endurance,
+            combatSkill = uiState.effectiveCombatSkill,
+            endurance = uiState.effectiveEndurance,
             meals = uiState.mealsCount
         )
 
@@ -150,8 +151,10 @@ fun CharacterSheetScreen(viewModel: CharacterSheetViewModel) {
             onItemLongPress = { item -> showDiscardConfirmDialog = item }
         )
 
+        // MODIFICATO: Passato il callback per la pressione prolungata
         SpecialItemsTableCard(
-            specialItems = uiState.specialItems
+            specialItems = uiState.specialItems,
+            onItemLongPress = { item -> showDiscardConfirmDialog = item } // <--- NUOVO PARAMETRO
         )
     }
 
@@ -180,13 +183,12 @@ fun CharacterSheetScreen(viewModel: CharacterSheetViewModel) {
     }
 }
 
-// MODIFICATO: Aggiunto onWeaponLongPress
 @Composable
 fun WeaponsCard(
     visibleWeapons: List<GameItem>,
     selectedWeapon: GameItem,
     onWeaponSelected: (GameItem?) -> Unit,
-    onWeaponLongPress: (GameItem) -> Unit // NUOVO PARAMETRO
+    onWeaponLongPress: (GameItem) -> Unit
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(vertical = 12.dp, horizontal = 16.dp)) {
@@ -203,7 +205,7 @@ fun WeaponsCard(
                         weapon = weapon,
                         isSelected = weapon.id == selectedWeapon.id,
                         onClick = onWeaponSelected,
-                        onLongPress = onWeaponLongPress // MODIFICA: Passato onLongPress
+                        onLongPress = onWeaponLongPress
                     )
                 }
             }
@@ -217,14 +219,13 @@ fun WeaponsCard(
     }
 }
 
-// MODIFICATO: Aggiunto onLongPress e logica combinedClickable
-@OptIn(ExperimentalFoundationApi::class) // <--- AGGIUNTA ANNOTAZIONE
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun WeaponSlot(
     weapon: GameItem?,
-    isSelected: Boolean,
+    isSelected: Boolean, // <--- AGGIUNTO 'isSelected' QUI
     onClick: (GameItem?) -> Unit,
-    onLongPress: (GameItem) -> Unit // NUOVO PARAMETRO
+    onLongPress: (GameItem) -> Unit
 ) {
     val borderColor = if (isSelected) Color(0xFFFFD700) else MaterialTheme.colorScheme.outline
     val backgroundColor = if (isSelected) Color(0xFFFFD700).copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant
@@ -237,14 +238,14 @@ fun WeaponSlot(
             .width(100.dp)
             .height(120.dp)
             .padding(4.dp)
-            .combinedClickable( // <--- MODIFICA: Usato combinedClickable
+            .combinedClickable(
                 onClick = { if (canBeNormallyClicked) onClick(weapon) },
                 onLongClick = {
-                    if (canBeLongPressed) onLongPress(weapon!!) // Assicurati che weapon non sia nullo
+                    if (canBeLongPressed) onLongPress(weapon!!)
                 }
             ),
         shape = RoundedCornerShape(8.dp),
-        border = BorderStroke(2.dp, borderColor),
+        border = BorderStroke(1.dp, borderColor),
         colors = CardDefaults.cardColors(containerColor = backgroundColor)
     ) {
         Column(
@@ -291,12 +292,11 @@ fun WeaponSlot(
 }
 
 
-// MODIFICATO: Aggiunto onItemLongPress
 @Composable
 fun CommonItemsCard(
     commonItems: List<GameItem>,
     onItemClick: (GameItem) -> Unit,
-    onItemLongPress: (GameItem) -> Unit // NUOVO PARAMETRO
+    onItemLongPress: (GameItem) -> Unit
 ) {
     val paddedCommonItems = commonItems.toMutableList()
     while (paddedCommonItems.size < 8) {
@@ -314,10 +314,12 @@ fun CommonItemsCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(paddedCommonItems) { item ->
+                    // MODIFICATO: Passiamo isSelected anche qui (sempre false, a meno di future implementazioni)
                     CommonItemSlot(
                         item = item,
                         onClick = onItemClick,
-                        onLongPress = onItemLongPress // MODIFICA: Passato onLongPress
+                        onLongPress = onItemLongPress,
+                        isSelected = false
                     )
                 }
             }
@@ -325,32 +327,36 @@ fun CommonItemsCard(
     }
 }
 
-// MODIFICATO: Aggiunto onLongPress e logica combinedClickable
-@OptIn(ExperimentalFoundationApi::class) // <--- AGGIUNTA ANNOTAZIONE
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun CommonItemSlot(
     item: GameItem,
     onClick: (GameItem) -> Unit,
-    onLongPress: (GameItem) -> Unit // NUOVO PARAMETRO
+    onLongPress: (GameItem) -> Unit,
+    isSelected: Boolean // <--- AGGIUNTO 'isSelected' QUI
 ) {
     val isEmpty = item.name.isEmpty() || item.quantity == 0
     val canBeNormallyClicked = !isEmpty && item.isConsumable
-    val canBeLongPressed = !isEmpty && item.isDiscardable // <--- Controllo su isDiscardable
+    val canBeLongPressed = !isEmpty && item.isDiscardable
 
     val iconRes: Any = if (isEmpty) R.drawable.ic_unknown_item else item.iconResId ?: R.drawable.ic_unknown_item
+
+    val borderColor = if (isSelected) Color(0xFFFFD700) else MaterialTheme.colorScheme.outline
+    val backgroundColor = if (isSelected) Color(0xFFFFD700).copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant
 
     OutlinedCard(
         modifier = Modifier
             .aspectRatio(1f)
             .fillMaxSize()
-            .combinedClickable( // <--- MODIFICA: Usato combinedClickable
+            .combinedClickable(
                 onClick = { if (canBeNormallyClicked) onClick(item) },
                 onLongClick = {
                     if (canBeLongPressed) onLongPress(item)
                 }
             ),
         shape = RoundedCornerShape(8.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+        border = BorderStroke(1.dp, borderColor),
+        colors = CardDefaults.cardColors(containerColor = backgroundColor)
     ) {
         Column(
             modifier = Modifier.fillMaxSize().padding(4.dp),
@@ -467,8 +473,14 @@ fun KaiDisciplinesCard(kaiDisciplines: List<KaiDisciplineInfo>) {
         }
     }
 }
+// immundanoctis/CharacterSheetActivity.kt
+
+@OptIn(ExperimentalFoundationApi::class) // Necessario per Modifier.combinedClickable
 @Composable
-fun SpecialItemsTableCard(specialItems: List<GameItem>) {
+fun SpecialItemsTableCard(
+    specialItems: List<GameItem>,
+    onItemLongPress: (GameItem) -> Unit // NUOVO PARAMETRO
+) {
     val paddedSpecialItems = specialItems.toMutableList()
     while (paddedSpecialItems.size < 10) {
         paddedSpecialItems.add(GameItem(name = "", description = "", type = ItemType.SPECIAL_ITEM))
@@ -491,11 +503,19 @@ fun SpecialItemsTableCard(specialItems: List<GameItem>) {
                     Text("Descrizione", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(0.6f), textAlign = TextAlign.Center)
                 }
                 paddedSpecialItems.forEachIndexed { index, item ->
+                    val canBeLongPressed = !item.name.isEmpty() && item.isDiscardable // Non è vuoto e scartabile
+
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(if (index % 2 == 0) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f))
-                            .padding(vertical = 8.dp, horizontal = 4.dp),
+                            .padding(vertical = 8.dp, horizontal = 4.dp)
+                            .combinedClickable( // Abilita click e long press
+                                onClick = { /* Nessuna azione al click normale per oggetti speciali in tabella, se non definita */ },
+                                onLongClick = {
+                                    if (canBeLongPressed) onItemLongPress(item)
+                                }
+                            ),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
