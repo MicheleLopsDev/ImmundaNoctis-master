@@ -97,7 +97,7 @@ fun PlayerActionsBar(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.Center
                 ) {
-                    items(hero.kaiDisciplines) { disciplineId ->
+                    items(hero.kaiDisciplines.sortedByDescending { it }) { disciplineId ->
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 4.dp)) {
                             Icon(
                                 imageVector = getIconForDiscipline(disciplineId),
@@ -115,7 +115,7 @@ fun PlayerActionsBar(
                                 }
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
-                                    text = "Maestro di $weaponTypeName", // <--- MODIFICA QUI
+                                    text = "$weaponTypeName", // <--- MODIFICA QUI
                                     style = MaterialTheme.typography.bodySmall,
                                     color = Color.White.copy(alpha = 0.9f)
                                 )

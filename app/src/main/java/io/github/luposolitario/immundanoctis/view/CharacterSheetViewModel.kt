@@ -73,7 +73,7 @@ class CharacterSheetViewModel(application: Application) : AndroidViewModel(appli
             val currentKaiRank = gameRules.getKaiRank(hero.kaiDisciplines.size)
             val heroKaiDisciplines = hero.kaiDisciplines.mapNotNull { disciplineId ->
                 KAI_DISCIPLINES.find { it.id == disciplineId }
-            }
+            }.sortedBy { it.id }
 
             // CORREZIONE: Assicurati che 'inventory' sia MutableList
             val inventory = hero.details?.inventory ?: mutableListOf() // <--- MODIFICA QUI: emptyList() -> mutableListOf()
