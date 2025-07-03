@@ -27,8 +27,8 @@ import androidx.compose.ui.unit.sp
 import io.github.luposolitario.immundanoctis.R
 import io.github.luposolitario.immundanoctis.data.GameCharacter
 import io.github.luposolitario.immundanoctis.data.ItemType
-import io.github.luposolitario.immundanoctis.data.WeaponType // <--- NUOVO IMPORT
-import io.github.luposolitario.immundanoctis.data.WEAPON_TYPE_NAMES // <--- NUOVO IMPORT
+import io.github.luposolitario.immundanoctis.data.WeaponType // Importa WeaponType
+import io.github.luposolitario.immundanoctis.data.WEAPON_TYPE_NAMES // Importa WEAPON_TYPE_NAMES
 
 
 @Composable
@@ -39,7 +39,6 @@ fun PlayerActionsBar(
     onDiceRollClicked: () -> Unit
 ) {
     val borderColor = if (isDiceRollEnabled) Color(0xFFFFD700) else Color(0xFFC0C0C0) // Oro se abilitato, altrimenti Argento
-    // --- LOGICA PER TROVARE I PASTI NELL'INVENTARIO ---
     val mealItem = hero.details?.inventory?.find { it.name == "Pasto" }
     val mealCount = mealItem?.quantity ?: 0
 
@@ -99,33 +98,28 @@ fun PlayerActionsBar(
                     horizontalArrangement = Arrangement.Center
                 ) {
                     items(hero.kaiDisciplines) { disciplineId ->
-                        // --- MODIFICATO: Aggiungiamo il tipo di arma per Scherma ---
-                        val textToDisplay = if (disciplineId == "WEAPONSKILL") {
-                            val weaponSkillType = hero.details?.weaponSkillType
-                            val weaponTypeName = if (weaponSkillType != null) {
-                                WEAPON_TYPE_NAMES[weaponSkillType] ?: weaponSkillType.name
-                            } else {
-                                "Non Definito" // Fallback se non ancora scelto o salvato
-                            }
-                            "$weaponTypeName"
-                        }
-                        else {
-                            ""//getDisciplineName(disciplineId)
-                        }
-
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 4.dp)) {
                             Icon(
                                 imageVector = getIconForDiscipline(disciplineId),
-                                contentDescription = disciplineId,
+                                contentDescription = getDisciplineName(disciplineId), // Usiamo il nome per la contentDescription
                                 modifier = Modifier.size(24.dp),
                                 tint = Color.White.copy(alpha = 0.7f)
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = textToDisplay,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Color.White.copy(alpha = 0.9f)
-                            )
+                            // Mostra il testo solo se è la disciplina Scherma, con la specializzazione
+                            if (disciplineId == "WEAPONSKILL") {
+                                val weaponSkillType = hero.details?.weaponSkillType
+                                val weaponTypeName = if (weaponSkillType != null) {
+                                    WEAPON_TYPE_NAMES[weaponSkillType] ?: weaponSkillType.name
+                                } else {
+                                    "" // Stringa vuota se la specializzazione non è stata ancora scelta/salvata
+                                }
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Maestro di $weaponTypeName", // <--- MODIFICA QUI
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color.White.copy(alpha = 0.9f)
+                                )
+                            }
                         }
                     }
                 }
