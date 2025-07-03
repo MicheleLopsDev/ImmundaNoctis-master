@@ -27,6 +27,9 @@ import androidx.compose.ui.unit.sp
 import io.github.luposolitario.immundanoctis.R
 import io.github.luposolitario.immundanoctis.data.GameCharacter
 import io.github.luposolitario.immundanoctis.data.ItemType
+import io.github.luposolitario.immundanoctis.data.WeaponType // <--- NUOVO IMPORT
+import io.github.luposolitario.immundanoctis.data.WEAPON_TYPE_NAMES // <--- NUOVO IMPORT
+
 
 @Composable
 fun PlayerActionsBar(
@@ -46,7 +49,7 @@ fun PlayerActionsBar(
             .padding(horizontal = 8.dp, vertical = 4.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF8D6E63)
+            containerColor = Color(0xFF8D6E63) // Colore marrone/legno
         )
     ) {
         Column(modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp)) {
@@ -74,7 +77,7 @@ fun PlayerActionsBar(
                             Text(
                                 text = kaiRank,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color(0xFFFFF59D)
+                                color = Color(0xFFFFF59D) // Giallo chiaro
                             )
                         }
                     }
@@ -85,7 +88,6 @@ fun PlayerActionsBar(
                     Spacer(modifier = Modifier.width(16.dp))
                     StatItem(icon = Icons.Default.Favorite, value = hero.stats?.resistenza ?: 0, iconColor = Color(0xFFE57373))
                     Spacer(modifier = Modifier.width(16.dp))
-                    // --- MODIFICA QUI ---
                     StatItem(icon = Icons.Default.BakeryDining, value = mealCount)
                 }
             }
@@ -97,16 +99,55 @@ fun PlayerActionsBar(
                     horizontalArrangement = Arrangement.Center
                 ) {
                     items(hero.kaiDisciplines) { disciplineId ->
-                        Icon(
-                            imageVector = getIconForDiscipline(disciplineId),
-                            contentDescription = disciplineId,
-                            modifier = Modifier.padding(horizontal = 4.dp).size(24.dp),
-                            tint = Color.White.copy(alpha = 0.7f)
-                        )
+                        // --- MODIFICATO: Aggiungiamo il tipo di arma per Scherma ---
+                        val textToDisplay = if (disciplineId == "WEAPONSKILL") {
+                            val weaponSkillType = hero.details?.weaponSkillType
+                            val weaponTypeName = if (weaponSkillType != null) {
+                                WEAPON_TYPE_NAMES[weaponSkillType] ?: weaponSkillType.name
+                            } else {
+                                "Non Definito" // Fallback se non ancora scelto o salvato
+                            }
+                            "$weaponTypeName"
+                        }
+                        else {
+                            ""//getDisciplineName(disciplineId)
+                        }
+
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 4.dp)) {
+                            Icon(
+                                imageVector = getIconForDiscipline(disciplineId),
+                                contentDescription = disciplineId,
+                                modifier = Modifier.size(24.dp),
+                                tint = Color.White.copy(alpha = 0.7f)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = textToDisplay,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.White.copy(alpha = 0.9f)
+                            )
+                        }
                     }
                 }
             }
         }
+    }
+}
+
+// Funzione helper per ottenere il nome localizzato della disciplina
+private fun getDisciplineName(disciplineId: String): String {
+    return when (disciplineId) {
+        "CAMOUFLAGE" -> "Mimetismo"
+        "HUNTING" -> "Caccia"
+        "SIXTH_SENSE" -> "Sesto Senso"
+        "TRACKING" -> "Orientamento"
+        "HEALING" -> "Guarigione"
+        "WEAPONSKILL" -> "Scherma"
+        "MINDSHIELD" -> "Psicoschermo"
+        "MINDBLAST" -> "Psicolaser"
+        "ANIMAL_KINSHIP" -> "Affinità Animale"
+        "MIND_OVER_MATTER" -> "Telecinesi"
+        else -> disciplineId
     }
 }
 

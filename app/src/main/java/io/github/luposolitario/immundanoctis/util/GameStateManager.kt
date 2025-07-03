@@ -1,6 +1,7 @@
+// immundanoctis/util/GameStateManager.kt
+
 package io.github.luposolitario.immundanoctis.util
 
-import android.content.Context
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import io.github.luposolitario.immundanoctis.R
@@ -9,7 +10,7 @@ import java.io.File
 import java.io.FileReader
 import java.io.FileWriter
 
-class GameStateManager(private val context: Context) {
+class GameStateManager(private val context: android.content.Context) {
     private val gson: Gson = GsonBuilder().setPrettyPrinting().create()
     private val saveFile: File = File(context.filesDir, "session.json")
 
@@ -50,16 +51,14 @@ class GameStateManager(private val context: Context) {
             id = CharacterID.HERO,
             name = "Lupo Solitario",
             type = CharacterType.PLAYER,
-            characterClass = "Guerriero Kai",
+            // characterClass rimosso dal costruttore, ora è una val nella classe GameCharacter
             portraitResId = R.drawable.ic_hero_portrait_placeholder,
             gender = "MALE",
             language = "it",
             stats = LoneWolfStats(combattivita = 15, resistenza = 25),
             kaiDisciplines = listOf("SIXTH_SENSE", "HEALING", "MINDSHIELD", "WEAPONSKILL", "HUNTING"),
-            // 'pasti' rimosso da qui
             details = HeroDetails(
                 specialAbilities = listOf("Immunità alle malattie"),
-                // L'inventario viene inizializzato qui, con i pasti inclusi
                 inventory = mutableListOf(
                     GameItem(name = "Pasto", type = ItemType.BACKPACK_ITEM, quantity = 2)
                 )
@@ -70,7 +69,7 @@ class GameStateManager(private val context: Context) {
             id = CharacterID.DM,
             name = "Dungeon Master",
             type = CharacterType.DM,
-            characterClass = "Narratore",
+            // characterClass rimosso
             portraitResId = R.drawable.portrait_dm,
             gender = "NEUTRAL",
             language = "it",
@@ -81,7 +80,7 @@ class GameStateManager(private val context: Context) {
             id = "companion1",
             name = "Elara",
             type = CharacterType.NPC,
-            characterClass = "Guaritrice",
+            // characterClass rimosso
             portraitResId = R.drawable.portrait_elara,
             gender = "FEMALE",
             language = "it",

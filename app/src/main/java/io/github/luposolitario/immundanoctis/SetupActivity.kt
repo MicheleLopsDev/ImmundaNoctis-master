@@ -35,6 +35,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext // AGGIUNTO IMPORT
+import androidx.compose.ui.platform.LocalConfiguration // AGGIUNTO IMPORT
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
@@ -57,7 +59,13 @@ import io.github.luposolitario.immundanoctis.view.SetupViewModel
 import io.github.luposolitario.immundanoctis.data.GameItem
 import io.github.luposolitario.immundanoctis.data.INITIAL_WEAPONS
 import io.github.luposolitario.immundanoctis.data.INITIAL_SPECIAL_ITEMS
-import io.github.luposolitario.immundanoctis.data.ItemType // Necessario per il fallback delle icone
+import io.github.luposolitario.immundanoctis.data.ItemType
+import io.github.luposolitario.immundanoctis.data.WeaponType
+import io.github.luposolitario.immundanoctis.data.WEAPON_TYPE_NAMES
+import io.github.luposolitario.immundanoctis.data.WEAPON_SKILL_DESCRIPTIONS
+import io.github.luposolitario.immundanoctis.ui.adventure.RobustImage
+import io.github.luposolitario.immundanoctis.ui.adventure.WeaponSkillSelectionDialog // <--- AGGIUNTO L'IMPORT PER WeaponSkillSelectionDialog
+
 
 import java.text.SimpleDateFormat
 import java.util.*
@@ -103,9 +111,9 @@ class SetupActivity : ComponentActivity() {
                             }
                         )
                     } else {
-                        sessionToLoad?.let {
+                        sessionToLoad?.let { session ->
                             ExistingSessionScreen(
-                                session = it,
+                                session = session,
                                 onContinue = {
                                     val intent = Intent(this, AdventureActivity::class.java)
                                     startActivity(intent)
@@ -122,6 +130,7 @@ class SetupActivity : ComponentActivity() {
 }
 
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CharacterCreationScreen(
     viewModel: SetupViewModel,
@@ -129,13 +138,20 @@ fun CharacterCreationScreen(
     onSessionCreate: (SessionData) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val selectedDisciplines = viewModel.selectedDisciplines
+    val selectedDisciplines = viewModel.selectedDisciplines // Usiamo questa lista diretta
 
     val canProceed = uiState.combattivita > 0 &&
             uiState.resistenza > 0 &&
             selectedDisciplines.size == 5 &&
             uiState.selectedWeapon != null &&
-            uiState.selectedSpecialItem != null
+            uiState.selectedSpecialItem != null &&
+            // NUOVA CONDIZIONE: Se Scherma è selezionata, ChosenWeaponSkillType non deve essere null
+            (selectedDisciplines.contains("WEAPONSKILL") && uiState.chosenWeaponSkillType != null || !selectedDisciplines.contains("WEAPONSKILL"))
+
+
+    // Stati per il dialogo della WeaponSkill (ora dal ViewModel)
+    val showWeaponSkillDialog by viewModel.showWeaponSkillDialog.collectAsState()
+    val dialogRolledWeaponSkillType by viewModel.dialogRolledWeaponSkillType.collectAsState() // <--- MODIFICATO QUI
 
     Column(
         modifier = Modifier
@@ -158,16 +174,15 @@ fun CharacterCreationScreen(
             onRandomizeClick = { viewModel.rollStats() }
         )
 
-        // Callback aggiornate per passare GameItem
         EquipmentChoiceCard(
             uiState = uiState,
-            onWeaponSelected = { item -> viewModel.onWeaponSelected(item) }, // Passa GameItem
-            onSpecialItemSelected = { item -> viewModel.onSpecialItemSelected(item) } // Passa GameItem
+            onWeaponSelected = { item -> viewModel.onWeaponSelected(item) },
+            onSpecialItemSelected = { item -> viewModel.onSpecialItemSelected(item) }
         )
 
         DisciplineGridCard(
             selectedDisciplines = selectedDisciplines.toList(),
-            onDisciplineSelected = { viewModel.toggleDiscipline(it) }
+            onDisciplineSelected = { disciplineId -> viewModel.toggleDiscipline(disciplineId) }
         )
 
         Spacer(Modifier.weight(1f))
@@ -183,6 +198,15 @@ fun CharacterCreationScreen(
             Text("Inizia l'Avventura")
         }
     }
+
+    // --- NUOVO DIALOGO per la selezione del tipo di arma Scherma ---
+    if (showWeaponSkillDialog && dialogRolledWeaponSkillType != null) { // <--- MODIFICATO QUI
+        WeaponSkillSelectionDialog(
+            weaponType = dialogRolledWeaponSkillType!!, // <--- MODIFICATO QUI
+            onConfirm = { viewModel.confirmWeaponSkillSelection() }
+        )
+    }
+    // --- FINE NUOVO DIALOGO ---
 }
 
 @Composable
@@ -209,10 +233,9 @@ fun RandomStatsCard(combatSkill: Int, endurance: Int, onRandomizeClick: () -> Un
 @Composable
 fun EquipmentChoiceCard(
     uiState: SetupUiState,
-    onWeaponSelected: (GameItem) -> Unit, // Ora accetta GameItem
-    onSpecialItemSelected: (GameItem) -> Unit // Ora accetta GameItem
+    onWeaponSelected: (GameItem) -> Unit,
+    onSpecialItemSelected: (GameItem) -> Unit
 ) {
-    // Ora usiamo le liste definite in GameData.kt
     val weapons = INITIAL_WEAPONS
     val specialItems = INITIAL_SPECIAL_ITEMS
 
@@ -231,9 +254,8 @@ fun EquipmentChoiceCard(
                 weapons.forEach { item ->
                     EquipmentChoiceRow(
                         item = item,
-                        // Confronto ora tra GameItem? e GameItem (per il nome)
                         isSelected = (uiState.selectedWeapon?.name == item.name),
-                        onClick = { onWeaponSelected(item) } // Passiamo l'intero GameItem
+                        onClick = { onWeaponSelected(item) }
                     )
                 }
             }
@@ -248,9 +270,8 @@ fun EquipmentChoiceCard(
                 specialItems.forEach { item ->
                     EquipmentChoiceRow(
                         item = item,
-                        // Confronto ora tra GameItem? e GameItem (per il nome)
                         isSelected = (uiState.selectedSpecialItem?.name == item.name),
-                        onClick = { onSpecialItemSelected(item) } // Passiamo l'intero GameItem
+                        onClick = { onSpecialItemSelected(item) }
                     )
                 }
             }
@@ -258,12 +279,9 @@ fun EquipmentChoiceCard(
     }
 }
 
-// Rimuoviamo la classe EquipmentItem interna, useremo direttamente GameItem
-// private data class EquipmentItem(val name: String, val description: String, @DrawableRes val iconResId: Int)
-
 @Composable
 private fun EquipmentChoiceRow(
-    item: GameItem, // Ora accetta GameItem
+    item: GameItem,
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
@@ -282,7 +300,6 @@ private fun EquipmentChoiceRow(
             modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Qui dobbiamo gestire l'icona. GameItem ha iconResId?, quindi dobbiamo assegnare un default
             val iconResId = item.iconResId ?: when (item.type) {
                 ItemType.WEAPON -> R.drawable.ic_sword // Icona di default per armi
                 ItemType.HELMET -> R.drawable.ic_helmet // Icona di default per elmi
@@ -403,7 +420,7 @@ fun ExistingSessionScreen(
     onCreateNew: () -> Unit
 ) {
     val formattedDate = remember {
-        SimpleDateFormat("dd MMMM yyyy, HH:mm", Locale.getDefault()).format(Date(session.lastUpdate))
+        SimpleDateFormat("dd MMMMyyyy, HH:mm", Locale.getDefault()).format(Date(session.lastUpdate))
     }
     val hero = session.characters.find { it.id == CharacterID.HERO }
 
@@ -445,25 +462,62 @@ fun ExistingSessionScreen(
     }
 }
 
+
+// --- NUOVO COMPOSABLE: WeaponSkillSelectionDialog ---
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RobustImage(
-    @DrawableRes resId: Int,
-    contentDescription: String?,
-    modifier: Modifier = Modifier,
-    contentScale: ContentScale = ContentScale.Fit,
-    placeholder: @Composable (Modifier) -> Unit = { mod ->
-        Icon(
-            imageVector = Icons.Default.BrokenImage,
-            contentDescription = "Immagine non caricata",
-            modifier = mod
-        )
-    }
+fun WeaponSkillSelectionDialog(
+    weaponType: WeaponType,
+    onConfirm: () -> Unit
 ) {
-    val painter = painterResource(id = resId)
-    Image(
-        painter = painter,
-        contentDescription = contentDescription,
-        modifier = modifier,
-        contentScale = contentScale
+    val context = LocalContext.current
+    val languageCode = context.resources.configuration.locales.get(0).language
+
+    val dialogTitle = "Scherma: Talento Focalizzato" // Puoi definire questa stringa in strings.xml: R.string.weaponskill_dialog_title
+    val weaponTypeName = WEAPON_TYPE_NAMES[weaponType] ?: weaponType.name // Nome localizzato dell'arma
+    val descriptionText = when (languageCode) {
+        "it" -> WEAPON_SKILL_DESCRIPTIONS[weaponType]?.italian
+        else -> WEAPON_SKILL_DESCRIPTIONS[weaponType]?.english // Fallback a inglese
+    }
+
+    AlertDialog(
+        onDismissRequest = { /* Non dismissabile senza conferma */ },
+        title = { Text(dialogTitle) },
+        text = {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "La tua affinità per la Scherma si concentra su:",
+                    style = MaterialTheme.typography.bodyLarge,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                Text(
+                    text = weaponTypeName,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                if (descriptionText != null) {
+                    Text(
+                        text = descriptionText,
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center
+                    )
+                } else {
+                    Text(
+                        text = "Un talento speciale per ${weaponTypeName}.", // Fallback generico
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = onConfirm) {
+                Text("Conferma")
+            }
+        }
     )
 }

@@ -28,7 +28,6 @@ enum class ItemType {
     MEAL
 }
 
-// --- CLASSE GameItem MODIFICATA ---
 data class GameItem(
     val id: String = UUID.randomUUID().toString(),
     val name: String,
@@ -37,14 +36,13 @@ data class GameItem(
     @DrawableRes val iconResId: Int? = null,
     val description: String? = null,
     val bonuses: Map<String, Int>? = null,
-    // Nuovi campi per i bonus delle armi
     val combatSkillBonus: Int = 0,
     val enduranceBonus: Int = 0,
     val isConsumable: Boolean = false,
-    val isDiscardable: Boolean = true
+    val isDiscardable: Boolean = true,
+    val weaponType: WeaponType? = null
 )
 
-// --- NUOVA DEFINIZIONE DI FISTS_WEAPON ---
 val FISTS_WEAPON = GameItem(
     id = "FISTS",
     name = "Pugni",
@@ -54,7 +52,8 @@ val FISTS_WEAPON = GameItem(
     description = "Attacco a mani nude. Non fornisce bonus significativi.",
     combatSkillBonus = 0,
     enduranceBonus = 0,
-    isDiscardable = false
+    isDiscardable = false,
+    weaponType = WeaponType.FISTS
 )
 
 enum class ChallengeLevel {
@@ -107,46 +106,44 @@ data class LoneWolfStats(
     val resistenza: Int
 )
 
-// --- NUOVE ENUM E DATA CLASS PER LA GESTIONE DEI MODIFICATORI ---
 enum class ModifierSourceType {
-    ITEM,          // Modificatore da un oggetto equipaggiato/usato
-    DISCIPLINE,    // Modificatore da una disciplina Kai usata
-    EVENT,         // Modificatore da un evento narrativo
-    RULE           // <--- AGGIUNTA QUESTA RIGA: Modificatore da una regola di gioco
+    ITEM,
+    DISCIPLINE,
+    EVENT,
+    RULE
 }
 
 enum class ModifierDuration {
-    PERMANENT,          // Il modificatore è permanente
-    UNTIL_UNEQUIPPED,   // Dura finché l'oggetto che lo conferisce non è più equipaggiato (per armi)
-    UNTIL_COMBAT_END,   // Dura fino alla fine del combattimento
-    UNTIL_SCENE_END,    // Dura fino alla fine della scena corrente
-    FOR_X_ROUNDS        // Dura per un numero specifico di round (es. in combattimento)
+    PERMANENT,
+    UNTIL_UNEQUIPPED,
+    UNTIL_COMBAT_END,
+    UNTIL_SCENE_END,
+    FOR_X_ROUNDS
 }
 
 data class StatModifier(
-    val id: String = UUID.randomUUID().toString(), // ID unico per il modificatore
-    val statName: String,         // Nome della statistica modificata (es. "COMBATTIVITA", "RESISTENZA")
-    val amount: Int,              // Valore del modificatore (+/-)
-    val sourceType: ModifierSourceType, // Tipo di fonte del modificatore
-    val sourceId: String,         // ID della fonte (es. ID dell'oggetto, ID disciplina, ID evento)
-    val duration: ModifierDuration, // Durata del modificatore
-    val roundsRemaining: Int? = null, // Solo per FOR_X_ROUNDS
-    val appliedTime: Long? = null // Timestamp di quando è stato applicato (per durate a tempo, se implementate)
+    val id: String = UUID.randomUUID().toString(),
+    val statName: String,
+    val amount: Int,
+    val sourceType: ModifierSourceType,
+    val sourceId: String,
+    val duration: ModifierDuration,
+    val roundsRemaining: Int? = null,
+    val appliedTime: Long? = null
 )
 
-// --- MODIFICATA HeroDetails per includere i modificatori attivi ---
 data class HeroDetails(
     val id: String = UUID.randomUUID().toString(),
     val specialAbilities: List<String>,
     val inventory: MutableList<GameItem> = mutableListOf(),
-    val activeModifiers: MutableList<StatModifier> = mutableListOf()
+    val activeModifiers: MutableList<StatModifier> = mutableListOf(),
+    val weaponSkillType: WeaponType? = null
 )
 
 data class GameCharacter(
     val id: String,
     val name: String,
     val type: CharacterType,
-    val characterClass: String,
     @DrawableRes val portraitResId: Int,
     val gender: String,
     val language: String,
@@ -155,7 +152,9 @@ data class GameCharacter(
     val kaiDisciplines: List<String> = emptyList(),
     val notes: String = "",
     val details: HeroDetails? = null
-)
+) {
+    val characterClass: String = "Guerriero Kai"
+}
 
 data class DisciplineChoice(
     val disciplineId: String,
@@ -191,20 +190,72 @@ val KAI_DISCIPLINES = listOf(
     KaiDisciplineInfo("SIXTH_SENSE", "Sesto Senso", "Avverte di pericoli imminenti."),
     KaiDisciplineInfo("TRACKING", "Orientamento", "Permette di seguire tracce e non perdersi."),
     KaiDisciplineInfo("HEALING", "Guarigione", "Ripristina 1 punto Resistenza per sezione senza combattimento."),
-    KaiDisciplineInfo("WEAPONSKILL", "Scherma", "+2 Combattività con un tipo di arma."),
+    KaiDisciplineInfo("WEAPONSKILL", "Scherma", "+2 Combattività con un tipo di arma."), // Descrizione per il giocatore
     KaiDisciplineInfo("MINDSHIELD", "Psicoschermo", "Immunità agli attacchi psichici."),
     KaiDisciplineInfo("MINDBLAST", "Psicolaser", "+2 Combattività in combattimento."),
     KaiDisciplineInfo("ANIMAL_KINSHIP", "Affinità Animale", "Permette di comunicare con gli animali."),
     KaiDisciplineInfo("MIND_OVER_MATTER", "Telecinesi", "Permette di muovere piccoli oggetti con la mente.")
 )
 
+enum class WeaponType {
+    AXE,
+    SWORD,
+    MACE,
+    STAFF,
+    SPEAR,
+    BROADSWORD,
+    FISTS
+}
+
+val WEAPON_TYPE_NAMES = mapOf(
+    WeaponType.AXE to "Ascia",
+    WeaponType.SWORD to "Spada",
+    WeaponType.MACE to "Mazza",
+    WeaponType.STAFF to "Bastone",
+    WeaponType.SPEAR to "Lancia",
+    WeaponType.BROADSWORD to "Spada Larga",
+    WeaponType.FISTS to "Pugni"
+)
+
+// --- NUOVA MAPPA per i messaggi personalizzati della disciplina Scherma ---
+val WEAPON_SKILL_DESCRIPTIONS = mapOf(
+    WeaponType.FISTS to LocalizedText(
+        english = "You've always been good at brawling, but at the monastery, they taught you the way of Bushido: bare-handed combat can be extremely lethal.",
+        italian = "Sei sempre stato bravo a menare le mani, ma al monastero ti hanno insegnato la via del Bushido: il combattimento a mani nude può essere estremamente letale."
+    ),
+    WeaponType.SWORD to LocalizedText(
+        english = "The noble Kai knights have always favored the use of what is the main weapon of Sommerlund's noble heroes, and they have blessed you with a unique talent.",
+        italian = "I nobili cavalieri Kai hanno sempre privilegiato l'uso di quella che è l'arma principale dei nobili eroi del Sommerlund, e ti hanno benedetto con un talento unico."
+    ),
+    WeaponType.AXE to LocalizedText(
+        english = "The brutality of the woods taught you that a sharp weapon in the back always does its duty, and like all animals of the forest, you are the fierce wolf.",
+        italian = "La brutalità dei boschi ti ha insegnato che un'arma affilata nella schiena fa sempre il suo dovere, e come tutti gli animali dei boschi tu sei il lupo feroce."
+    ),
+    WeaponType.MACE to LocalizedText(
+        english = "The crushing power of the mace is your innate strength. You wield it with a primal force that shatters defenses and spirits alike.",
+        italian = "Il potere devastante della mazza è la tua forza innata. La brandisci con una forza primordiale che frantuma difese e spiriti allo stesso modo."
+    ),
+    WeaponType.STAFF to LocalizedText(
+        english = "The simple staff becomes a deadly extension of your will. Your movements are fluid, unpredictable, turning defense into offense with elegant precision.",
+        italian = "Il semplice bastone diventa una micidiale estensione della tua volontà. I tuoi movimenti sono fluidi, imprevedibili, trasformando la difesa in attacco con elegante precisione."
+    ),
+    WeaponType.SPEAR to LocalizedText(
+        english = "The spear is an extension of your deadly reach. You strike from a distance with the cunning of a hunter, keeping your foes at bay with every thrust.",
+        italian = "La lancia è un'estensione della tua portata micidiale. Colpisci da lontano con l'astuzia di un cacciatore, tenendo a bada i tuoi nemici con ogni affondo."
+    ),
+    WeaponType.BROADSWORD to LocalizedText(
+        english = "The broadsword, a weapon of raw power, resonates with your martial spirit. Each swing is a declaration of dominance, cleaving through resistance with overwhelming force.",
+        italian = "La spada larga, un'arma di pura potenza, risuona con il tuo spirito marziale. Ogni fendente è una dichiarazione di dominio, squarciando la resistenza con forza travolgente."
+    )
+)
+
 val INITIAL_WEAPONS = listOf(
-    GameItem(name = "Ascia", type = ItemType.WEAPON, description = "Un'arma affidabile e bilanciata.", iconResId = R.drawable.ic_axe, combatSkillBonus = 3, isDiscardable = true),
-    GameItem(name = "Spada", type = ItemType.WEAPON, description = "Veloce e letale, un classico per ogni avventuriero.", iconResId = R.drawable.ic_sword, combatSkillBonus = 4, isDiscardable = true),
-    GameItem(name = "Mazza", type = ItemType.WEAPON, description = "Un'arma contundente e potente.", iconResId = R.drawable.ic_mace, combatSkillBonus = 2, isDiscardable = true),
-    GameItem(name = "Bastone", type = ItemType.WEAPON, description = "Utile per la difesa e come supporto.", iconResId = R.drawable.ic_staff, combatSkillBonus = 1, isDiscardable = true),
-    GameItem(name = "Lancia", type = ItemType.WEAPON, description = "Un'arma a lunga gittata.", iconResId = R.drawable.ic_spear, combatSkillBonus = 3, isDiscardable = true),
-    GameItem(name = "Spada Larga", type = ItemType.WEAPON, description = "Un'arma imponente per un guerriero possente.", iconResId = R.drawable.ic_broadsword, combatSkillBonus = 5, isDiscardable = true)
+    GameItem(name = "Ascia", type = ItemType.WEAPON, description = "Un'arma affidabile e bilanciata.", iconResId = R.drawable.ic_axe, combatSkillBonus = 3, isDiscardable = true, weaponType = WeaponType.AXE),
+    GameItem(name = "Spada", type = ItemType.WEAPON, description = "Veloce e letale, un classico per ogni avventuriero.", iconResId = R.drawable.ic_sword, combatSkillBonus = 4, isDiscardable = true, weaponType = WeaponType.SWORD),
+    GameItem(name = "Mazza", type = ItemType.WEAPON, description = "Un'arma contundente e potente.", iconResId = R.drawable.ic_mace, combatSkillBonus = 2, isDiscardable = true, weaponType = WeaponType.MACE),
+    GameItem(name = "Bastone", type = ItemType.WEAPON, description = "Utile per la difesa e come supporto.", iconResId = R.drawable.ic_staff, combatSkillBonus = 1, isDiscardable = true, weaponType = WeaponType.STAFF),
+    GameItem(name = "Lancia", type = ItemType.WEAPON, description = "Un'arma a lunga gittata.", iconResId = R.drawable.ic_spear, combatSkillBonus = 3, isDiscardable = true, weaponType = WeaponType.SPEAR),
+    GameItem(name = "Spada Larga", type = ItemType.WEAPON, description = "Un'arma imponente per un guerriero possente.", iconResId = R.drawable.ic_broadsword, combatSkillBonus = 5, isDiscardable = true, weaponType = WeaponType.BROADSWORD)
 )
 
 val INITIAL_SPECIAL_ITEMS = listOf(

@@ -50,11 +50,13 @@ import io.github.luposolitario.immundanoctis.data.ItemType
 import io.github.luposolitario.immundanoctis.data.LoneWolfStats
 import io.github.luposolitario.immundanoctis.data.KaiDisciplineInfo
 import io.github.luposolitario.immundanoctis.data.FISTS_WEAPON
+import io.github.luposolitario.immundanoctis.data.WeaponType
 import io.github.luposolitario.immundanoctis.view.CharacterSheetViewModel
 import io.github.luposolitario.immundanoctis.view.CharacterSheetUiState
 import io.github.luposolitario.immundanoctis.R
 import io.github.luposolitario.immundanoctis.ui.adventure.getIconForDiscipline
 import androidx.compose.foundation.ExperimentalFoundationApi
+import android.util.Log // <--- AGGIUNTO IMPORT PER LOG
 
 
 class CharacterSheetActivity : ComponentActivity() {
@@ -84,6 +86,7 @@ class CharacterSheetActivity : ComponentActivity() {
 @Composable
 fun CharacterSheetScreen(viewModel: CharacterSheetViewModel) {
     val uiState = viewModel.uiState.collectAsStateWithLifecycle().value
+    Log.d("CSActivity", "CharacterSheetScreen - UI State aggiornato: effectiveCS=${uiState.effectiveCombatSkill}, selectedWeapon=${uiState.selectedWeapon.name}")
 
     // Stato per il pop-up di conferma scarto
     var showDiscardConfirmDialog by remember { mutableStateOf<GameItem?>(null) }
@@ -106,11 +109,8 @@ fun CharacterSheetScreen(viewModel: CharacterSheetViewModel) {
                 Image(
                     painter = painterResource(id = R.drawable.ic_hero_portrait_placeholder),
                     contentDescription = "Ritratto Eroe",
-                    modifier = Modifier
-                        .size(96.dp)
-                        .clip(CircleShape)
-                        .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape),
-                    contentScale = ContentScale.Crop
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.size(96.dp).clip(CircleShape).border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
                 )
                 Text(uiState.heroCharacter?.name ?: "Eroe Sconosciuto", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 Text(uiState.kaiRank, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.secondary)
@@ -127,16 +127,18 @@ fun CharacterSheetScreen(viewModel: CharacterSheetViewModel) {
         }
         Spacer(modifier = Modifier.height(16.dp))
 
-        // --- MODIFICATO: Passiamo le statistiche effettive ---
+        // Passiamo le statistiche effettive alla StatsAndMealsCard
         StatsAndMealsCard(
             combatSkill = uiState.effectiveCombatSkill,
             endurance = uiState.effectiveEndurance,
             meals = uiState.mealsCount
         )
 
+        // Passiamo l'arma selezionata e il bonus intrinseco alla WeaponsCard
         WeaponsCard(
             visibleWeapons = uiState.visibleWeapons,
             selectedWeapon = uiState.selectedWeapon,
+            selectedWeaponModifierAmount = uiState.selectedWeaponModifierAmount,
             onWeaponSelected = { weapon -> viewModel.selectWeapon(weapon) },
             onWeaponLongPress = { weapon -> showDiscardConfirmDialog = weapon }
         )
@@ -151,10 +153,9 @@ fun CharacterSheetScreen(viewModel: CharacterSheetViewModel) {
             onItemLongPress = { item -> showDiscardConfirmDialog = item }
         )
 
-        // MODIFICATO: Passato il callback per la pressione prolungata
         SpecialItemsTableCard(
             specialItems = uiState.specialItems,
-            onItemLongPress = { item -> showDiscardConfirmDialog = item } // <--- NUOVO PARAMETRO
+            onItemLongPress = { item -> showDiscardConfirmDialog = item }
         )
     }
 
@@ -163,7 +164,7 @@ fun CharacterSheetScreen(viewModel: CharacterSheetViewModel) {
         AlertDialog(
             onDismissRequest = { showDiscardConfirmDialog = null },
             title = { Text("Conferma Scarto Oggetto") },
-            text = { Text("Sei sicuro di voler scartare '${itemToDiscard.name}'? Quest'azione non è reversibile.") },
+            text = { Text("Sei sicuro di voler scartare '${itemToDiscard.name}'? Quest'azione non è irreversibile.") },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -183,17 +184,21 @@ fun CharacterSheetScreen(viewModel: CharacterSheetViewModel) {
     }
 }
 
+// --- WeaponsCard MODIFICATA: Mostra il bonus intrinseco dell'arma selezionata ---
 @Composable
 fun WeaponsCard(
     visibleWeapons: List<GameItem>,
     selectedWeapon: GameItem,
+    selectedWeaponModifierAmount: Int, // Parametro che include il bonus/malus netto dell'arma
     onWeaponSelected: (GameItem?) -> Unit,
     onWeaponLongPress: (GameItem) -> Unit
 ) {
+    Log.d("CSActivity", "WeaponsCard - visibleWeapons: ${visibleWeapons.map { it.name }}, selectedWeapon: ${selectedWeapon.name}, modifierAmount: $selectedWeaponModifierAmount")
+
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(vertical = 12.dp, horizontal = 16.dp)) {
             Text("Armi", style = MaterialTheme.typography.titleLarge, modifier = Modifier.align(Alignment.CenterHorizontally))
-            Spacer(Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -209,10 +214,17 @@ fun WeaponsCard(
                     )
                 }
             }
-            Spacer(Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "Arma selezionata: ${selectedWeapon.name} (CS: ${selectedWeapon.bonuses?.get("CombatSkill") ?: 0})",
+                text = "Combattività (attuale): ${selectedWeaponModifierAmount}", // Mostra il modificatore netto dell'arma selezionata
                 style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            )
+            Text(
+                text = "Arma selezionata: ${selectedWeapon.name}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             )
         }
@@ -223,10 +235,12 @@ fun WeaponsCard(
 @Composable
 fun WeaponSlot(
     weapon: GameItem?,
-    isSelected: Boolean, // <--- AGGIUNTO 'isSelected' QUI
+    isSelected: Boolean,
     onClick: (GameItem?) -> Unit,
     onLongPress: (GameItem) -> Unit
 ) {
+    Log.d("CSActivity", "WeaponSlot - weapon: ${weapon?.name}, isSelected: $isSelected")
+
     val borderColor = if (isSelected) Color(0xFFFFD700) else MaterialTheme.colorScheme.outline
     val backgroundColor = if (isSelected) Color(0xFFFFD700).copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant
 
@@ -261,26 +275,27 @@ fun WeaponSlot(
                 )
                 Text("Vuoto", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
             } else {
-                val weaponIconRes = when (weapon.id) {
-                    "FISTS" -> R.drawable.ic_fists
-                    "Ascia" -> R.drawable.ic_axe
-                    "Spada" -> R.drawable.ic_sword
-                    "Mazza" -> R.drawable.ic_mace
-                    "Bastone" -> R.drawable.ic_staff
-                    "Lancia" -> R.drawable.ic_spear
-                    "Spada Larga" -> R.drawable.ic_broadsword
-                    else -> R.drawable.ic_unknown_item
+                // --- MODIFICATO: Usa weapon.weaponType per la selezione dell'icona ---
+                val weaponIconRes = when (weapon.weaponType) {
+                    WeaponType.FISTS -> R.drawable.ic_fists
+                    WeaponType.AXE -> R.drawable.ic_axe
+                    WeaponType.SWORD -> R.drawable.ic_sword
+                    WeaponType.MACE -> R.drawable.ic_mace
+                    WeaponType.STAFF -> R.drawable.ic_staff
+                    WeaponType.SPEAR -> R.drawable.ic_spear
+                    WeaponType.BROADSWORD -> R.drawable.ic_broadsword
+                    else -> R.drawable.ic_unknown_item // Fallback per tipi non riconosciuti o null
                 }
                 Image(
                     painter = painterResource(id = weaponIconRes),
                     contentDescription = weapon.name,
-                    modifier = Modifier.size(48.dp)
+                    modifier = Modifier.size(40.dp)
                 )
                 Text(weapon.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-                val combatSkillBonus = weapon.bonuses?.get("CombatSkill") ?: 0
+                val combatSkillBonus = weapon.combatSkillBonus
                 if (combatSkillBonus != 0) {
                     Text(
-                        text = "CS: +$combatSkillBonus",
+                        text = "Bonus CS: ${if (combatSkillBonus > 0) "+" else ""}$combatSkillBonus",
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -314,7 +329,6 @@ fun CommonItemsCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(paddedCommonItems) { item ->
-                    // MODIFICATO: Passiamo isSelected anche qui (sempre false, a meno di future implementazioni)
                     CommonItemSlot(
                         item = item,
                         onClick = onItemClick,
@@ -333,7 +347,7 @@ fun CommonItemSlot(
     item: GameItem,
     onClick: (GameItem) -> Unit,
     onLongPress: (GameItem) -> Unit,
-    isSelected: Boolean // <--- AGGIUNTO 'isSelected' QUI
+    isSelected: Boolean
 ) {
     val isEmpty = item.name.isEmpty() || item.quantity == 0
     val canBeNormallyClicked = !isEmpty && item.isConsumable
@@ -434,7 +448,7 @@ fun StatsAndMealsCard(combatSkill: Int, endurance: Int, meals: Int) {
 @Composable
 fun KaiDisciplinesCard(kaiDisciplines: List<KaiDisciplineInfo>) {
     Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(Modifier.padding(16.dp)) {
             Text("Abilità Kai", style = MaterialTheme.typography.titleLarge, modifier = Modifier.align(Alignment.CenterHorizontally))
             Spacer(Modifier.height(16.dp))
 
@@ -473,14 +487,9 @@ fun KaiDisciplinesCard(kaiDisciplines: List<KaiDisciplineInfo>) {
         }
     }
 }
-// immundanoctis/CharacterSheetActivity.kt
-
-@OptIn(ExperimentalFoundationApi::class) // Necessario per Modifier.combinedClickable
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun SpecialItemsTableCard(
-    specialItems: List<GameItem>,
-    onItemLongPress: (GameItem) -> Unit // NUOVO PARAMETRO
-) {
+fun SpecialItemsTableCard(specialItems: List<GameItem>, onItemLongPress: (GameItem) -> Unit) { // Updated signature
     val paddedSpecialItems = specialItems.toMutableList()
     while (paddedSpecialItems.size < 10) {
         paddedSpecialItems.add(GameItem(name = "", description = "", type = ItemType.SPECIAL_ITEM))
