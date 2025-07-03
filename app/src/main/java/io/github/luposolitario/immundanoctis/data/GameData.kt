@@ -1,4 +1,5 @@
-// File: GameData.kt
+// immundanoctis/data/GameData.kt
+
 package io.github.luposolitario.immundanoctis.data
 
 import io.github.luposolitario.immundanoctis.R
@@ -36,9 +37,12 @@ data class GameItem(
     @DrawableRes val iconResId: Int? = null,
     val description: String? = null,
     val bonuses: Map<String, Int>? = null,
-    // --- NUOVI CAMPI PER I BONUS DELLE ARMI ---
+    // Nuovi campi per i bonus delle armi
     val combatSkillBonus: Int = 0,
-    val enduranceBonus: Int = 0
+    val enduranceBonus: Int = 0,
+    val isConsumable: Boolean = false,
+    // NUOVO CAMPO: Indica se l'oggetto può essere scartato dal giocatore
+    val isDiscardable: Boolean = true // <--- AGGIUNTA QUESTA RIGA
 )
 
 // --- NUOVA DEFINIZIONE DI FISTS_WEAPON ---
@@ -47,10 +51,11 @@ val FISTS_WEAPON = GameItem(
     name = "Pugni",
     type = ItemType.WEAPON,
     quantity = 1,
-    iconResId = R.drawable.ic_fists, // Potresti voler creare questa icona
+    iconResId = R.drawable.ic_fists,
     description = "Attacco a mani nude. Non fornisce bonus significativi.",
-    combatSkillBonus = 0, // Bonus di combattività per i pugni
-    enduranceBonus = 0
+    combatSkillBonus = 0,
+    enduranceBonus = 0,
+    isDiscardable = false // <--- I pugni non possono essere scartati
 )
 
 enum class ChallengeLevel {
@@ -166,24 +171,24 @@ val KAI_DISCIPLINES = listOf(
 )
 
 val INITIAL_WEAPONS = listOf(
-    GameItem(name = "Ascia", type = ItemType.WEAPON, description = "Un'arma affidabile e bilanciata.", iconResId = R.drawable.ic_axe, combatSkillBonus = 3),
-    GameItem(name = "Spada", type = ItemType.WEAPON, description = "Veloce e letale, un classico per ogni avventuriero.", iconResId = R.drawable.ic_sword, combatSkillBonus = 4),
-    GameItem(name = "Mazza", type = ItemType.WEAPON, description = "Un'arma contundente e potente.", iconResId = R.drawable.ic_mace, combatSkillBonus = 2),
-    GameItem(name = "Bastone", type = ItemType.WEAPON, description = "Utile per la difesa e come supporto.", iconResId = R.drawable.ic_staff, combatSkillBonus = 1),
-    GameItem(name = "Lancia", type = ItemType.WEAPON, description = "Un'arma a lunga gittata.", iconResId = R.drawable.ic_spear, combatSkillBonus = 3),
-    GameItem(name = "Spada Larga", type = ItemType.WEAPON, description = "Un'arma imponente per un guerriero possente.", iconResId = R.drawable.ic_broadsword, combatSkillBonus = 5)
+    GameItem(name = "Ascia", type = ItemType.WEAPON, description = "Un'arma affidabile e bilanciata.", iconResId = R.drawable.ic_axe, combatSkillBonus = 3, isDiscardable = true), // Esempio: le armi iniziali sono scartabili
+    GameItem(name = "Spada", type = ItemType.WEAPON, description = "Veloce e letale, un classico per ogni avventuriero.", iconResId = R.drawable.ic_sword, combatSkillBonus = 4, isDiscardable = true),
+    GameItem(name = "Mazza", type = ItemType.WEAPON, description = "Un'arma contundente e potente.", iconResId = R.drawable.ic_mace, combatSkillBonus = 2, isDiscardable = true),
+    GameItem(name = "Bastone", type = ItemType.WEAPON, description = "Utile per la difesa e come supporto.", iconResId = R.drawable.ic_staff, combatSkillBonus = 1, isDiscardable = true),
+    GameItem(name = "Lancia", type = ItemType.WEAPON, description = "Un'arma a lunga gittata.", iconResId = R.drawable.ic_spear, combatSkillBonus = 3, isDiscardable = true),
+    GameItem(name = "Spada Larga", type = ItemType.WEAPON, description = "Un'arma imponente per un guerriero possente.", iconResId = R.drawable.ic_broadsword, combatSkillBonus = 5, isDiscardable = true)
 )
 
 val INITIAL_SPECIAL_ITEMS = listOf(
-    GameItem(name = "Mappa", type = ItemType.SPECIAL_ITEM, description = "Rivela la tua posizione nel mondo di gioco.", iconResId = R.drawable.ic_map_icon),
-    GameItem(name = "Elmo", type = ItemType.HELMET, description = "Aggiunge 2 punti RESISTENZA al tuo totale.", bonuses = mapOf("RESISTENZA" to 2), iconResId = R.drawable.ic_helmet),
-    GameItem(name = "Gilet di maglia di ferro", type = ItemType.ARMOR, description = "Aggiunge 4 punti RESISTENZA al tuo totale.", bonuses = mapOf("RESISTENZA" to 4), iconResId = R.drawable.ic_armor)
+    GameItem(name = "Mappa", type = ItemType.SPECIAL_ITEM, description = "Rivela la tua posizione nel mondo di gioco.", iconResId = R.drawable.ic_map_icon, isDiscardable = false), // Esempio: la mappa non è scartabile
+    GameItem(name = "Elmo", type = ItemType.HELMET, description = "Aggiunge 2 punti RESISTENZA al tuo totale.", bonuses = mapOf("RESISTENZA" to 2), iconResId = R.drawable.ic_helmet, isDiscardable = true), // Esempio: l'elmo è scartabile
+    GameItem(name = "Gilet di maglia di ferro", type = ItemType.ARMOR, description = "Aggiunge 4 punti RESISTENZA al tuo totale.", bonuses = mapOf("RESISTENZA" to 4), iconResId = R.drawable.ic_armor, isDiscardable = true)
 )
 
 val INITIAL_COMMON_ITEMS = listOf(
-    GameItem(name = "Pozione Curativa", type = ItemType.BACKPACK_ITEM, quantity = 1, description = "Ripristina 4 punti Resistenza quando usata.", iconResId = R.drawable.ic_potion),
-    GameItem(name = "Pasto", type = ItemType.BACKPACK_ITEM, quantity = 2, description = "Un pasto nutriente per recuperare energie.", iconResId = R.drawable.ic_meal),
-    GameItem(name = "Corone d'Oro", type = ItemType.GOLD, quantity = 12, description = "Monete d'oro per acquisti e scambi.", iconResId = R.drawable.ic_gold)
+    GameItem(name = "Pozione Curativa", type = ItemType.BACKPACK_ITEM, quantity = 1, description = "Ripristina 4 punti Resistenza quando usata.", iconResId = R.drawable.ic_potion, isConsumable = true, isDiscardable = true), // Consumabile e scartabile
+    GameItem(name = "Pasto", type = ItemType.BACKPACK_ITEM, quantity = 2, description = "Un pasto nutriente per recuperare energie.", iconResId = R.drawable.ic_meal, isConsumable = false, isDiscardable = true), // Non consumabile direttamente ma scartabile
+    GameItem(name = "Corone d'Oro", type = ItemType.GOLD, quantity = 12, description = "Monete d'oro per acquisti e scambi.", iconResId = R.drawable.ic_gold, isConsumable = false, isDiscardable = false) // Non consumabile e non scartabile (valuta di gioco)
 )
 
 data class TagConfig(

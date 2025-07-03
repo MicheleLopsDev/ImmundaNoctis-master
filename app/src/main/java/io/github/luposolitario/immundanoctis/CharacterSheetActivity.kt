@@ -1,4 +1,4 @@
-// File: app/src/main/java/io/github/luposolitario/immundanoctis/CharacterSheetActivity.kt
+// immundanoctis/CharacterSheetActivity.kt
 
 package io.github.luposolitario.immundanoctis
 
@@ -6,7 +6,8 @@ import android.app.Activity
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.clickable // <--- AGGIUNGI QUESTA RIGA!
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable // Importa combinedClickable
 import androidx.compose.material.icons.filled.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -19,7 +20,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
+import androidx.compose.runtime.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.HelpOutline
@@ -48,11 +49,13 @@ import io.github.luposolitario.immundanoctis.data.GameItem
 import io.github.luposolitario.immundanoctis.data.ItemType
 import io.github.luposolitario.immundanoctis.data.LoneWolfStats
 import io.github.luposolitario.immundanoctis.data.KaiDisciplineInfo
-import io.github.luposolitario.immundanoctis.data.FISTS_WEAPON // Importa FISTS_WEAPON
+import io.github.luposolitario.immundanoctis.data.FISTS_WEAPON
 import io.github.luposolitario.immundanoctis.view.CharacterSheetViewModel
 import io.github.luposolitario.immundanoctis.view.CharacterSheetUiState
 import io.github.luposolitario.immundanoctis.R
 import io.github.luposolitario.immundanoctis.ui.adventure.getIconForDiscipline
+import androidx.compose.foundation.ExperimentalFoundationApi // Importa ExperimentalFoundationApi
+
 
 class CharacterSheetActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -69,7 +72,6 @@ class CharacterSheetActivity : ComponentActivity() {
                 }
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     val viewModel: CharacterSheetViewModel = viewModel()
-                    // Passiamo il ViewModel alla Screen per accedere a tutto lo stato
                     CharacterSheetScreen(viewModel = viewModel)
                 }
             }
@@ -78,9 +80,13 @@ class CharacterSheetActivity : ComponentActivity() {
 }
 
 // --- CHARACTER SHEET SCREEN MODIFICATA ---
+@OptIn(ExperimentalMaterial3Api::class) // Per AlertDialog, se non già presente nel tuo tema
 @Composable
-fun CharacterSheetScreen(viewModel: CharacterSheetViewModel) { // Accetta il ViewModel
+fun CharacterSheetScreen(viewModel: CharacterSheetViewModel) {
     val uiState = viewModel.uiState.collectAsStateWithLifecycle().value
+
+    // Stato per il pop-up di conferma scarto
+    var showDiscardConfirmDialog by remember { mutableStateOf<GameItem?>(null) }
 
     Column(
         modifier = Modifier
@@ -127,11 +133,11 @@ fun CharacterSheetScreen(viewModel: CharacterSheetViewModel) { // Accetta il Vie
             meals = uiState.mealsCount
         )
 
-        // Passiamo direttamente la lista di 2 armi (o pugni) visibili
         WeaponsCard(
             visibleWeapons = uiState.visibleWeapons,
             selectedWeapon = uiState.selectedWeapon,
-            onWeaponSelected = { weapon -> viewModel.selectWeapon(weapon) }
+            onWeaponSelected = { weapon -> viewModel.selectWeapon(weapon) },
+            onWeaponLongPress = { weapon -> showDiscardConfirmDialog = weapon }
         )
 
         KaiDisciplinesCard(
@@ -139,17 +145,159 @@ fun CharacterSheetScreen(viewModel: CharacterSheetViewModel) { // Accetta il Vie
         )
 
         CommonItemsCard(
-            commonItems = uiState.backpackItems
+            commonItems = uiState.backpackItems,
+            onItemClick = { item -> viewModel.useBackpackItem(item) },
+            onItemLongPress = { item -> showDiscardConfirmDialog = item }
         )
 
         SpecialItemsTableCard(
             specialItems = uiState.specialItems
         )
     }
+
+    // Dialogo di conferma per lo scarto
+    showDiscardConfirmDialog?.let { itemToDiscard ->
+        AlertDialog(
+            onDismissRequest = { showDiscardConfirmDialog = null },
+            title = { Text("Conferma Scarto Oggetto") },
+            text = { Text("Sei sicuro di voler scartare '${itemToDiscard.name}'? Quest'azione non è reversibile.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.discardItem(itemToDiscard)
+                        showDiscardConfirmDialog = null
+                    }
+                ) {
+                    Text("SCARTA")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDiscardConfirmDialog = null }) {
+                    Text("Annulla")
+                }
+            }
+        )
+    }
 }
 
+// MODIFICATO: Aggiunto onWeaponLongPress
 @Composable
-fun CommonItemsCard(commonItems: List<GameItem>) {
+fun WeaponsCard(
+    visibleWeapons: List<GameItem>,
+    selectedWeapon: GameItem,
+    onWeaponSelected: (GameItem?) -> Unit,
+    onWeaponLongPress: (GameItem) -> Unit // NUOVO PARAMETRO
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(vertical = 12.dp, horizontal = 16.dp)) {
+            Text("Armi", style = MaterialTheme.typography.titleLarge, modifier = Modifier.align(Alignment.CenterHorizontally))
+            Spacer(Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceAround,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                visibleWeapons.forEach { weapon ->
+                    WeaponSlot(
+                        weapon = weapon,
+                        isSelected = weapon.id == selectedWeapon.id,
+                        onClick = onWeaponSelected,
+                        onLongPress = onWeaponLongPress // MODIFICA: Passato onLongPress
+                    )
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+            Text(
+                text = "Arma selezionata: ${selectedWeapon.name} (CS: ${selectedWeapon.bonuses?.get("CombatSkill") ?: 0})",
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            )
+        }
+    }
+}
+
+// MODIFICATO: Aggiunto onLongPress e logica combinedClickable
+@OptIn(ExperimentalFoundationApi::class) // <--- AGGIUNTA ANNOTAZIONE
+@Composable
+fun WeaponSlot(
+    weapon: GameItem?,
+    isSelected: Boolean,
+    onClick: (GameItem?) -> Unit,
+    onLongPress: (GameItem) -> Unit // NUOVO PARAMETRO
+) {
+    val borderColor = if (isSelected) Color(0xFFFFD700) else MaterialTheme.colorScheme.outline
+    val backgroundColor = if (isSelected) Color(0xFFFFD700).copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant
+
+    val canBeNormallyClicked = weapon != null
+    val canBeLongPressed = weapon != null && weapon.isDiscardable
+
+    OutlinedCard(
+        modifier = Modifier
+            .width(100.dp)
+            .height(120.dp)
+            .padding(4.dp)
+            .combinedClickable( // <--- MODIFICA: Usato combinedClickable
+                onClick = { if (canBeNormallyClicked) onClick(weapon) },
+                onLongClick = {
+                    if (canBeLongPressed) onLongPress(weapon!!) // Assicurati che weapon non sia nullo
+                }
+            ),
+        shape = RoundedCornerShape(8.dp),
+        border = BorderStroke(2.dp, borderColor),
+        colors = CardDefaults.cardColors(containerColor = backgroundColor)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            if (weapon == null || weapon.name.isEmpty()) {
+                Image(
+                    painter = painterResource(id = R.drawable.ic_unknown_item),
+                    contentDescription = "Slot Arma Vuoto",
+                    modifier = Modifier.size(48.dp)
+                )
+                Text("Vuoto", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
+            } else {
+                val weaponIconRes = when (weapon.id) {
+                    "FISTS" -> R.drawable.ic_fists
+                    "Ascia" -> R.drawable.ic_axe
+                    "Spada" -> R.drawable.ic_sword
+                    "Mazza" -> R.drawable.ic_mace
+                    "Bastone" -> R.drawable.ic_staff
+                    "Lancia" -> R.drawable.ic_spear
+                    "Spada Larga" -> R.drawable.ic_broadsword
+                    else -> R.drawable.ic_unknown_item
+                }
+                Image(
+                    painter = painterResource(id = weaponIconRes),
+                    contentDescription = weapon.name,
+                    modifier = Modifier.size(48.dp)
+                )
+                Text(weapon.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                val combatSkillBonus = weapon.bonuses?.get("CombatSkill") ?: 0
+                if (combatSkillBonus != 0) {
+                    Text(
+                        text = "CS: +$combatSkillBonus",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+}
+
+
+// MODIFICATO: Aggiunto onItemLongPress
+@Composable
+fun CommonItemsCard(
+    commonItems: List<GameItem>,
+    onItemClick: (GameItem) -> Unit,
+    onItemLongPress: (GameItem) -> Unit // NUOVO PARAMETRO
+) {
     val paddedCommonItems = commonItems.toMutableList()
     while (paddedCommonItems.size < 8) {
         paddedCommonItems.add(GameItem(name = "", type = ItemType.BACKPACK_ITEM, quantity = 0, iconResId = R.drawable.ic_unknown_item))
@@ -166,24 +314,41 @@ fun CommonItemsCard(commonItems: List<GameItem>) {
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(paddedCommonItems) { item ->
-                    CommonItemSlot(item = item)
+                    CommonItemSlot(
+                        item = item,
+                        onClick = onItemClick,
+                        onLongPress = onItemLongPress // MODIFICA: Passato onLongPress
+                    )
                 }
             }
         }
     }
 }
 
-
+// MODIFICATO: Aggiunto onLongPress e logica combinedClickable
+@OptIn(ExperimentalFoundationApi::class) // <--- AGGIUNTA ANNOTAZIONE
 @Composable
-fun CommonItemSlot(item: GameItem) {
+fun CommonItemSlot(
+    item: GameItem,
+    onClick: (GameItem) -> Unit,
+    onLongPress: (GameItem) -> Unit // NUOVO PARAMETRO
+) {
     val isEmpty = item.name.isEmpty() || item.quantity == 0
-    // L'errore è qui: iconRes può essere un Any, ma painterResource vuole Int
+    val canBeNormallyClicked = !isEmpty && item.isConsumable
+    val canBeLongPressed = !isEmpty && item.isDiscardable // <--- Controllo su isDiscardable
+
     val iconRes: Any = if (isEmpty) R.drawable.ic_unknown_item else item.iconResId ?: R.drawable.ic_unknown_item
 
     OutlinedCard(
         modifier = Modifier
             .aspectRatio(1f)
-            .fillMaxSize(),
+            .fillMaxSize()
+            .combinedClickable( // <--- MODIFICA: Usato combinedClickable
+                onClick = { if (canBeNormallyClicked) onClick(item) },
+                onLongClick = {
+                    if (canBeLongPressed) onLongPress(item)
+                }
+            ),
         shape = RoundedCornerShape(8.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
     ) {
@@ -193,7 +358,6 @@ fun CommonItemSlot(item: GameItem) {
             verticalArrangement = Arrangement.Center
         ) {
             Image(
-                // Correggiamo passando iconRes come Int con un cast sicuro
                 painter = painterResource(id = iconRes as Int),
                 contentDescription = item.name.ifEmpty { "Slot Vuoto" },
                 modifier = Modifier.size(40.dp)
@@ -210,17 +374,15 @@ fun CommonItemSlot(item: GameItem) {
     }
 }
 
-
 @Composable
 fun StatsAndMealsCard(combatSkill: Int, endurance: Int, meals: Int) {
     Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Text("Statistiche e Pasti", style = MaterialTheme.typography.titleLarge, modifier = Modifier.align(Alignment.CenterHorizontally))
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(8.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceAround,
-                verticalAlignment = Alignment.CenterVertically
+                horizontalArrangement = Arrangement.SpaceAround
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("Combattività", style = MaterialTheme.typography.titleMedium)
@@ -263,114 +425,6 @@ fun StatsAndMealsCard(combatSkill: Int, endurance: Int, meals: Int) {
     }
 }
 
-// --- WEAPONS CARD MODIFICATA: USA visibleWeapons ---
-@Composable
-fun WeaponsCard(
-    visibleWeapons: List<GameItem>, // Riceve la lista di 2 armi/pugni
-    selectedWeapon: GameItem,
-    onWeaponSelected: (GameItem?) -> Unit
-) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(vertical = 12.dp, horizontal = 16.dp)) {
-            Text("Armi", style = MaterialTheme.typography.titleLarge, modifier = Modifier.align(Alignment.CenterHorizontally))
-            Spacer(Modifier.height(12.dp))
-
-            Row( // Usiamo una Row per affiancare gli slot arma e pugni
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceAround,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Visualizza le 2 armi/pugni dalla lista visibleWeapons
-                visibleWeapons.forEach { weapon ->
-                    WeaponSlot(
-                        weapon = weapon,
-                        isSelected = weapon.id == selectedWeapon.id,
-                        onClick = onWeaponSelected
-                    )
-                }
-                // Lo slot per i pugni, se non è già presente in visibleWeapons
-                // Questa parte è opzionale se i pugni sono SEMPRE garantiti in visibleWeapons
-                // Se la tua logica prevede che visibleWeapons sia SOLO armi reali (max 2)
-                // e i pugni siano un'opzione SEMPRE a parte, riabilitiamo un terzo slot.
-                // Per la tua richiesta "2 armi all'inizio conterrano un arma e i pugni"
-                // e "non è mai vuota anche se perdi 2 armi rimani con 2 pugni",
-                // la lista visibleWeapons dovrebbe già contenere i pugni se non ci sono armi.
-                // Quindi, iteriamo solo su visibleWeapons che ha sempre 2 elementi.
-            }
-            Spacer(Modifier.height(16.dp))
-            Text(
-                text = "Arma selezionata: ${selectedWeapon.name} (CS: ${selectedWeapon.bonuses?.get("CombatSkill") ?: 0})",
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.align(Alignment.CenterHorizontally)
-            )
-        }
-    }
-}
-
-// --- WEAPON SLOT MODIFICATO ---
-@Composable
-fun WeaponSlot(
-    weapon: GameItem?,
-    isSelected: Boolean,
-    onClick: (GameItem?) -> Unit
-) {
-    val borderColor = if (isSelected) Color(0xFFFFD700) else MaterialTheme.colorScheme.outline
-    val backgroundColor = if (isSelected) Color(0xFFFFD700).copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant
-
-    OutlinedCard(
-        modifier = Modifier
-            .width(100.dp) // Larghezza fissa dello slot
-            .height(120.dp) // Altezza fissa dello slot
-            .padding(4.dp)
-            .clickable { onClick(weapon) }, // Rende cliccabile
-        shape = RoundedCornerShape(8.dp),
-        border = BorderStroke(2.dp, borderColor),
-        colors = CardDefaults.cardColors(containerColor = backgroundColor)
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize().padding(8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            if (weapon == null || weapon.name.isEmpty()) { // Se lo slot è vuoto
-                Image(
-                    painter = painterResource(id = R.drawable.ic_unknown_item), // Icona per slot vuoto
-                    contentDescription = "Slot Arma Vuoto",
-                    modifier = Modifier.size(48.dp)
-                )
-                Text("Vuoto", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
-            } else {
-                val weaponIconRes = when (weapon.id) { // Usiamo l'ID dell'arma per le icone specifiche
-                    "FISTS" -> R.drawable.ic_fists
-                    "Ascia" -> R.drawable.ic_axe
-                    "Spada" -> R.drawable.ic_sword
-                    "Mazza" -> R.drawable.ic_mace
-                    "Bastone" -> R.drawable.ic_staff
-                    "Lancia" -> R.drawable.ic_spear
-                    "Spada Larga" -> R.drawable.ic_broadsword
-                    else -> R.drawable.ic_unknown_item // Fallback
-                }
-                Image(
-                    painter = painterResource(id = weaponIconRes),
-                    contentDescription = weapon.name,
-                    modifier = Modifier.size(48.dp)
-                )
-                Text(weapon.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-                // Mostra il bonus di combattività dall'oggetto
-                val combatSkillBonus = weapon.bonuses?.get("CombatSkill") ?: 0
-                if (combatSkillBonus != 0) {
-                    Text(
-                        text = "CS: +$combatSkillBonus",
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        }
-    }
-}
-
 @Composable
 fun KaiDisciplinesCard(kaiDisciplines: List<KaiDisciplineInfo>) {
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -378,32 +432,30 @@ fun KaiDisciplinesCard(kaiDisciplines: List<KaiDisciplineInfo>) {
             Text("Abilità Kai", style = MaterialTheme.typography.titleLarge, modifier = Modifier.align(Alignment.CenterHorizontally))
             Spacer(Modifier.height(16.dp))
 
-            // Non più LazyVerticalGrid, ma una semplice Column scrollabile se necessario
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 200.dp, max = 400.dp) // Altezza flessibile, ma con limiti
-                    .verticalScroll(rememberScrollState()), // Aggiungiamo lo scroll qui se la lista è lunga
-                verticalArrangement = Arrangement.spacedBy(12.dp) // Spazio tra le discipline
+                    .heightIn(min = 200.dp, max = 400.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 kaiDisciplines.forEach { discipline ->
                     Column(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.Start // Allinea a sinistra
+                        horizontalAlignment = Alignment.Start
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             val disciplineIconRes = getIconForDiscipline(discipline.id)
                             Icon(
                                 imageVector = disciplineIconRes,
                                 contentDescription = discipline.name,
-                                modifier = Modifier.size(28.dp), // Icona leggermente più grande
+                                modifier = Modifier.size(28.dp),
                                 tint = MaterialTheme.colorScheme.primary
                             )
                             Spacer(Modifier.width(12.dp))
-                            Text(discipline.name, style = MaterialTheme.typography.titleMedium) // Nome un po' più grande
+                            Text(discipline.name, style = MaterialTheme.typography.titleMedium)
                         }
                         Spacer(Modifier.height(4.dp))
-                        // Descrizione dell'abilità
                         Text(
                             discipline.description,
                             style = MaterialTheme.typography.bodyMedium,
