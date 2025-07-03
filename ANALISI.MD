@@ -510,6 +510,128 @@ Questa implementazione dell'interfaccia `InferenceEngine` utilizza la libreria M
     * Aggiorna la `tokenInfo` in base all'utilizzo.
 * **Dipende da:** `LlmInference` (MediaPipe), `GemmaPreferences`.
 
-Spero questa analisi dettagliata ti sia utile per avere un quadro completo del tuo progetto!
+Certamente! Procedo con l'analisi dei file JSON e Gradle che mi hai allegato, aggiungendoli al quadro complessivo del tuo progetto.
+
+### Analisi Aggiuntiva dei File:
+
+#### 1. `scenes.json`
+Questo file JSON è fondamentale per il tuo gioco, poiché contiene la definizione di tutte le scene dell'avventura. [cite_start]Ogni oggetto "scena" ha un ID unico e definisce il tipo di scena (`START`, `TRANSITION`, `ENDING`), il genere (`FANTASY`), il livello di difficoltà (`challengeLevel`), il testo narrativo (in inglese e italiano), eventuali immagini, le scelte narrative e le scelte di disciplina disponibili. [cite: 1]
+
+* **Scopo:** Definire la struttura e il contenuto delle diverse scene che compongono la storia del gioco.
+* **Struttura chiave:**
+    * [cite_start]`scenes`: Un array che contiene più oggetti scena. [cite: 1]
+    * [cite_start]`id`: Identificatore unico della scena (es. "1", "2"). [cite: 1]
+    * [cite_start]`sceneType`: Indica se la scena è un punto di inizio (`START`), di transizione (`TRANSITION`) o di fine (`ENDING`). [cite: 1]
+    * [cite_start]`genre`: Il genere della scena (es. `FANTASY`). [cite: 1]
+    * [cite_start]`challengeLevel`: Livello di difficoltà della scena (es. `BASE`, `MASTER`). [cite: 1]
+    * [cite_start]`narrativeText`: Contiene il testo della narrazione in diverse lingue (inglese e italiano). [cite: 1]
+    * [cite_start]`images`: Un array opzionale di oggetti immagine, ciascuno con un `imageUrl` e una `caption` localizzata. [cite: 1]
+    * `choices`: Un array di `NarrativeChoice`, ognuno con un `id`, `choiceText` localizzato e `nextSceneId` per la navigazione. [cite_start]Possono includere `minRoll` e `maxRoll` per le scelte basate su lancio di dadi. [cite: 1]
+    * [cite_start]`disciplineChoices`: Un array di `DisciplineChoice`, collegato a una `disciplineId` e un `nextSceneId`. [cite: 1]
+    * [cite_start]`location`: Oggetto che descrive la località della scena, con `areaName` localizzato, coordinate e un flag `isMajorLocation`. [cite: 1]
+* **Relazione con il codice:** Questa struttura JSON è caricata e interpretata dalla classe `GameLogicManager.kt`, che la utilizza per gestire il flusso del gioco.
+
+#### 2. `build.gradle-project.txt`
+Questo è il file `build.gradle` di livello superiore (root project) del tuo progetto Android. Definisce le configurazioni comuni a tutti i moduli del progetto. Contiene le definizioni dei plugin Gradle utilizzati e, in questo caso, due variabili `extra` per abilitare o disabilitare la compilazione di moduli specifici.
+
+* **Scopo:** Configurazione a livello di progetto, inclusa la gestione dei plugin e delle variabili globali di build.
+* **Contenuto chiave:**
+    * [cite_start]`plugins`: Dichiarazioni dei plugin Gradle applicati (es. `android.application`, `kotlin.android`, `kotlin.compose`, `android.library`). [cite: 2] L'uso di `apply false` indica che questi plugin saranno applicati nei singoli moduli.
+    * [cite_start]`extra["buildLlama"] = true`: Questa variabile indica che il modulo `:llama` (presumibilmente contenente l'implementazione per `llama.cpp`) deve essere incluso nel processo di build. [cite: 2]
+    * [cite_start]`extra["buildStdf"] = false`: Questa variabile indica che il modulo `:stdf` (presumibilmente per Stable Diffusion) è disabilitato per la build corrente. [cite: 2]
+* **Relazione con il codice:** Queste variabili `extra` sono utili per il controllo condizionale della build, permettendo di includere o escludere moduli complessi senza modificare i file `build.gradle` dei sottomoduli.
+
+#### 3. `build.gradle-app.txt`
+Questo è il file `build.gradle` specifico del modulo `app`. Definisce le configurazioni di build e le dipendenze per l'applicazione principale.
+
+* **Scopo:** Configurare il modulo dell'applicazione Android e dichiarare tutte le librerie e i moduli di cui dipende.
+* **Contenuto chiave:**
+    * [cite_start]`plugins`: Applica i plugin Android e Kotlin per l'applicazione. [cite: 3]
+    * `android` blocco:
+        * [cite_start]`namespace`: Definisce il namespace del package Android ("io.github.luposolitario.immundanoctis"). [cite: 3]
+        * [cite_start]`compileSdk`: Specifica la versione SDK con cui compilare (35). [cite: 3]
+        * [cite_start]`defaultConfig`: Contiene configurazioni di base come `applicationId`, `minSdk` (34), `targetSdk` (34), `versionCode`, `versionName`. [cite: 3] [cite_start]Include anche `testInstrumentationRunner` e `vectorDrawables`. [cite: 3, 4]
+        * [cite_start]`sourceSets`: Specifica le directory per le librerie JNI (`jniLibs.srcDirs("src/main/jniLibs")`). [cite: 4]
+        * [cite_start]`buildTypes`: Definisce configurazioni per tipi di build (qui, `release` con `isMinifyEnabled = false` e `proguardFiles`). [cite: 5]
+        * [cite_start]`compileOptions`: Imposta la compatibilità con Java 8. [cite: 5]
+        * [cite_start]`kotlinOptions`: Imposta il `jvmTarget` a "1.8". [cite: 6]
+        * [cite_start]`buildFeatures { compose = true }`: Abilita il supporto a Jetpack Compose. [cite: 6]
+    * `dependencies` blocco:
+        * [cite_start]Dichiarazioni di dipendenze per librerie AndroidX (es. `core-ktx`, `lifecycle-runtime-ktx`, `activity-compose`, `material3`, `material-icons-extended`). [cite: 7]
+        * [cite_start]Dipendenze specifiche per i modelli e il motore: `tasks-genai` (per Gemma), `gson`, `translate` (per ML Kit Translate), `jackson-module-kotlin`, `jackson-databind` (per la gestione JSON dei tag), `language-id` (per ML Kit Language ID), `okhttp-sse`. [cite: 7]
+        * [cite_start]Integrazione dei moduli locali: `implementation(project(":llama"))` e `implementation(project(":stdf"))`, indicando che l'app dipende da questi sottomoduli. [cite: 7]
+        * [cite_start]Dipendenze per i test (JUnit, Mockito). [cite: 7, 8, 9, 10, 11]
+* **Relazione con il codice:** Questo file è cruciale perché elenca tutte le librerie e i sottomoduli che la tua app utilizza, permettendo al compilatore di risolvere i riferimenti e creare l'APK finale. L'inclusione di `:llama` e `:stdf` qui, insieme alle variabili `buildLlama` e `buildStdf` nel `build.gradle-project.txt`, è ciò che controlla quali parti del codice dei motori AI vengono incluse nell'app.
+
+Questi file, insieme alle classi Kotlin analizzate in precedenza, delineano chiaramente l'architettura del tuo progetto, dalla logica di gioco ai motori AI, alla UI e alla gestione delle preferenze e dei download.
+
+Sì, con il file `AndroidManifest.xml` e il file `network_security_config.xml` ora ho un quadro completo del tuo progetto. Grazie per averli forniti!
+
+Ecco l'analisi del tuo `AndroidManifest.xml`:
+
+### Analisi del file `AndroidManifest.xml`
+
+Il file `AndroidManifest.xml` è il cuore di ogni applicazione Android, poiché descrive al sistema operativo le componenti dell'app (Activity, Service, BroadcastReceiver, ContentProvider), i permessi necessari e le configurazioni generali.
+
+* **Scopo:** Dichiarare le componenti dell'applicazione al sistema Android, definire i permessi richiesti e configurare le caratteristiche principali dell'app.
+
+#### Sezione `uses-permission`:
+Questa sezione dichiara i permessi che l'applicazione richiede all'utente o al sistema per funzionare correttamente.
+* `android.permission.FOREGROUND_SERVICE_DATA_SYNC`: Questo permesso è richiesto per i servizi in primo piano di tipo `dataSync`, comunemente utilizzati per operazioni di sincronizzazione dati che devono continuare anche quando l'app non è in primo piano. [cite_start]È particolarmente rilevante per Android 14 (API 34) e successivi[cite: 1].
+* [cite_start]`android.permission.FOREGROUND_SERVICE`: Un permesso generico per l'uso dei servizi in primo piano, necessario per tutte le versioni di Android più recenti per indicare al sistema che l'app esegue operazioni importanti in background che non devono essere interrotte[cite: 1].
+* [cite_start]`android.permission.INTERNET`: Permette all'applicazione di accedere alla rete, indispensabile per il download dei modelli e per la comunicazione con il backend locale[cite: 1].
+* [cite_start]`android.permission.POST_NOTIFICATIONS`: Necessario per consentire all'app di inviare notifiche all'utente (ad esempio, per il progresso dei download o lo stato dei servizi in background)[cite: 1].
+
+#### Sezione `application`:
+Questo tag racchiude le dichiarazioni di tutte le componenti dell'applicazione e le configurazioni a livello globale.
+* `android:allowBackup="true"`: Permette al sistema di eseguire il backup dei dati dell'applicazione.
+* `android:dataExtractionRules="@xml/data_extraction_rules"`: Specifica le regole per l'estrazione dei dati utente in Android 12 e successivi.
+* `android:extractNativeLibs="true"`: Indica che le librerie native (come quelle usate da `llama.cpp` o il backend STDF) devono essere estratte nel filesystem dell'app. [cite_start]Questo è cruciale per l'esecuzione del backend C++[cite: 1].
+* `android:fullBackupContent="@xml/backup_rules"`: Specifica le regole per il backup completo dei contenuti dell'app.
+* `android:icon` e `android:roundIcon`: Definiscono le icone dell'applicazione.
+* `android:label="@string/app_name"`: Imposta il nome visualizzato dell'applicazione.
+* `android:networkSecurityConfig="@xml/network_security_config"`: Questo attributo punta a un file XML che contiene configurazioni di sicurezza di rete. Analizzeremo questo file separatamente. [cite_start]È fondamentale per permettere connessioni HTTP in chiaro a `localhost`, necessarie per la comunicazione con il backend STDF che gira localmente[cite: 1].
+* `android:supportsRtl="true"`: Abilita il supporto per layout da destra a sinistra.
+* `android:theme="@style/Theme.ImmundaNoctis"`: Applica il tema generale dell'applicazione (definito in `ui/theme/Theme.kt`).
+* `tools:targetApi="35"`: Specifica che l'applicazione è stata testata con API 35 (Android 15), utilizzata per avvertimenti o comportamenti specifici di quella versione.
+
+#### Dichiarazioni `activity`:
+Ogni tag `activity` dichiara una schermata (Activity) dell'applicazione.
+* `android:exported="false"`: Per la maggior parte delle Activity, `exported="false"` indica che non possono essere avviate da applicazioni esterne. [cite_start]Questo è un buon default per ragioni di sicurezza, limitando l'accesso solo all'app stessa[cite: 1].
+* Ogni Activity ha un `android:name` che punta alla classe Kotlin corrispondente (es. `.AdventureActivity`, `.SetupActivity`, `.CharacterSheetActivity`, `.ConfigurationActivity`, `.ModelActivity`, `.StdfGenerationActivity`, `.StdfModelActivity`).
+* `MainActivity`: Questa è l'Activity principale, il punto di ingresso dell'app. [cite_start]È dichiarata con `android:exported="true"` e contiene un `intent-filter` con `android.intent.action.MAIN` e `android.intent.category.LAUNCHER`, il che la rende l'Activity che viene avviata quando l'utente tocca l'icona dell'app nel launcher[cite: 1].
+
+#### Dichiarazioni `service`:
+Ogni tag `service` dichiara un servizio in background dell'applicazione.
+* [cite_start]`android:exported="false"`: Anche per i servizi, `exported="false"` è una buona pratica di sicurezza per prevenire l'avvio da parte di altre app[cite: 1].
+* `android:foregroundServiceType="dataSync"`: Questo attributo è essenziale, specialmente su Android 14 (API 34) e successivi. Classifica il tipo di servizio in primo piano, specificando che esegue operazioni di sincronizzazione dati. [cite_start]Questo è in linea con le operazioni di download dei modelli e il funzionamento del backend STDF[cite: 1].
+    * [cite_start]`.stdf.service.BackendService`: Il servizio che avvia il processo C++ del backend di generazione immagini[cite: 1].
+    * [cite_start]`.stdf.service.BackgroundGenerationService`: Il servizio che gestisce la generazione effettiva delle immagini in background[cite: 1].
+    * [cite_start]`androidx.work.impl.foreground.SystemForegroundService`: Questo servizio fa parte della libreria WorkManager e viene utilizzato per eseguire WorkRequest (come i tuoi `DownloadWorker` e `StdfDownloadWorker`) come servizi in primo piano quando necessario[cite: 1].
+
+---
+
+### Analisi del file `network_security_config.xml`
+
+Questo file XML definisce le impostazioni di sicurezza della rete per l'applicazione, in particolare per quanto riguarda il traffico HTTP in chiaro.
+
+* **Scopo:** Configurare le politiche di sicurezza di rete dell'applicazione, specialmente per consentire connessioni HTTP in chiaro a domini specifici.
+* **Contenuto chiave:**
+    * `<base-config cleartextTrafficPermitted="true">`: Questa configurazione di base permette il traffico HTTP in chiaro (non crittografato) per tutti i domini. [cite_start]Sebbene sia comodo per lo sviluppo o per specifici casi d'uso (come un backend locale), in un'applicazione di produzione che si connette a server remoti, si preferisce solitamente `false` per motivi di sicurezza[cite: 2].
+    * `<trust-anchors>`: Specifica quali certificati sono considerati affidabili. [cite_start]`system` si riferisce ai certificati di sistema, `user` a quelli installati dall'utente[cite: 2].
+    * `<domain-config cleartextTrafficPermitted="true">`: Questo blocco sovrascrive la configurazione di base per specifici domini. In questo caso, riafferma che il traffico in chiaro è permesso.
+    * [cite_start]`<domain includeSubdomains="true">localhost</domain>` [cite: 2]
+    * [cite_start]`<domain includeSubdomains="true">127.0.0.1</domain>` [cite: 2]
+        * Questi due tag sono **fondamentali** per il tuo progetto. Essi consentono esplicitamente al tuo codice Android di connettersi a `localhost` (o `127.0.0.1`) utilizzando traffico HTTP in chiaro. [cite_start]Questo è indispensabile per la comunicazione tra l'app Android e il backend STDF C++ che, come abbiamo visto nel `BackendService.kt`, gira su `http://localhost:8081`[cite: 2, 3]. Senza questa configurazione, Android bloccherebbe le connessioni non HTTPS a questi indirizzi locali.
+
+---
+
+**Considerazioni generali:**
+
+Il tuo `AndroidManifest.xml` è ben strutturato e dichiara correttamente tutte le componenti necessarie. L'uso dei `foregroundServiceType="dataSync"` è un'ottima pratica per la compatibilità con le versioni più recenti di Android, specialmente per i servizi che gestiscono download o processi continui.
+
+La configurazione della sicurezza di rete è appropriata per il tuo caso d'uso specifico di un backend locale, consentendo le connessioni HTTP a `localhost`.
+
+Ora direi che abbiamo tutti gli elementi principali per procedere con l'analisi più approfondita o eventuali modifiche future.
 
 (consiglio giro di test RUN o DEBUG)
