@@ -468,16 +468,23 @@ fun AdventureChatScreen(
                         ) {
                             if (isGenerating && streamingText.isNotBlank() && respondingCharacterId != null) {
                                 item {
-                                    val streamingMessage = ChatMessage(
-                                        position = -1L,
-                                        authorId = respondingCharacterId,
-                                        text = streamingText
-                                    )
-                                    MessageBubble(
-                                        message = streamingMessage,
-                                        characters = characters,
-                                        onTranslateClicked = {},
-                                        onPlayClicked = { onPlayMessage(streamingMessage) })
+                                    // --- 👇 NUOVA LOGICA CHIAVE 👇 ---
+                                    // Mostra solo la parte della narrazione, nascondendo i tag.
+                                    val narrativeOnlyStream = streamingText.split("--- TAGS ---", limit = 2).getOrNull(0) ?: streamingText
+
+                                    if (narrativeOnlyStream.isNotBlank()) {
+                                        val streamingMessage = ChatMessage(
+                                            position = -1L,
+                                            authorId = respondingCharacterId,
+                                            text = narrativeOnlyStream // <-- Usa il testo pulito
+                                        )
+                                        MessageBubble(
+                                            message = streamingMessage,
+                                            characters = characters,
+                                            onTranslateClicked = {},
+                                            onPlayClicked = {} // Disabilita il play per il testo in streaming
+                                        )
+                                    }
                                 }
                             }
                             items(messages.reversed()) { message ->
