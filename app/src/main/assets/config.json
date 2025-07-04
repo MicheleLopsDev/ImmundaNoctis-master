@@ -27,14 +27,30 @@
       "replace": true
     },
     {
-      "id": "add_item_tag",
+      "id": "add_weapon_item_tag",
       "type": "gameMechanic",
-      "regex": "\\{ADD_ITEM:([^:]+):([^:]+):(\\d+)\\}",
-      "replacement": null,
+      "regex": "\\{ADD_ITEM:WEAPON:([^:]+):([^:|]+):([+-]?\\d+)(?:\\|([^:]+))?:(\\d+)\\}",
       "parameters": [
-        { "name": "itemName", "value": "{captured_value_from_regex_1}" },
-        { "name": "itemType", "value": "{captured_value_from_regex_2}" },
-        { "name": "quantity", "value": "{captured_value_from_regex_3}" }
+        { "name": "itemType", "value": "WEAPON" },
+        { "name": "weaponType", "value": "{captured_value_from_regex_1}" },
+        { "name": "itemName", "value": "{captured_value_from_regex_2}" },
+        { "name": "modifier", "value": "{captured_value_from_regex_3}" },
+        { "name": "notes", "value": "{captured_value_from_regex_4}" },
+        { "name": "quantity", "value": "{captured_value_from_regex_5}" }
+      ],
+      "actor": "DM",
+      "command": "addItem",
+      "replace": true
+    },
+    {
+      "id": "add_generic_item_tag",
+      "type": "gameMechanic",
+      "regex": "\\{ADD_ITEM:(HELMET|ARMOR|SHIELD|BACKPACK_ITEM|SPECIAL_ITEM|GOLD|MEAL):([^:|]+)(?:\\|([^:]+))?:(\\d+)\\}",
+      "parameters": [
+        { "name": "itemType", "value": "{captured_value_from_regex_1}" },
+        { "name": "itemName", "value": "{captured_value_from_regex_2}" },
+        { "name": "notes", "value": "{captured_value_from_regex_3}" },
+        { "name": "quantity", "value": "{captured_value_from_regex_4}" }
       ],
       "actor": "DM",
       "command": "addItem",

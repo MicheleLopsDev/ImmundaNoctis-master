@@ -40,7 +40,8 @@ data class GameItem(
     val enduranceBonus: Int = 0,
     val isConsumable: Boolean = false,
     val isDiscardable: Boolean = true,
-    val weaponType: WeaponType? = null
+    val weaponType: WeaponType? = null,
+    val notes: String? = null // <-- NUOVO CAMPO
 )
 
 val FISTS_WEAPON = GameItem(
