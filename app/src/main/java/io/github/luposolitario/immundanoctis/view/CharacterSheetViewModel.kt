@@ -55,15 +55,18 @@ class CharacterSheetViewModel(application: Application) : AndroidViewModel(appli
     private val _uiState = MutableStateFlow(CharacterSheetUiState())
     val uiState: StateFlow<CharacterSheetUiState> = _uiState.asStateFlow()
 
+
     init {
         Log.d(tag, "ViewModel Inizializzato.")
+        // L'init ora chiama semplicemente la funzione pubblica
         loadCharacterData()
     }
 
     // --- loadCharacterData() REFACTORIZZATA ---
-    private fun loadCharacterData() {
+    // --- loadCharacterData() ORA È PUBBLICA ---
+    fun loadCharacterData() { // Rimuovi 'private'
         viewModelScope.launch {
-            Log.d(tag, "Inizio loadCharacterData().")
+            Log.d(tag, "Inizio caricamento dati personaggio...") // Aggiunto log per chiarezza
             val session = gameStateManager.loadSession() ?: run { Log.e(tag, "Sessione non caricata in loadCharacterData."); return@launch }
             val hero = session.characters.find { it.id == CharacterID.HERO } ?: run { Log.e(tag, "Eroe non trovato in loadCharacterData."); return@launch }
             Log.d(tag, "Eroe trovato: ${hero.name}. Discipline: ${hero.kaiDisciplines.joinToString()}. WeaponSkillType: ${hero.details?.weaponSkillType}")

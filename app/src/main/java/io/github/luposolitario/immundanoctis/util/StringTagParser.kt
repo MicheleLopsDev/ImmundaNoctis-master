@@ -34,47 +34,68 @@ class StringTagParser(private val context: Context) {
 
 // Dentro StringTagParser.kt
 
+// Dentro StringTagParser.kt
+
+// Dentro StringTagParser.kt
+
+// Dentro StringTagParser.kt
+
+    // Dentro StringTagParser.kt
+
     fun parseAndReplaceWithCommands(inputString: String, currentActor: CharacterType? = null, lang: String = "en"): Pair<String, List<EngineCommand>> {
-        var resultString = inputString
-        val commands = mutableListOf<EngineCommand>()
+        var processedString = inputString
+        val foundCommands = mutableListOf<EngineCommand>()
 
-        for (tagConfig in tagConfigurations) {
-            // Filtro per attore
-            if (currentActor != null && tagConfig.actor != "ANY" && tagConfig.actor != currentActor.name) {
-                continue
-            }
-
+        // Itera su ogni REGOLA definita nel tuo config.json
+        tagConfigurations.forEach { tagConfig ->
             val regex = Regex(tagConfig.regex)
-            val matches = regex.findAll(resultString).toList()
-            var tempResultString = resultString
+            val matches = regex.findAll(processedString).toList()
 
-            for (matchResult in matches) {
-                // Se il tag deve essere sostituito, fallo subito
-                if (tagConfig.replace) {
-                    // Per i nostri nuovi tag, la sostituzione è con una stringa vuota
-                    tempResultString = tempResultString.replace(matchResult.value, "")
+            // Se troviamo delle corrispondenze per questa regola...
+            if (matches.isNotEmpty()) {
+
+                // Per ogni corrispondenza trovata, creiamo il comando associato
+                matches.forEach { matchResult ->
+                    if (tagConfig.command != null) {
+                        val commandParams = mutableMapOf<String, Any?>()
+                        val commandName = tagConfig.command
+
+                        // Usiamo un "when" per gestire i diversi tipi di comando in modo esplicito
+                        when (commandName) {
+                            "updateChoiceText", "updateDisciplineChoiceText" -> {
+                                if (matchResult.groupValues.size > 2) {
+                                    commandParams["id"] = matchResult.groupValues[1]
+                                    commandParams["italianText"] = matchResult.groupValues[2]
+                                    foundCommands.add(EngineCommand(commandName, commandParams))
+                                }
+                            }
+                            "addItem" -> {
+                                if (matchResult.groupValues.size > 3) {
+                                    commandParams["itemName"] = matchResult.groupValues[1]
+                                    commandParams["itemType"] = matchResult.groupValues[2]
+                                    commandParams["quantity"] = matchResult.groupValues[3].toIntOrNull() ?: 1
+                                    foundCommands.add(EngineCommand(commandName, commandParams))
+                                }
+                            }
+                            "addGold" -> {
+                                if (matchResult.groupValues.size > 1) {
+                                    commandParams["amount"] = matchResult.groupValues[1].toIntOrNull() ?: 0
+                                    foundCommands.add(EngineCommand(commandName, commandParams))
+                                }
+                            }
+                            // Aggiungeremo qui altri comandi (es. applyStatModifier) in futuro
+                        }
+                    }
                 }
 
-                // Se il tag genera un comando, crealo
-                if (tagConfig.command != null) {
-                    val commandParams = mutableMapOf<String, Any?>()
-
-                    // Logica specifica per i nuovi comandi di traduzione
-                    if ((tagConfig.id == "narrative_choice_translation" || tagConfig.id == "discipline_choice_translation") && matchResult.groupValues.size > 2) {
-                        commandParams["id"] = matchResult.groupValues[1] // Cattura l'ID
-                        commandParams["italianText"] = matchResult.groupValues[2] // Cattura il testo tradotto
-                    }
-
-                    // Aggiungi qui altra logica per altri tipi di comandi se necessario...
-
-                    commands.add(EngineCommand(tagConfig.command, commandParams))
+                // Alla fine, se la regola lo prevede, puliamo TUTTE le occorrenze di quel tag dal testo
+                if (tagConfig.replace) {
+                    processedString = regex.replace(processedString, "")
                 }
             }
-            // Aggiorna la stringa di risultato solo alla fine del ciclo interno
-            resultString = tempResultString
         }
-        // Rimuovi eventuali spazi bianchi o newline extra lasciati dalle sostituzioni
-        return Pair(resultString.trim(), commands)
+
+        return Pair(processedString.trim(), foundCommands)
     }
 
     /**

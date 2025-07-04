@@ -1,54 +1,89 @@
 {
   "tags": [
     {
-      "id": "narrative_prompt",
-      "type": "promptDescription",
-      "regex": "\\{narrative_prompt\\}",
+      "id": "narrative_choice_translation",
+      "type": "dynamicText",
+      "regex": "<choice_it id=\\\"([^\\\"]*)\\\">([^<]*)<\\/choice_it>",
       "replacement": null,
       "parameters": [
-        {
-          "name": "baseInstruction",
-          "value": "Il tuo compito è armonizzare questi tre elementi. Riformula il 'TESTO DELLA SCENA' per collegarlo in modo logico al 'CONTESTO' e per introdurre le 'OPZIONI DISPONIBILI' come naturale conclusione della narrazione. Se il testo delle opzioni è molto breve, arricchiscilo con dettagli evocativi senza cambiarne il significato. Non aggiungere eventi o dettagli non presenti nella scena. Mantieni lo stile del testo originale."
-        },
-        {
-          "name": "context",
-          "description": "Il testo che precede la scena attuale, per dare contesto.",
-          "value": "{context_text}"
-        },
-        {
-          "name": "sceneText",
-          "description": "Il testo principale della scena da narrare.",
-          "value": "{scene_narrative_text}"
-        },
-        {
-          "name": "choicesInstruction",
-          "description": "Le opzioni che il giocatore avrà a disposizione.",
-          "value": "{choices_list}"
-        }
+        { "name": "id", "value": "{captured_value_from_regex_1}" },
+        { "name": "italianText", "value": "{captured_value_from_regex_2}" }
       ],
-      "actor": "ANY",
-      "command": null,
-      "replace": false
-    },
-    {
-      "id": "gameMechanic_challenge",
-      "type": "gameMechanic",
-      "regex": "\\{challenge\\:(.*?)\\}",
-      "replacement": null,
-      "parameters": [],
-      "actor": "ANY",
-      "command": "gameChallenge",
+      "actor": "DM",
+      "command": "updateChoiceText",
       "replace": true
     },
     {
-      "id": "play_audio_effect",
-      "type": "triggerAudio",
-      "regex": "\\{play_audio:(.*?)\\}",
+      "id": "discipline_choice_translation",
+      "type": "dynamicText",
+      "regex": "<discipline_it id=\\\"([^\\\"]*)\\\">([^<]*)<\\/discipline_it>",
+      "replacement": null,
+      "parameters": [
+        { "name": "id", "value": "{captured_value_from_regex_1}" },
+        { "name": "italianText", "value": "{captured_value_from_regex_2}" }
+      ],
+      "actor": "DM",
+      "command": "updateDisciplineChoiceText",
+      "replace": true
+    },
+    {
+      "id": "add_item_tag",
+      "type": "gameMechanic",
+      "regex": "\\{ADD_ITEM:([^:]+):([^:]+):(\\d+)\\}",
+      "replacement": null,
+      "parameters": [
+        { "name": "itemName", "value": "{captured_value_from_regex_1}" },
+        { "name": "itemType", "value": "{captured_value_from_regex_2}" },
+        { "name": "quantity", "value": "{captured_value_from_regex_3}" }
+      ],
+      "actor": "DM",
+      "command": "addItem",
+      "replace": true
+    },
+    {
+      "id": "add_gold_tag",
+      "type": "gameMechanic",
+      "regex": "\\{ADD_GOLD:(\\d+)\\}",
+      "replacement": null,
+      "parameters": [
+        { "name": "amount", "value": "{captured_value_from_regex_1}" }
+      ],
+      "actor": "DM",
+      "command": "addGold",
+      "replace": true
+    },
+    {
+      "id": "stat_mod_tag",
+      "type": "gameMechanic",
+      "regex": "\\{STAT_MOD:([^:]+):([+-]?\\d+|[+-]?MAX_RESISTANCE_RESTORE)\\}",
+      "replacement": null,
+      "parameters": [
+        { "name": "statName", "value": "{captured_value_from_regex_1}" },
+        { "name": "amount", "value": "{captured_value_from_regex_2}" }
+      ],
+      "actor": "DM",
+      "command": "applyStatModifier",
+      "replace": true
+    },
+    {
+      "id": "require_meal_tag",
+      "type": "gameMechanic",
+      "regex": "\\{REQUIRE_MEAL\\}",
       "replacement": null,
       "parameters": [],
-      "actor": "ANY",
-      "command": "playAudio",
-      "replace": false
+      "actor": "DM",
+      "command": "requireMeal",
+      "replace": true
+    },
+    {
+      "id": "remove_all_weapons_backpack_tag",
+      "type": "gameMechanic",
+      "regex": "\\{REMOVE_ALL_WEAPONS_AND_BACKPACK_ITEMS\\}",
+      "replacement": null,
+      "parameters": [],
+      "actor": "DM",
+      "command": "removeAllWeaponsAndBackpackItems",
+      "replace": true
     },
     {
       "id": "end_guff_tag",
@@ -61,26 +96,6 @@
       "parameters": [],
       "actor": "ANY",
       "command": null,
-      "replace": true
-    },
-    {
-      "id": "narrative_choice_translation",
-      "type": "dynamicText",
-      "regex": "<choice_it id=\\\"([^\\\"]*)\\\">([^<]*)<\\/choice_it>",
-      "replacement": null,
-      "parameters": [],
-      "actor": "DM",
-      "command": "updateChoiceText",
-      "replace": true
-    },
-    {
-      "id": "discipline_choice_translation",
-      "type": "dynamicText",
-      "regex": "<discipline_it id=\\\"([^\\\"]*)\\\">([^<]*)<\\/discipline_it>",
-      "replacement": null,
-      "parameters": [],
-      "actor": "DM",
-      "command": "updateDisciplineChoiceText",
       "replace": true
     }
   ]

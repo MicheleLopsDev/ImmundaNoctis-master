@@ -57,6 +57,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.random.Random
+import io.github.luposolitario.immundanoctis.data.*
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val tag: String? = this::class.simpleName
@@ -580,58 +581,82 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
 // Dentro MainViewModel.kt
 
+// All'interno della classe MainViewModel
+
     private suspend fun processCommands(commands: List<EngineCommand>) {
         if (commands.isEmpty()) {
             return
         }
-        log("Processing commands: ${commands.map { it.commandName }}")
+        log("Processing ${commands.size} commands: ${commands.map { it.commandName }}")
+        val currentSession = gameStateManager.loadSession() ?: return
+        val hero = currentSession.characters.find { it.id == CharacterID.HERO } ?: return
+        var sessionModified = false
+
         commands.forEach { command ->
-            Log.d(tag, "Comando ricevuto: ${command.commandName} con parametri: ${command.parameters}")
+            Log.d(tag, "Executing command: ${command.commandName} with params: ${command.parameters}")
             when (command.commandName) {
-                "playAudio" -> {
-                    val audioFile = command.parameters["audioFile"] as? String
-                    log("DEBUG COMMAND: Riproduci audio: $audioFile")
-                }
-                "generateImage" -> {
-                    val prompt = command.parameters["prompt"] as? String
-                    log("DEBUG COMMAND: Genera immagine con prompt: $prompt")
-                }
-                "triggerGraphicEffect" -> {
-                    val effectName = command.parameters["effectName"] as? String
-                    log("DEBUG COMMAND: Attiva effetto grafico: $effectName")
-                }
-                "narrativeChoice" -> {
-                    val choiceId = command.parameters["nextSceneId"] as? String
-                    val choiceText = command.parameters["choiceText"] as? String
-                    log("DEBUG COMMAND: Avvia scelta narrativa: ID=${choiceId}, Testo='${choiceText}'")
-                }
-                "displayDirectionalButton" -> {
-                    val direction = command.parameters["direction"] as? String
-                    val colorHex = command.parameters["colorHex"] as? String
-                    val choiceText = command.parameters["choiceText"] as? String
-                    val nextSceneId = command.parameters["nextSceneId"] as? String
-                    log("DEBUG COMMAND: Mostra pulsante direzionale: Dir=${direction}, Colore=${colorHex}, Testo='${choiceText}', ProssimaScena=${nextSceneId}")
-                }
+
                 // --- NUOVA LOGICA INIZIA QUI ---
+
+                "addItem" -> {
+                    val itemName = command.parameters["itemName"] as? String
+                    val itemTypeStr = command.parameters["itemType"] as? String
+                    val quantity = command.parameters["quantity"] as? Int ?: 1
+
+                    if (itemName != null && itemTypeStr != null) {
+                        try {
+                            val itemType = ItemType.valueOf(itemTypeStr)
+                            val newItem = GameItem(name = itemName, type = itemType, quantity = quantity)
+                            hero.details?.inventory?.add(newItem)
+                            log("✅ Aggiunto all'inventario: ${newItem.name} (x$quantity)")
+                            sessionModified = true
+                        } catch (e: IllegalArgumentException) {
+                            log("❌ ERRORE: Tipo di oggetto non valido '$itemTypeStr' per il comando addItem.")
+                        }
+                    }
+                }
+
+                "addGold" -> {
+                    val amount = command.parameters["amount"] as? Int
+                    if (amount != null && amount > 0) {
+                        val goldItem = hero.details?.inventory?.find { it.type == ItemType.GOLD }
+                        if (goldItem != null) {
+                            goldItem.quantity += amount
+                        } else {
+                            // Se l'eroe non ha un oggetto "GOLD", ne creiamo uno
+                            hero.details?.inventory?.add(GameItem(name = "Corone d'Oro", type = ItemType.GOLD, quantity = amount))
+                        }
+                        log("💰 Aggiunte ${amount} Corone d'Oro.")
+                        sessionModified = true
+                    }
+                }
+
+                // --- FINE NUOVA LOGICA ---
+
                 "updateChoiceText" -> {
-                    val choiceId = command.parameters["id"] as? String // <-- Usa "id"
-                    val italianText = command.parameters["italianText"] as? String // <-- Usa "italianText"
+                    val choiceId = command.parameters["id"] as? String
+                    val italianText = command.parameters["italianText"] as? String
                     if (choiceId != null && italianText != null) {
                         updateNarrativeChoiceText(choiceId, italianText)
                     }
                 }
                 "updateDisciplineChoiceText" -> {
-                    val disciplineId = command.parameters["id"] as? String // <-- Usa "id"
-                    val italianText = command.parameters["italianText"] as? String // <-- Usa "italianText"
+                    val disciplineId = command.parameters["id"] as? String
+                    val italianText = command.parameters["italianText"] as? String
                     if (disciplineId != null && italianText != null) {
                         updateDisciplineChoiceText(disciplineId, italianText)
                     }
                 }
-                // --- NUOVA LOGICA FINISCE QUI ---
                 else -> {
-                    log("DEBUG COMMAND: Comando sconosciuto: ${command.commandName}")
+                    log("⚠️ Comando sconosciuto o non ancora implementato: ${command.commandName}")
                 }
             }
+        }
+
+        if (sessionModified) {
+            val updatedCharacters = currentSession.characters.map { if (it.id == CharacterID.HERO) hero else it }
+            gameStateManager.saveSession(currentSession.copy(characters = updatedCharacters))
+            log("Salvataggio sessione dopo l'aggiornamento dell'inventario.")
         }
     }
 
@@ -712,30 +737,35 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 } ?: "Nessuna scelta di disciplina."
 
                 // 2. Definisci il nuovo prompt per Gemma
+                // Dentro MainViewModel.kt, nella funzione processCurrentSceneNarrative
                 val promptForGemma = """
                 Tu sei il Dungeon Master per un libro-gioco. Il tuo compito è elaborare una scena per il giocatore.
                 
                 Segui queste istruzioni ESATTAMENTE:
                 
-                1.  TRADUCI E ADATTA: Leggi il "TESTO NARRATIVO" in inglese. Traducilo in italiano, applicando questo tono: "$toneInstruction". Integra la narrazione con il "CONTESTO" fornito per creare un flusso logico.
+                1.  **TRADUCI E PRESERVA I TAG**:
+                    * Leggi il "TESTO NARRATIVO" in inglese.
+                    * Traduci in italiano solo il testo in linguaggio naturale.
+                    * **ISTRUZIONE FONDAMENTALE**: Se incontri dei tag di gioco tra parentesi graffe (es. `{ADD_ITEM:...}`), **ricopiali identici e nella stessa posizione** nel testo tradotto. Non devi interpretarli o rimuoverli.
                 
-                2.  TRADUCI LE SCELTE E CREA I TAG:
-                    -   Per ogni "SCELTA NARRATIVA", traduci il testo in italiano. Poi, crea un tag XML `<choice_it>` contenente l'ID originale e il testo tradotto. Formato: `<choice_it id="ID_DELLA_SCELTA">Testo tradotto in italiano.</choice_it>`.
-                    -   Per ogni "SCELTA DI DISCIPLINA", fai la stessa cosa, ma usa il tag `<discipline_it>`. Formato: `<discipline_it id="ID_DELLA_DISCIPLINA">Testo tradotto in italiano.</discipline_it>`.
+                2.  **TRADUCI LE SCELTE E CREA I TAG XML**:
+                    * Per ogni "SCELTA NARRATIVA", traduci il testo e crea un tag `<choice_it id="...">...</choice_it>`.
+                    * Per ogni "SCELTA DI DISCIPLINA", traduci il testo e crea un tag `<discipline_it id="...">...</discipline_it>`.
                 
-                3.  FORMATTA L'OUTPUT: La tua risposta DEVE avere due sezioni separate da '--- TAGS ---'.
-                    -   Nella prima parte, metti solo la narrazione tradotta e adattata.
-                    -   Nella seconda parte, metti SOLO la lista di tutti i tag `<choice_it>` e `<discipline_it>` che hai creato, uno per riga.
+                3.  **FORMATTA L'OUTPUT**:
+                    * La tua risposta DEVE avere due sezioni separate da `--- TAGS ---`.
+                    * Nella prima parte, metti la narrazione tradotta in italiano (con i tag `{...}` preservati).
+                    * Nella seconda parte, metti SOLO la lista dei tag `<choice_it>` e `<discipline_it>`.
                 
-                Non aggiungere commenti, saluti o testo al di fuori di questo formato.
+                Non aggiungere commenti o saluti.
                 
                 ---
-                DATI DELLA SCENA:
+                **DATI DELLA SCENA:**
                 
                 [CONTESTO DELL'AZIONE PRECEDENTE]
                 $lastMessageText
                 
-                [TESTO NARRATIVO DA TRADURRE E ADATTARE]
+                [TESTO NARRATIVO DA TRADURRE E PRESERVARE]
                 "$sceneNarrativeEnglish"
                 
                 [SCELTE NARRATIVE DA TRADURRE E INSERIRE NEI TAG <choice_it>]
@@ -745,7 +775,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 $disciplinesForPrompt
                 ---
                 
-                NARRATORE (in italiano, tono $currentTone):
+                **NARRATORE (in italiano, tono $currentTone):**
                 """.trimIndent()
 
                 // Sostituisci il vecchio prompt con il nuovo nella chiamata all'engine:

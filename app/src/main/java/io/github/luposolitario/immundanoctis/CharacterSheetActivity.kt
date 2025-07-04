@@ -88,6 +88,14 @@ fun CharacterSheetScreen(viewModel: CharacterSheetViewModel) {
     val uiState = viewModel.uiState.collectAsStateWithLifecycle().value
     Log.d("CSActivity", "CharacterSheetScreen - UI State aggiornato: effectiveCS=${uiState.effectiveCombatSkill}, selectedWeapon=${uiState.selectedWeapon.name}")
 
+    // --- NUOVO BLOCCO DA AGGIUNGERE ---
+    // Questo effetto viene eseguito ogni volta che la schermata viene visualizzata,
+    // garantendo che i dati siano sempre aggiornati.
+    LaunchedEffect(key1 = true) {
+        viewModel.loadCharacterData()
+    }
+    // --- FINE BLOCCO DA AGGIUNGERE ---
+
     // Stato per il pop-up di conferma scarto
     var showDiscardConfirmDialog by remember { mutableStateOf<GameItem?>(null) }
 
