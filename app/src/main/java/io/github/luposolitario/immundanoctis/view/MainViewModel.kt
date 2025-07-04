@@ -74,7 +74,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     var isPickingForDm: Boolean = false
 
 
-
     private val _sessionName = MutableStateFlow("Immunda Noctis")
     val sessionName: StateFlow<String> = _sessionName.asStateFlow()
 
@@ -201,7 +200,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         if (actualIsNewAdventure) {
-            _sessionName.value = gameLogicManager.adventureName // <--- Usa il nome dell'avventura dal file JSON
+            _sessionName.value =
+                gameLogicManager.adventureName // <--- Usa il nome dell'avventura dal file JSON
             gameLogicManager.resetUsedScenes()
             _currentScene.value = gameLogicManager.selectRandomStartScene(Genre.FANTASY)
             log("Scena iniziale NUOVA AVVENTURA impostata da GameLogicManager: ${_currentScene.value?.id ?: "Nessuna scena iniziale"}. Nome Avventura: ${_sessionName.value}")
@@ -431,32 +431,56 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 Log.e(tag, "Errore durante la raccolta del flow di messaggi", e)
                 log("Errore: ${e.message}")
             } finally {
-                log("Generazione per '$targetId' completata o interrotta.")
+                log("Generazione completata o interrotta. Inizio parsing della risposta.")
 
                 val rawLLMResponse = _streamingText.value
-                val respondingCharacter = _gameCharacters.value.find { it.id == targetId }
+                val respondingCharacter = _gameCharacters.value.find { it.id == _respondingCharacterId.value }
                 val llmLanguage = respondingCharacter?.language ?: Locale.ITALIAN.language
 
-                val (parsedLLMText, llmCommands) = stringTagParser.parseAndReplaceWithCommands(
-                    inputString = rawLLMResponse,
-                    currentActor = respondingCharacter?.type,
-                    lang = llmLanguage
-                )
+                // --- 👇 NUOVA LOGICA DI PARSING 👇 ---
 
-                if (parsedLLMText.isNotBlank()) {
+                // 1. Dividi la risposta di Gemma in narrazione e tag
+                val parts = rawLLMResponse.split("--- TAGS ---", limit = 2)
+                val narrativePart = parts.getOrNull(0)?.trim() ?: ""
+                val tagsPart = parts.getOrNull(1)?.trim() ?: ""
+
+                val allCommands = mutableListOf<EngineCommand>()
+
+                // 2. Passa SOLO la parte narrativa al parser per pulire i vecchi tag (es. {STAT_MOD...})
+                if (narrativePart.isNotBlank()) {
+                    val (cleanedNarrative, narrativeCommands) = stringTagParser.parseAndReplaceWithCommands(
+                        inputString = narrativePart,
+                        currentActor = respondingCharacter?.type,
+                        lang = llmLanguage
+                    )
+                    allCommands.addAll(narrativeCommands)
+
+                    // 3. Aggiungi il messaggio di chat con la narrazione PULITA
                     val finalMessage = ChatMessage(
-                        authorId = targetId,
+                        authorId = _respondingCharacterId.value ?: CharacterID.DM,
                         position = messageCounter.getAndIncrement(),
-                        text = parsedLLMText
+                        text = cleanedNarrative
                     )
                     _chatMessages.update { it + finalMessage }
                     autoSaveChatIfEnabled()
                 }
 
-                viewModelScope.launch {
-                    processCommands(llmCommands)
+                // 4. Passa SOLO la parte dei tag al parser per estrarre i comandi di aggiornamento delle scelte
+                if (tagsPart.isNotBlank()) {
+                    val (_, choiceCommands) = stringTagParser.parseAndReplaceWithCommands(
+                        inputString = tagsPart,
+                        currentActor = respondingCharacter?.type,
+                        lang = llmLanguage
+                    )
+                    allCommands.addAll(choiceCommands)
                 }
 
+                // 5. Esegui tutti i comandi raccolti
+                viewModelScope.launch {
+                    processCommands(allCommands)
+                }
+
+                // 6. Resetta lo stato della generazione
                 _isGenerating.value = false
                 _streamingText.value = ""
                 _respondingCharacterId.value = null
@@ -554,38 +578,33 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         return totalRoll
     }
 
+// Dentro MainViewModel.kt
+
     private suspend fun processCommands(commands: List<EngineCommand>) {
         if (commands.isEmpty()) {
             return
         }
         log("Processing commands: ${commands.map { it.commandName }}")
         commands.forEach { command ->
-            Log.d(
-                tag,
-                "Comando ricevuto: ${command.commandName} con parametri: ${command.parameters}"
-            )
+            Log.d(tag, "Comando ricevuto: ${command.commandName} con parametri: ${command.parameters}")
             when (command.commandName) {
                 "playAudio" -> {
                     val audioFile = command.parameters["audioFile"] as? String
                     log("DEBUG COMMAND: Riproduci audio: $audioFile")
                 }
-
                 "generateImage" -> {
                     val prompt = command.parameters["prompt"] as? String
                     log("DEBUG COMMAND: Genera immagine con prompt: $prompt")
                 }
-
                 "triggerGraphicEffect" -> {
                     val effectName = command.parameters["effectName"] as? String
                     log("DEBUG COMMAND: Attiva effetto grafico: $effectName")
                 }
-
                 "narrativeChoice" -> {
                     val choiceId = command.parameters["nextSceneId"] as? String
                     val choiceText = command.parameters["choiceText"] as? String
                     log("DEBUG COMMAND: Avvia scelta narrativa: ID=${choiceId}, Testo='${choiceText}'")
                 }
-
                 "displayDirectionalButton" -> {
                     val direction = command.parameters["direction"] as? String
                     val colorHex = command.parameters["colorHex"] as? String
@@ -593,12 +612,56 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     val nextSceneId = command.parameters["nextSceneId"] as? String
                     log("DEBUG COMMAND: Mostra pulsante direzionale: Dir=${direction}, Colore=${colorHex}, Testo='${choiceText}', ProssimaScena=${nextSceneId}")
                 }
-
+                // --- NUOVA LOGICA INIZIA QUI ---
+                "updateChoiceText" -> {
+                    val choiceId = command.parameters["id"] as? String // <-- Usa "id"
+                    val italianText = command.parameters["italianText"] as? String // <-- Usa "italianText"
+                    if (choiceId != null && italianText != null) {
+                        updateNarrativeChoiceText(choiceId, italianText)
+                    }
+                }
+                "updateDisciplineChoiceText" -> {
+                    val disciplineId = command.parameters["id"] as? String // <-- Usa "id"
+                    val italianText = command.parameters["italianText"] as? String // <-- Usa "italianText"
+                    if (disciplineId != null && italianText != null) {
+                        updateDisciplineChoiceText(disciplineId, italianText)
+                    }
+                }
+                // --- NUOVA LOGICA FINISCE QUI ---
                 else -> {
                     log("DEBUG COMMAND: Comando sconosciuto: ${command.commandName}")
                 }
             }
         }
+    }
+
+    // Dentro MainViewModel.kt
+
+    private fun updateNarrativeChoiceText(choiceId: String, italianText: String) {
+        _activeNarrativeChoices.update { currentChoices ->
+            currentChoices.map { choice ->
+                if (choice.id == choiceId) {
+                    // Crea una nuova istanza di NarrativeChoice con il testo italiano aggiornato
+                    choice.copy(choiceText = choice.choiceText.copy(italian = italianText))
+                } else {
+                    choice
+                }
+            }
+        }
+        log("Testo per la scelta narrativa '$choiceId' aggiornato a: '$italianText'")
+    }
+
+    private fun updateDisciplineChoiceText(disciplineId: String, italianText: String) {
+        _activeDisciplineChoices.update { currentChoices ->
+            currentChoices.map { choice ->
+                if (choice.disciplineId == disciplineId) {
+                    choice.copy(choiceText = choice.choiceText?.copy(italian = italianText))
+                } else {
+                    choice
+                }
+            }
+        }
+        log("Testo per la scelta di disciplina '$disciplineId' aggiornato a: '$italianText'")
     }
 
     private suspend fun processCurrentSceneNarrative(shouldGenerateNarration: Boolean = true) {
@@ -607,6 +670,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
+        prepareChoicesForScene(scene)
         if (shouldGenerateNarration) {
             if (_isGenerating.value) return
             _isGenerating.value = true
@@ -617,9 +681,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _engineLoadingState.first { it is EngineLoadingState.Success }
 
                 val sceneNarrativeEnglish = scene.narrativeText.english ?: ""
-                val choicesTextListEnglish = scene.choices?.mapNotNull { it.choiceText.english } ?: emptyList()
+                val choicesTextListEnglish =
+                    scene.choices?.mapNotNull { it.choiceText.english } ?: emptyList()
                 val choicesStringEnglish = choicesTextListEnglish.joinToString(", ")
-                val lastMessageText = _chatMessages.value.lastOrNull()?.text ?: "L'avventura ha inizio."
+                val lastMessageText =
+                    _chatMessages.value.lastOrNull()?.text ?: "L'avventura ha inizio."
 
                 // Recupera il tono narrativo dalle preferenze
                 val currentTone = savePreferences.narrativeTone // <-- Recupera il tono salvato
@@ -631,21 +697,59 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
 
                 // MODIFICATO: Prompt per Gemma con istruzioni sul tono
+
+// Dentro MainViewModel.kt, nella funzione processCurrentSceneNarrative
+
+// 1. Estrai e formatta le scelte per il prompt (questo codice va prima della definizione del prompt)
+                val choicesForPrompt = scene.choices?.joinToString("\n") {
+                    "CHOICE_ID: \"${it.id}\" -> TEXT: \"${it.choiceText.english}\""
+                } ?: "Nessuna scelta narrativa."
+
+                val disciplinesForPrompt = scene.disciplineChoices?.joinToString("\n") {
+                    // Gestisce il caso in cui choiceText potrebbe essere nullo
+                    val text = it.choiceText?.english ?: "Usa la disciplina ${it.disciplineId}"
+                    "DISCIPLINE_CHOICE_ID: \"${it.disciplineId}\" -> TEXT: \"$text\""
+                } ?: "Nessuna scelta di disciplina."
+
+                // 2. Definisci il nuovo prompt per Gemma
                 val promptForGemma = """
-                    Il tuo compito è narrare la seguente scena del libro-gioco "Lupo Solitario".
-                    Il testo della scena è in inglese, devi tradurlo in italiano.
-                    $toneInstruction
-                    Integra fluidamente il CONTESTO precedente e le OPZIONI DISPONIBILI nella narrazione in modo che il giocatore possa facilmente scegliere la sua prossima azione.
-                    Se il testo di una scelta è breve (es. "Vai a destra"), espandilo con una frase più descrittiva e coinvolgente che rispecchi il tono dell'avventura, mantenendo il significato originale e la direzione.
-                    Non includere ringraziamenti, saluti o introduzioni personali. Inizia direttamente con la narrazione della scena tradotta e tonale.
+                Tu sei il Dungeon Master per un libro-gioco. Il tuo compito è elaborare una scena per il giocatore.
+                
+                Segui queste istruzioni ESATTAMENTE:
+                
+                1.  TRADUCI E ADATTA: Leggi il "TESTO NARRATIVO" in inglese. Traducilo in italiano, applicando questo tono: "$toneInstruction". Integra la narrazione con il "CONTESTO" fornito per creare un flusso logico.
+                
+                2.  TRADUCI LE SCELTE E CREA I TAG:
+                    -   Per ogni "SCELTA NARRATIVA", traduci il testo in italiano. Poi, crea un tag XML `<choice_it>` contenente l'ID originale e il testo tradotto. Formato: `<choice_it id="ID_DELLA_SCELTA">Testo tradotto in italiano.</choice_it>`.
+                    -   Per ogni "SCELTA DI DISCIPLINA", fai la stessa cosa, ma usa il tag `<discipline_it>`. Formato: `<discipline_it id="ID_DELLA_DISCIPLINA">Testo tradotto in italiano.</discipline_it>`.
+                
+                3.  FORMATTA L'OUTPUT: La tua risposta DEVE avere due sezioni separate da '--- TAGS ---'.
+                    -   Nella prima parte, metti solo la narrazione tradotta e adattata.
+                    -   Nella seconda parte, metti SOLO la lista di tutti i tag `<choice_it>` e `<discipline_it>` che hai creato, uno per riga.
+                
+                Non aggiungere commenti, saluti o testo al di fuori di questo formato.
+                
+                ---
+                DATI DELLA SCENA:
+                
+                [CONTESTO DELL'AZIONE PRECEDENTE]
+                $lastMessageText
+                
+                [TESTO NARRATIVO DA TRADURRE E ADATTARE]
+                "$sceneNarrativeEnglish"
+                
+                [SCELTE NARRATIVE DA TRADURRE E INSERIRE NEI TAG <choice_it>]
+                $choicesForPrompt
+                
+                [SCELTE DI DISCIPLINA DA TRADURRE E INSERIRE NEI TAG <discipline_it>]
+                $disciplinesForPrompt
+                ---
+                
+                NARRATORE (in italiano, tono $currentTone):
+                """.trimIndent()
 
-                    CONTESTO: $lastMessageText
-                    TESTO DELLA SCENA: "$sceneNarrativeEnglish"
-                    OPZIONI DISPONIBILI: "$choicesStringEnglish"
-
-                    NARRATORE (in italiano, tono $currentTone):
-                    """.trimIndent()
-
+                // Sostituisci il vecchio prompt con il nuovo nella chiamata all'engine:
+                // dmEngine.sendMessage(newPromptForGemma)...
                 log("DEBUG: Invio prompt di armonizzazione, traduzione e tonale al DM per la scena ID=${scene.id}")
                 Log.d(tag, "DEBUG_GEMMA_PROMPT_SENT: \n---\n${promptForGemma}\n---") // Per debug
 
@@ -661,24 +765,68 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     e
                 )
                 log("ERRORE: Impossibile generare la narrazione del DM. ${e.message}")
+                // Dentro MainViewModel.kt, sostituisci il blocco finally in sendMessage E processCurrentSceneNarrative
+
+                // Dentro MainViewModel.kt, nel blocco try della generazione...
+
             } finally {
-                if (_streamingText.value.isNotBlank()) {
+                log("Generazione completata. Inizio parsing della risposta.")
+
+                val rawLLMResponse = _streamingText.value
+                val respondingCharacter = _gameCharacters.value.find { it.id == _respondingCharacterId.value }
+                val llmLanguage = respondingCharacter?.language ?: Locale.ITALIAN.language
+
+                // --- LOGICA DEFINITIVA DI PARSING ---
+
+                // 1. Dividi la risposta di Gemma in narrazione e tag
+                val parts = rawLLMResponse.split("--- TAGS ---", limit = 2)
+                val narrativePart = parts.getOrNull(0)?.trim() ?: rawLLMResponse // Fallback all'intera risposta se il separatore non c'è
+                val tagsPart = parts.getOrNull(1)?.trim() ?: ""
+
+                val allCommands = mutableListOf<EngineCommand>()
+
+                // 2. Processa la parte narrativa per pulirla e trovare comandi legacy (es. {STAT_MOD...})
+                val (cleanedNarrative, narrativeCommands) = stringTagParser.parseAndReplaceWithCommands(
+                    inputString = narrativePart,
+                    currentActor = respondingCharacter?.type,
+                    lang = llmLanguage
+                )
+                allCommands.addAll(narrativeCommands)
+
+                // 3. Processa la parte dei tag per ottenere i comandi di aggiornamento delle scelte
+                if (tagsPart.isNotBlank()) {
+                    val (_, choiceCommands) = stringTagParser.parseAndReplaceWithCommands(
+                        inputString = tagsPart,
+                        currentActor = respondingCharacter?.type,
+                        lang = llmLanguage
+                    )
+                    allCommands.addAll(choiceCommands)
+                }
+
+                // 4. Aggiungi il messaggio di chat con la narrazione PULITA (solo se non è vuota)
+                if (cleanedNarrative.isNotBlank()) {
                     val finalMessage = ChatMessage(
-                        authorId = CharacterID.DM,
+                        authorId = _respondingCharacterId.value ?: CharacterID.DM,
                         position = messageCounter.getAndIncrement(),
-                        text = _streamingText.value
+                        text = cleanedNarrative
                     )
                     _chatMessages.update { it + finalMessage }
                     autoSaveChatIfEnabled()
                 }
 
+                // 5. Esegui TUTTI i comandi raccolti
+                if (allCommands.isNotEmpty()) {
+                    processCommands(allCommands)
+                }
+
+                // 6. Resetta lo stato della generazione
                 _isGenerating.value = false
                 _streamingText.value = ""
                 _respondingCharacterId.value = null
             }
         }
 
-        prepareChoicesForScene(scene)
+
     }
 
     private fun prepareChoicesForScene(scene: Scene) {
@@ -756,7 +904,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 processCurrentSceneNarrative()
             } else {
-                val errorMessage = "ERRORE CRITICO: Scena con ID '$sceneId' non trovata nel file scenes.json."
+                val errorMessage =
+                    "ERRORE CRITICO: Scena con ID '$sceneId' non trovata nel file scenes.json."
                 Log.e(tag, errorMessage)
                 log(errorMessage)
             }

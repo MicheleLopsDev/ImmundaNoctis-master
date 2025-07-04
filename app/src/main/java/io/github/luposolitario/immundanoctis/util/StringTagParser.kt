@@ -32,89 +32,49 @@ class StringTagParser(private val context: Context) {
         }
     }
 
+// Dentro StringTagParser.kt
+
     fun parseAndReplaceWithCommands(inputString: String, currentActor: CharacterType? = null, lang: String = "en"): Pair<String, List<EngineCommand>> {
         var resultString = inputString
         val commands = mutableListOf<EngineCommand>()
 
         for (tagConfig in tagConfigurations) {
+            // Filtro per attore
             if (currentActor != null && tagConfig.actor != "ANY" && tagConfig.actor != currentActor.name) {
                 continue
             }
 
             val regex = Regex(tagConfig.regex)
             val matches = regex.findAll(resultString).toList()
+            var tempResultString = resultString
 
             for (matchResult in matches) {
+                // Se il tag deve essere sostituito, fallo subito
+                if (tagConfig.replace) {
+                    // Per i nostri nuovi tag, la sostituzione è con una stringa vuota
+                    tempResultString = tempResultString.replace(matchResult.value, "")
+                }
+
+                // Se il tag genera un comando, crealo
                 if (tagConfig.command != null) {
                     val commandParams = mutableMapOf<String, Any?>()
 
-                    tagConfig.parameters?.forEach { param ->
-                        commandParams[param.name] = param.value ?: param.defaultValue
+                    // Logica specifica per i nuovi comandi di traduzione
+                    if ((tagConfig.id == "narrative_choice_translation" || tagConfig.id == "discipline_choice_translation") && matchResult.groupValues.size > 2) {
+                        commandParams["id"] = matchResult.groupValues[1] // Cattura l'ID
+                        commandParams["italianText"] = matchResult.groupValues[2] // Cattura il testo tradotto
                     }
 
-                    if (matchResult.groupValues.size > 1) {
-                        commandParams["captured_value_from_regex"] = matchResult.groupValues[1]
-                    }
-
-                    when (tagConfig.type) {
-                        "gameMechanic" -> { // Convertito a camelCase
-                            val abilityName = tagConfig.regex.substringAfter("\\{").substringBefore("\\[")
-                            commandParams["abilityType"] = abilityName // Convertito a camelCase
-                        }
-                        "directionalChoice" -> { // Convertito a camelCase
-                            commandParams["nextSceneId"] = matchResult.groupValues[1] // Convertito a camelCase
-                        }
-                    }
+                    // Aggiungi qui altra logica per altri tipi di comandi se necessario...
 
                     commands.add(EngineCommand(tagConfig.command, commandParams))
                 }
             }
-
-            if (tagConfig.replace) {
-                when (tagConfig.type) {
-                    "textSubstitution", "chatBotSaluto" -> { // Convertito a camelCase
-                        // Inside your loop, where 'regex' is defined
-                        val localizedReplacement = tagConfig.replacement?.get(lang) ?: tagConfig.replacement?.get("en") ?: ""
-                        resultString = resultString.replace(regex, localizedReplacement)
-                    }
-                    "promptDescription" -> { // Convertito a camelCase
-                        resultString = regex.replace(resultString) { matchResult ->
-                            val indexStr = matchResult.groupValues[1]
-                            val index = indexStr.toIntOrNull() ?: 0
-                            val paramName = "promptValue$index" // Convertito a camelCase
-                            tagConfig.parameters?.firstOrNull { it.name == paramName }?.value?.toString() ?: ""
-                        }
-                    }
-                    "dndEnvironmentDescription" -> { // Convertito a camelCase
-                        resultString = regex.replace(resultString) { matchResult ->
-                            val environmentTypeRequested = matchResult.groupValues[1]
-                            val paramName = "description_${environmentTypeRequested.lowercase()}"
-                            tagConfig.parameters?.firstOrNull { it.name == paramName }?.value?.toString() ?: "Un ambiente generico non specificato."
-                        }
-                    }
-                    "gameMechanic" -> { // Convertito a camelCase
-                        resultString = regex.replace(resultString) { matchResult ->
-                            val abilityName = tagConfig.regex.substringAfter("\\{").substringBefore("\\[")
-                            val challengeLevelStr = matchResult.groupValues[1]
-                            val challengeLevel = ChallengeLevel.fromString(challengeLevelStr)
-                            val descriptionParamName = "${abilityName}BaseDesc" // Esempio, dovrai allinearlo ai nomi nel JSON
-                            val description = tagConfig.parameters?.firstOrNull { it.name == descriptionParamName }?.value?.toString()
-                            "SFIDA_${abilityName.uppercase()}_${challengeLevel?.name ?: "UNKNOWN"}: ${description ?: "Descrizione della sfida mancante."}"
-                        }
-                    }
-                    "triggerAudio", "generateImage", "triggerGraphicEffect", // Convertito a camelCase
-                    "directionalChoice" -> { // Convertito a camelCase
-                        resultString = regex.replace(resultString, "")
-                    }
-                    else -> {
-                        System.err.println("Tipo di tag sconosciuto: ${tagConfig.type} per ID: ${tagConfig.id}")
-                    }
-                }
-            } else {
-                // Se replace è false, il tag viene lasciato intatto nel testo.
-            }
+            // Aggiorna la stringa di risultato solo alla fine del ciclo interno
+            resultString = tempResultString
         }
-        return Pair(resultString, commands)
+        // Rimuovi eventuali spazi bianchi o newline extra lasciati dalle sostituzioni
+        return Pair(resultString.trim(), commands)
     }
 
     /**
