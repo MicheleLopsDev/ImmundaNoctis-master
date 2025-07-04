@@ -204,7 +204,8 @@ enum class WeaponType {
     STAFF,
     SPEAR,
     BROADSWORD,
-    FISTS
+    FISTS,
+    GENERIC // <-- NUOVO TIPO AGGIUNTO
 }
 
 val WEAPON_TYPE_NAMES = mapOf(
@@ -214,8 +215,10 @@ val WEAPON_TYPE_NAMES = mapOf(
     WeaponType.STAFF to "Bastone",
     WeaponType.SPEAR to "Lancia",
     WeaponType.BROADSWORD to "Spada Larga",
-    WeaponType.FISTS to "Pugni"
+    WeaponType.FISTS to "Pugni",
+    WeaponType.GENERIC to "Arma Generica" // <-- NUOVA MAPPA AGGIUNTA
 )
+
 
 // --- NUOVA MAPPA per i messaggi personalizzati della disciplina Scherma ---
 val WEAPON_SKILL_DESCRIPTIONS = mapOf(

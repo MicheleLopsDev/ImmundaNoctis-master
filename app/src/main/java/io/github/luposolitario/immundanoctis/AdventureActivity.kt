@@ -1,5 +1,6 @@
 package io.github.luposolitario.immundanoctis
 
+import androidx.compose.ui.text.font.FontWeight
 import android.app.Activity
 import androidx.compose.foundation.layout.fillMaxWidth
 import android.os.Bundle
@@ -7,6 +8,7 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.compose.material3.TextButton
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
@@ -66,7 +68,8 @@ import io.github.luposolitario.immundanoctis.data.CharacterType
 import io.github.luposolitario.immundanoctis.data.ChatMessage
 import io.github.luposolitario.immundanoctis.data.DisciplineChoice
 import io.github.luposolitario.immundanoctis.data.GameCharacter
-import io.github.luposolitario.immundanoctis.data.Genre
+import io.github.luposolitario.immundanoctis.data.GameItem
+import io.github.luposolitario.immundanoctis.data.*
 import io.github.luposolitario.immundanoctis.data.NarrativeChoice
 import io.github.luposolitario.immundanoctis.data.Scene
 import io.github.luposolitario.immundanoctis.data.SessionData
@@ -216,6 +219,7 @@ class AdventureActivity : ComponentActivity() {
                             LoadingScreen()
                         } else {
                             AdventureChatScreen(
+                                viewModel=viewModel,
                                 isAutoSaveEnabled = isAutoSaveEnabled,
                                 sessionName = sessionName,
                                 characters = characters,
@@ -359,10 +363,48 @@ fun ErrorScreen(errorMessage: String, onRetry: () -> Unit) {
     }
 }
 
+// In fondo al file AdventureActivity.kt
+
+@Composable
+fun InventoryFullDialog(
+    state: MainViewModel.InventoryFullState,
+    onConfirm: (GameItem, GameItem) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val title = if (state.itemType == ItemType.WEAPON) "Slot Armi Pieno" else "Zaino Pieno"
+    val message = "Hai trovato: ${state.newItem.name}. Per prenderlo, devi scartare uno degli oggetti che già possiedi."
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column {
+                Text(message)
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Scegli cosa scartare:", fontWeight = FontWeight.Bold)
+                // Lista di oggetti da scartare
+                state.existingItems.forEach { itemToDiscard ->
+                    Button(
+                        onClick = { onConfirm(itemToDiscard, state.newItem) },
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                    ) {
+                        Text("Scarta ${itemToDiscard.name}")
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Annulla (lascia l'oggetto)")
+            }
+        }
+    )
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdventureChatScreen(
+    viewModel: MainViewModel, // <-- PARAMETRO AGGIUNTO QUI
     isAutoSaveEnabled: Boolean,
     sessionName: String,
     characters: List<GameCharacter>,
@@ -392,6 +434,22 @@ fun AdventureChatScreen(
     val listState = rememberLazyListState()
     var showMenu by remember { mutableStateOf(false) }
     val hero = characters.find { it.type == CharacterType.PLAYER }
+    val inventoryFullState by viewModel.inventoryFullState.collectAsState()
+
+    // Questo codice va all'interno del corpo della Composable,
+// al di fuori dello Scaffold.
+    inventoryFullState?.let { state ->
+        InventoryFullDialog(
+            state = state,
+            onConfirm = { itemToDiscard, newItem ->
+                viewModel.resolveInventoryExchange(itemToDiscard, newItem)
+            },
+            onDismiss = {
+                viewModel.dismissInventoryFullDialog()
+            }
+        )
+    }
+
 
     LaunchedEffect(messages.size, streamingText) {
         if (messages.isNotEmpty() || streamingText.isNotEmpty()) {

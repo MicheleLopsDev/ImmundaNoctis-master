@@ -62,6 +62,15 @@ import io.github.luposolitario.immundanoctis.data.*
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val tag: String? = this::class.simpleName
 
+
+    // Dentro MainViewModel.kt
+    data class InventoryFullState(
+        val newItem: GameItem,
+        val existingItems: List<GameItem>,
+        val itemType: ItemType
+    )
+
+
     sealed interface EngineLoadingState {
         data object Loading : EngineLoadingState
         data object Success : EngineLoadingState
@@ -148,6 +157,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _randomNumberResult = MutableStateFlow<Int?>(null)
     val randomNumberResult: StateFlow<Int?> = _randomNumberResult.asStateFlow()
 
+    // Dentro la classe MainViewModel
+    private val _inventoryFullState = MutableStateFlow<InventoryFullState?>(null)
+    val inventoryFullState: StateFlow<InventoryFullState?> = _inventoryFullState.asStateFlow()
+
+    // All'interno della classe MainViewModel, vicino alle altre dichiarazioni di StateFlow
+
+    // Usiamo un SharedFlow per eventi "spara e dimentica" come i Toast.
+    private val _uiFeedbackEvent = MutableSharedFlow<String>()
+    val uiFeedbackEvent: SharedFlow<String> = _uiFeedbackEvent.asSharedFlow()
 
     init {
         if (useGemmaForAll) {
@@ -607,9 +625,33 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         try {
                             val itemType = ItemType.valueOf(itemTypeStr)
                             val newItem = GameItem(name = itemName, type = itemType, quantity = quantity)
-                            hero.details?.inventory?.add(newItem)
-                            log("✅ Aggiunto all'inventario: ${newItem.name} (x$quantity)")
-                            sessionModified = true
+
+                            val inventory = hero.details?.inventory ?: mutableListOf()
+
+                            // Controlla i limiti
+                            val weaponCount = inventory.count { it.type == ItemType.WEAPON }
+                            val backpackItemCount = inventory.count { it.type == ItemType.BACKPACK_ITEM }
+
+                            var canAddDirectly = true
+
+                            if (itemType == ItemType.WEAPON && weaponCount >= 2) {
+                                _inventoryFullState.value = InventoryFullState(newItem, inventory.filter { it.type == ItemType.WEAPON }, itemType)
+                                canAddDirectly = false
+                            } else if (itemType == ItemType.BACKPACK_ITEM && backpackItemCount >= 8) {
+                                _inventoryFullState.value = InventoryFullState(newItem, inventory.filter { it.type == ItemType.BACKPACK_ITEM }, itemType)
+                                canAddDirectly = false
+                            }
+
+                            if (canAddDirectly) {
+                                inventory.add(newItem)
+                                log("✅ Aggiunto all'inventario: ${newItem.name} (x$quantity)")
+                                _uiFeedbackEvent.emit("Hai trovato: ${newItem.name}")
+                                sessionModified = true
+                            } else {
+                                log("⚠️ Inventario pieno per il tipo $itemType. In attesa della decisione del giocatore.")
+                                _uiFeedbackEvent.emit("Hai trovato: ${newItem.name}, ma il tuo inventario è pieno!")
+                            }
+
                         } catch (e: IllegalArgumentException) {
                             log("❌ ERRORE: Tipo di oggetto non valido '$itemTypeStr' per il comando addItem.")
                         }
@@ -660,7 +702,37 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // Dentro MainViewModel.kt
+    // Dentro la classe MainViewModel
+
+    fun resolveInventoryExchange(itemToDiscard: GameItem, newItem: GameItem) {
+        viewModelScope.launch {
+            val session = gameStateManager.loadSession() ?: return@launch
+            val hero = session.characters.find { it.id == CharacterID.HERO } ?: return@launch
+
+            val inventory = hero.details?.inventory ?: return@launch
+
+            // Rimuovi il vecchio oggetto e aggiungi il nuovo
+            inventory.remove(itemToDiscard)
+            inventory.add(newItem)
+
+            gameStateManager.saveSession(session)
+            log("✅ Scambiato '${itemToDiscard.name}' con '${newItem.name}'.")
+            _uiFeedbackEvent.emit("'${itemToDiscard.name}' scartato, '${newItem.name}' raccolto.")
+
+            // Resetta lo stato per nascondere il dialogo
+            _inventoryFullState.value = null
+        }
+    }
+
+    fun dismissInventoryFullDialog() {
+        viewModelScope.launch {
+            val item = _inventoryFullState.value?.newItem
+            if(item != null) {
+                _uiFeedbackEvent.emit("Hai deciso di lasciare '${item.name}'.")
+            }
+            _inventoryFullState.value = null
+        }
+    }
 
     private fun updateNarrativeChoiceText(choiceId: String, italianText: String) {
         _activeNarrativeChoices.update { currentChoices ->
