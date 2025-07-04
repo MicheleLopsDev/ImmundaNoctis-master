@@ -210,83 +210,60 @@ class CharacterSheetViewModel(application: Application) : AndroidViewModel(appli
     }
 
     // --- selectWeapon MODIFICATA ---
+// in file: java/io/github/luposolitario/immundanoctis/view/CharacterSheetViewModel.kt
+
     fun selectWeapon(weapon: GameItem?) {
         viewModelScope.launch {
-            Log.d(tag, "Inizio selectWeapon() per: ${weapon?.name}.")
-            val session = gameStateManager.loadSession() ?: run { Log.e(tag, "Sessione non caricata in selectWeapon."); return@launch }
-            val hero = session.characters.find { it.id == CharacterID.HERO } ?: run { Log.e(tag, "Eroe non trovato in selectWeapon."); return@launch }
-            Log.d(tag, "Eroe caricato in selectWeapon. Discipline: ${hero.kaiDisciplines.joinToString()}. WeaponSkillType: ${hero.details?.weaponSkillType}")
-
+            Log.d(tag, "Inizio selectWeapon() per: ${weapon?.name ?: "Pugni"}.")
+            val session = gameStateManager.loadSession() ?: return@launch
+            val hero = session.characters.find { it.id == CharacterID.HERO } ?: return@launch
 
             val newSelectedWeapon = weapon ?: FISTS_WEAPON
             val currentModifiers = hero.details?.activeModifiers?.toMutableList() ?: mutableListOf()
-            Log.d(tag, "Modificatori prima della rimozione: ${currentModifiers.map { it.id + ":" + it.amount }}")
 
-            // Rimuovi modificatori di Combattività da ITEM, RULE e DISCIPLINE (specifici di WEAPONSKILL)
-            currentModifiers.removeAll { modifier ->
-                modifier.statName == "COMBATTIVITA" && (
-                        modifier.sourceType == ModifierSourceType.ITEM ||
-                                modifier.sourceType == ModifierSourceType.RULE ||
-                                (modifier.sourceType == ModifierSourceType.DISCIPLINE && modifier.sourceId == "WEAPONSKILL")
-                        )
+            // 1. Pulisce TUTTI i modificatori di Combattività da armi, regole o discipline
+            currentModifiers.removeAll {
+                it.statName == "COMBATTIVITA" && (it.sourceType == ModifierSourceType.ITEM || it.sourceType == ModifierSourceType.RULE || it.sourceType == ModifierSourceType.DISCIPLINE)
             }
-            Log.d(tag, "Modificatori dopo la rimozione: ${currentModifiers.map { it.id + ":" + it.amount }}")
+            Log.d(tag, "Modificatori di Combattività resettati.")
 
-
-            // Variabile per tenere traccia del bonus/malus netto dell'arma selezionata
+            // 2. Calcola il nuovo bonus TOTALE in un unico blocco
             var weaponNetCombatModifier = 0
+            val hasWeaponSkill = hero.kaiDisciplines.contains("WEAPONSKILL")
+            val weaponSkillTypeChosen = hero.details?.weaponSkillType
 
-            // 1. Applica il bonus intrinseco dell'arma selezionata (se non sono i pugni)
-            if (newSelectedWeapon.id != FISTS_WEAPON.id) { // Solo se non sono i pugni
-                if (newSelectedWeapon.combatSkillBonus != 0) {
-                    weaponNetCombatModifier += newSelectedWeapon.combatSkillBonus
-                    currentModifiers.add(
-                        StatModifier(
-                            id = "weapon_bonus_${newSelectedWeapon.id}",
-                            statName = "COMBATTIVITA",
-                            amount = newSelectedWeapon.combatSkillBonus,
-                            sourceType = ModifierSourceType.ITEM,
-                            sourceId = newSelectedWeapon.id,
-                            duration = ModifierDuration.UNTIL_UNEQUIPPED
-                        )
-                    )
-                    Log.d(tag, "Aggiunto bonus intrinseco arma: ${newSelectedWeapon.combatSkillBonus}")
-                }
-            }
-
-
-            // 2. Gestione della penalità per i pugni E del bonus Scherma (se applicabile)
             if (newSelectedWeapon.id == FISTS_WEAPON.id) {
-                val hasWeaponSkill = hero.kaiDisciplines.contains("WEAPONSKILL")
-                val weaponSkillTypeChosen = hero.details?.weaponSkillType
-
-                val penaltyAmount = if (hasWeaponSkill && weaponSkillTypeChosen == WeaponType.FISTS) {
-                    Log.d(tag, "Scherma con Pugni selezionata: nessuna penalità (-4 negata, diventa 0).")
-                    0
-                } else {
-                    Log.d(tag, "Pugni selezionati senza Scherma specifica: applico penalità -4.")
-                    -4
-                }
-
-                if (penaltyAmount != 0) {
-                    weaponNetCombatModifier += penaltyAmount
-                    currentModifiers.add(
-                        StatModifier(
-                            id = "rule_no_weapon_penalty",
-                            statName = "COMBATTIVITA",
-                            amount = penaltyAmount,
-                            sourceType = ModifierSourceType.RULE,
-                            sourceId = "no_weapon",
-                            duration = ModifierDuration.PERMANENT
-                        )
+                // Caso PUGNI
+                val penaltyAmount = if (hasWeaponSkill && weaponSkillTypeChosen == WeaponType.FISTS) 0 else -4
+                weaponNetCombatModifier += penaltyAmount
+                currentModifiers.add(
+                    StatModifier(
+                        id = "rule_no_weapon_penalty",
+                        statName = "COMBATTIVITA",
+                        amount = penaltyAmount,
+                        sourceType = ModifierSourceType.RULE,
+                        sourceId = "no_weapon",
+                        duration = ModifierDuration.PERMANENT
                     )
-                    Log.d(tag, "Aggiunta penalità/bonus Pugni: $penaltyAmount")
-                }
-            } else { // Se è selezionata una VERA arma (non i pugni)
-                val hasWeaponSkill = hero.kaiDisciplines.contains("WEAPONSKILL")
-                val weaponSkillTypeChosen = hero.details?.weaponSkillType
+                )
+                Log.d(tag, "Caso Pugni. Penalità applicata: $penaltyAmount")
+            } else {
+                // Caso ARMA NORMALE O SPECIALE
+                // Aggiunge il bonus intrinseco dell'arma
+                weaponNetCombatModifier += newSelectedWeapon.combatSkillBonus
+                currentModifiers.add(
+                    StatModifier(
+                        id = "weapon_bonus_${newSelectedWeapon.id}",
+                        statName = "COMBATTIVITA",
+                        amount = newSelectedWeapon.combatSkillBonus,
+                        sourceType = ModifierSourceType.ITEM,
+                        sourceId = newSelectedWeapon.id,
+                        duration = ModifierDuration.UNTIL_UNEQUIPPED
+                    )
+                )
+                Log.d(tag, "Applicato bonus intrinseco arma '${newSelectedWeapon.name}': ${newSelectedWeapon.combatSkillBonus}")
 
-                // 3. Applica il bonus +2 da Scherma se l'arma corrisponde al tipo scelto
+                // Aggiunge il bonus di Scherma se applicabile
                 if (hasWeaponSkill && weaponSkillTypeChosen == newSelectedWeapon.weaponType) {
                     val schermaBonus = 2
                     weaponNetCombatModifier += schermaBonus
@@ -300,41 +277,18 @@ class CharacterSheetViewModel(application: Application) : AndroidViewModel(appli
                             duration = ModifierDuration.PERMANENT
                         )
                     )
-                    Log.d(tag, "Bonus +2 Scherma applicato per ${newSelectedWeapon.name} (tipo: ${newSelectedWeapon.weaponType}).")
+                    Log.d(tag, "Applicato bonus +2 Scherma per corrispondenza tipo arma.")
                 }
             }
 
-            Log.d(tag, "Arma: ${newSelectedWeapon.name}, Netto Modificatore Arma: $weaponNetCombatModifier")
-            Log.d(tag, "Modificatori finali da salvare: ${currentModifiers.map { it.id + ":" + it.amount }}")
+            Log.d(tag, "Bonus totale calcolato per '${newSelectedWeapon.name}': $weaponNetCombatModifier")
 
-            // Aggiorna i dettagli dell'eroe con la nuova lista di modificatori
+            // 3. Salva e aggiorna la UI (logica invariata)
             val updatedHeroDetails = hero.details?.copy(activeModifiers = currentModifiers)
             val updatedHero = hero.copy(details = updatedHeroDetails)
+            val updatedCharacters = session.characters.map { if (it.id == CharacterID.HERO) updatedHero else it }
+            gameStateManager.saveSession(session.copy(characters = updatedCharacters))
 
-            val updatedCharacters = session.characters.map {
-                if (it.id == CharacterID.HERO) updatedHero else it
-            }
-            val updatedSession = session.copy(characters = updatedCharacters)
-            gameStateManager.saveSession(updatedSession)
-            Log.d(tag, "Sessione salvata dopo selectWeapon().")
-
-
-            // Ricalcola le armi visibili dall'inventario aggiornato dell'eroe
-            val actualWeaponsInInventory = updatedHero.details?.inventory?.filter { it.type == ItemType.WEAPON }?.toMutableList() ?: mutableListOf()
-            val updatedVisibleWeapons = mutableListOf<GameItem>()
-            if (actualWeaponsInInventory.isNotEmpty()) {
-                updatedVisibleWeapons.add(actualWeaponsInInventory[0])
-                if (actualWeaponsInInventory.size > 1) {
-                    updatedVisibleWeapons.add(actualWeaponsInInventory[1])
-                }
-            }
-            while (updatedVisibleWeapons.size < 2) {
-                updatedVisibleWeapons.add(FISTS_WEAPON)
-            }
-            Log.d(tag, "Armi visibili ricalcolate (selectWeapon): ${updatedVisibleWeapons.map { it.name }}")
-
-
-            // Aggiorna lo stato UI con le nuove statistiche effettive
             val baseCS = updatedHero.stats?.combattivita ?: 0
             val baseEND = updatedHero.stats?.resistenza ?: 0
             val effectiveCS = calculateEffectiveCombatSkill(baseCS, currentModifiers)
@@ -342,17 +296,14 @@ class CharacterSheetViewModel(application: Application) : AndroidViewModel(appli
 
             _uiState.update { currentState ->
                 currentState.copy(
-                    heroCharacter = updatedHero, // Aggiorna heroCharacter nella UI State
                     selectedWeapon = newSelectedWeapon,
                     activeModifiers = currentModifiers,
                     effectiveCombatSkill = effectiveCS,
                     effectiveEndurance = effectiveEND,
-                    selectedWeaponModifierAmount = weaponNetCombatModifier,
-                    visibleWeapons = updatedVisibleWeapons // AGGIORNATO QUI!
+                    selectedWeaponModifierAmount = weaponNetCombatModifier
                 )
             }
-            Log.d(tag, "UI State aggiornata in selectWeapon().")
-            Log.d(tag, "Fine selectWeapon(). CS Effettiva: $effectiveCS. END Effettiva: $effectiveEND. Modificatore Arma Selezionata: $weaponNetCombatModifier")
+            Log.d(tag, "Fine selectWeapon(). CS Effettiva: $effectiveCS. Modificatore visualizzato: $weaponNetCombatModifier")
         }
     }
 
