@@ -838,6 +838,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         """.trimIndent()
     }
 
+    // Inserisci o sostituisci nel file: java/io/github/luposolitario/immundanoctis/view/MainViewModel.kt
+
     private suspend fun processCurrentSceneNarrative(shouldGenerateNarration: Boolean = true) {
         val scene = _currentScene.value ?: run {
             log("ERRORE: Tentativo di processare una scena nulla.")
@@ -861,14 +863,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         prepareChoicesForScene(scene)
 
-        // --- MODIFICA CHIAVE QUI ---
         if (!shouldGenerateNarration) {
             log("Sessione caricata. La narrazione non viene rigenerata, la chat è ripristinata dal salvataggio.")
-            // Non aggiungiamo più nessun messaggio qui. La cronologia della chat
-            // viene caricata da `loadChatFromAutoSave` all'avvio.
             return
         }
-        // --- FINE MODIFICA ---
 
         if (_isGenerating.value) return
         _isGenerating.value = true
@@ -883,9 +881,27 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val promptForGemma = buildGemmaPromptForScene(scene, lastMessageText)
             Log.d(tag, "DEBUG_GEMMA_PROMPT_SENT (Refactored): \n---\n$promptForGemma\n---")
 
-            dmEngine.sendMessage(promptForGemma).collect { token ->
-                stringRaw += token
-            }
+            var stopStreamingToText = false
+
+            dmEngine.sendMessage(promptForGemma)
+                .collect { token ->
+                    // Aggiungiamo sempre il token alla risposta completa
+                    stringRaw += token
+
+                    // Aggiorniamo la UI solo se non abbiamo ancora raggiunto i tag
+                    if (!stopStreamingToText) {
+                        if (token.contains("---")) {
+                            // Se troviamo il separatore, aggiungiamo solo il testo che lo precede
+                            // e poi fermiamo gli aggiornamenti futuri della UI.
+                            val partBeforeTag = token.substringBefore("---")
+                            _streamingText.update { it + partBeforeTag }
+                            stopStreamingToText = true
+                        } else {
+                            // Altrimenti, continuiamo ad aggiornare la UI
+                            _streamingText.update { it + token }
+                        }
+                    }
+                }
 
         } catch (e: Exception) {
             Log.e(tag, "Errore durante la generazione della narrazione della scena: ${e.message}", e)
@@ -894,8 +910,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             log("Generazione completata. Inizio parsing della risposta.")
             log("RAW: $stringRaw")
 
+            // La parte di parsing rimane invariata, ma ora lavora sulla stringRaw completa
             val parts = stringRaw.split("--- TAGS ---", limit = 2)
-            val narrativePart = (parts.getOrNull(0)?.trim() ?: stringRaw).replace(Regex("<[^>]+>"), "").trim()
+            // La narrazione finale da aggiungere alla chat è quella streamata
+            val narrativePart = _streamingText.value.trim()
             val tagsPart = parts.getOrNull(1)?.trim() ?: ""
 
             if (narrativePart.isNotBlank()) {

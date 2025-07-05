@@ -3,11 +3,11 @@
     {
       "id": "narrative_choice_translation",
       "type": "dynamicText",
-      "regex": "<choice_it id=\\\"([^\\\"]*)\\\">([^<]*)<\\/choice_it>",
+      "regex": "<([a-zA-Z0-9_]+) id=\\\"([^\\\"]*)\\\">([^<]*)<\\/\\1>",
       "replacement": null,
       "parameters": [
-        { "name": "id", "value": "{captured_value_from_regex_1}" },
-        { "name": "italianText", "value": "{captured_value_from_regex_2}" }
+        { "name": "id", "value": "{captured_value_from_regex_2}" },
+        { "name": "italianText", "value": "{captured_value_from_regex_3}" }
       ],
       "actor": "DM",
       "command": "updateChoiceText",
