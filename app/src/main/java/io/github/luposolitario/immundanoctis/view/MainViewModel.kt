@@ -604,10 +604,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         return totalRoll
     }
 
-// Dentro MainViewModel.kt
-
-// All'interno della classe MainViewModel
-
     private suspend fun processCommands(commands: List<EngineCommand>) {
         if (commands.isEmpty()) {
             return
@@ -623,8 +619,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 "Executing command: ${command.commandName} with params: ${command.parameters}"
             )
             when (command.commandName) {
-
-                // --- NUOVA LOGICA INIZIA QUI ---
 
                 "addItem" -> {
                     val itemName = command.parameters["itemName"] as? String
@@ -678,28 +672,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
 
-                "addGold" -> {
-                    val amount = command.parameters["amount"] as? Int
-                    if (amount != null && amount > 0) {
-                        val goldItem = hero.details?.inventory?.find { it.type == ItemType.GOLD }
-                        if (goldItem != null) {
-                            goldItem.quantity += amount
-                        } else {
-                            // Se l'eroe non ha un oggetto "GOLD", ne creiamo uno
-                            hero.details?.inventory?.add(
-                                GameItem(
-                                    name = "Corone d'Oro",
-                                    type = ItemType.GOLD,
-                                    quantity = amount
-                                )
-                            )
-                        }
-                        log("💰 Aggiunte ${amount} Corone d'Oro.")
-                        sessionModified = true
-                    }
-                }
-
-                // --- FINE NUOVA LOGICA ---
+                // **MODIFICA**: Il comando "addGold" è stato rimosso. La sua logica andrà dentro "addItem".
 
                 "updateChoiceText" -> {
                     val choiceId = command.parameters["id"] as? String
@@ -715,18 +688,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         updateDisciplineChoiceText(disciplineId, italianText)
                     }
                 }
-                "requireMeal" -> {
+
+                // **MODIFICA**: "requireMeal" diventa "requireAction"
+                "requireAction" -> {
+                    // Per ora la logica rimane la stessa, ma il nome del comando è aggiornato.
                     val inventory = hero.details?.inventory ?: mutableListOf()
                     val meal = inventory.find { it.type == ItemType.MEAL }
 
                     if (meal != null && meal.quantity > 0) {
-                        // Il giocatore ha un pasto, lo consuma.
                         val updatedMeal = meal.copy(quantity = meal.quantity - 1)
                         val updatedInventory =
                             inventory.map { if (it.id == meal.id) updatedMeal else it }
                                 .toMutableList()
 
-                        // Rimuovi il pasto se la quantità arriva a zero
                         if (updatedMeal.quantity <= 0) {
                             updatedInventory.remove(updatedMeal)
                         }
@@ -739,10 +713,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         _uiFeedbackEvent.emit("Hai consumato un Pasto.")
 
                     } else {
-                        // Il giocatore non ha pasti, applica la penalità.
                         val currentEndurance = hero.stats?.resistenza ?: 0
                         val newEndurance =
-                            (currentEndurance - 3).coerceAtLeast(0) // Non può scendere sotto zero
+                            (currentEndurance - 3).coerceAtLeast(0)
 
                         val updatedStats = hero.stats?.copy(resistenza = newEndurance)
                         val updatedHero = hero.copy(stats = updatedStats)
@@ -757,16 +730,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     }
                     sessionModified = true
                 }
-                "removeAllWeaponsAndBackpackItems" -> {
+
+                // **MODIFICA**: "removeAllWeaponsAndBackpackItems" diventa "removeAllItems"
+                "removeAllItems" -> {
+                    // Per ora la logica rimane la stessa, ma il nome del comando è aggiornato.
                     val inventory = hero.details?.inventory ?: mutableListOf()
 
-                    // Rimuove gli oggetti solo se sono del tipo corretto E sono scartabili.
-                    // Questo protegge oggetti di missione o oggetti non scartabili.
                     inventory.removeAll { item ->
                         (item.type == ItemType.WEAPON || item.type == ItemType.BACKPACK_ITEM) && item.isDiscardable
                     }
 
-                    // Applica le modifiche all'eroe
                     val updatedDetails = hero.details?.copy(inventory = inventory)
                     val updatedHero = hero.copy(details = updatedDetails)
                     _gameCharacters.update { list -> list.map { if(it.id == hero.id) updatedHero else it } }
@@ -775,12 +748,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     _uiFeedbackEvent.emit("Hai perso il tuo equipaggiamento!")
                     sessionModified = true
                 }
+
                 "applyStatModifier" -> {
                     val statName = command.parameters["statName"] as? String
                     val amountStr = command.parameters["amount"] as? String
 
                     if (statName != null && amountStr != null) {
-                        val heroStats = hero.stats ?: return@forEach // Esci se l'eroe non ha statistiche
+                        val heroStats = hero.stats ?: return@forEach
                         var newCombatSkill = heroStats.combattivita
                         var newEndurance = heroStats.resistenza
 
@@ -804,11 +778,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
                             _uiFeedbackEvent.emit("La tua $statName è cambiata di $amount!")
                             sessionModified = true
-
-                        } else if (amountStr.equals("MAX_RESISTANCE_RESTORE", ignoreCase = true)) {
-                            // Logica speciale per ripristinare la resistenza al massimo (se mai servirà)
-                            // Questa è una previsione basata sui libri game, dove a volte si riposa completamente.
-                            // Per ora, questa logica non è usata, ma è pronta.
                         }
                     }
                 }
@@ -822,11 +791,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val updatedCharacters =
                 currentSession.characters.map { if (it.id == CharacterID.HERO) hero else it }
             gameStateManager.saveSession(currentSession.copy(characters = updatedCharacters))
-            log("Salvataggio sessione dopo l'aggiornamento dell'inventario.")
+            log("Salvataggio sessione dopo l'aggiornamento.")
         }
     }
-
-    // Dentro la classe MainViewModel
 
     fun resolveInventoryExchange(itemToDiscard: GameItem, newItem: GameItem) {
         viewModelScope.launch {
