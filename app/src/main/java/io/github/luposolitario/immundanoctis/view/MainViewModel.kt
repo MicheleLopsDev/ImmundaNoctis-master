@@ -1,3 +1,5 @@
+// in file: java/io/github/luposolitario/immundanoctis/view/MainViewModel.kt
+
 package io.github.luposolitario.immundanoctis.view
 
 import android.app.Application
@@ -6,19 +8,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
-import io.github.luposolitario.immundanoctis.data.CharacterID
-import io.github.luposolitario.immundanoctis.data.CharacterType
-import io.github.luposolitario.immundanoctis.data.ChatMessage
-import io.github.luposolitario.immundanoctis.data.DisciplineChoice
-import io.github.luposolitario.immundanoctis.data.EngineCommand
-import io.github.luposolitario.immundanoctis.data.GameCharacter
-import io.github.luposolitario.immundanoctis.data.GameItem
-import io.github.luposolitario.immundanoctis.data.Genre
-import io.github.luposolitario.immundanoctis.data.ItemType
-import io.github.luposolitario.immundanoctis.data.KAI_DISCIPLINES
-import io.github.luposolitario.immundanoctis.data.NarrativeChoice
-import io.github.luposolitario.immundanoctis.data.Scene
-import io.github.luposolitario.immundanoctis.data.SessionData
+import io.github.luposolitario.immundanoctis.data.*
 import io.github.luposolitario.immundanoctis.engine.GameLogicManager
 import io.github.luposolitario.immundanoctis.engine.GameRulesEngine
 import io.github.luposolitario.immundanoctis.engine.GemmaEngine
@@ -59,6 +49,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.random.Random
+
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val tag: String? = this::class.simpleName
@@ -463,16 +454,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     _gameCharacters.value.find { it.id == _respondingCharacterId.value }
                 val llmLanguage = respondingCharacter?.language ?: Locale.ITALIAN.language
 
-                // --- 👇 NUOVA LOGICA DI PARSING 👇 ---
-
-                // 1. Dividi la risposta di Gemma in narrazione e tag
                 val parts = rawLLMResponse.split("--- TAGS ---", limit = 2)
                 val narrativePart = parts.getOrNull(0)?.trim() ?: ""
                 val tagsPart = parts.getOrNull(1)?.trim() ?: ""
 
                 val allCommands = mutableListOf<EngineCommand>()
 
-                // 2. Passa SOLO la parte narrativa al parser per pulire i vecchi tag (es. {STAT_MOD...})
                 if (narrativePart.isNotBlank()) {
                     val (cleanedNarrative, narrativeCommands) = stringTagParser.parseAndReplaceWithCommands(
                         inputString = narrativePart,
@@ -481,7 +468,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     )
                     allCommands.addAll(narrativeCommands)
 
-                    // 3. Aggiungi il messaggio di chat con la narrazione PULITA
                     val finalMessage = ChatMessage(
                         authorId = _respondingCharacterId.value ?: CharacterID.DM,
                         position = messageCounter.getAndIncrement(),
@@ -491,7 +477,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     autoSaveChatIfEnabled()
                 }
 
-                // 4. Passa SOLO la parte dei tag al parser per estrarre i comandi di aggiornamento delle scelte
                 if (tagsPart.isNotBlank()) {
                     val (_, choiceCommands) = stringTagParser.parseAndReplaceWithCommands(
                         inputString = tagsPart,
@@ -501,12 +486,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     allCommands.addAll(choiceCommands)
                 }
 
-                // 5. Esegui tutti i comandi raccolti
                 viewModelScope.launch {
                     processCommands(allCommands)
                 }
 
-                // 6. Resetta lo stato della generazione
                 _isGenerating.value = false
                 _streamingText.value = ""
                 _respondingCharacterId.value = null
@@ -552,11 +535,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         log("Ora stai parlando con: $characterId")
     }
 
-    // --- FUNZIONE DI LOG MODIFICATA ---
     fun log(message: String) {
-        // Stampa nel Logcat di Android Studio per il debug
         Log.d(tag, message)
-        // Mantiene il log interno per una futura UI di debug
         _logMessages.update { it + message }
     }
 
@@ -610,7 +590,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         log("Processing ${commands.size} commands: ${commands.map { it.commandName }}")
         val currentSession = gameStateManager.loadSession() ?: return
-        val hero = currentSession.characters.find { it.id == CharacterID.HERO } ?: return
+        val characters = currentSession.characters.toMutableList()
+        val hero = characters.find { it.id == CharacterID.HERO } ?: return
         var sessionModified = false
 
         commands.forEach { command ->
@@ -619,60 +600,63 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 "Executing command: ${command.commandName} with params: ${command.parameters}"
             )
             when (command.commandName) {
-
                 "addItem" -> {
                     val itemName = command.parameters["itemName"] as? String
                     val itemTypeStr = command.parameters["itemType"] as? String
-                    val quantity = command.parameters["quantity"] as? Int ?: 1
+                    val quantity = (command.parameters["quantity"] as? String)?.toIntOrNull() ?: 1
 
                     if (itemName != null && itemTypeStr != null) {
                         try {
-                            val itemType = ItemType.valueOf(itemTypeStr)
-                            val newItem =
-                                GameItem(name = itemName, type = itemType, quantity = quantity)
-
+                            val itemType = ItemType.valueOf(itemTypeStr.uppercase())
                             val inventory = hero.details?.inventory ?: mutableListOf()
 
-                            // Controlla i limiti
-                            val weaponCount = inventory.count { it.type == ItemType.WEAPON }
-                            val backpackItemCount =
-                                inventory.count { it.type == ItemType.BACKPACK_ITEM }
-
-                            var canAddDirectly = true
-
-                            if (itemType == ItemType.WEAPON && weaponCount >= 2) {
-                                _inventoryFullState.value = InventoryFullState(
-                                    newItem,
-                                    inventory.filter { it.type == ItemType.WEAPON },
-                                    itemType
-                                )
-                                canAddDirectly = false
-                            } else if (itemType == ItemType.BACKPACK_ITEM && backpackItemCount >= 8) {
-                                _inventoryFullState.value = InventoryFullState(
-                                    newItem,
-                                    inventory.filter { it.type == ItemType.BACKPACK_ITEM },
-                                    itemType
-                                )
-                                canAddDirectly = false
-                            }
-
-                            if (canAddDirectly) {
-                                inventory.add(newItem)
-                                log("✅ Aggiunto all'inventario: ${newItem.name} (x$quantity)")
-                                _uiFeedbackEvent.emit("Hai trovato: ${newItem.name}")
+                            if (itemType == ItemType.GOLD) {
+                                val goldItem = inventory.find { it.type == ItemType.GOLD }
+                                if (goldItem != null) {
+                                    goldItem.quantity += quantity
+                                } else {
+                                    inventory.add(GameItem(name = itemName, type = ItemType.GOLD, quantity = quantity))
+                                }
+                                log("💰 Aggiunte ${quantity} Corone d'Oro.")
+                                viewModelScope.launch { _uiFeedbackEvent.emit("Hai trovato ${quantity} Corone d'Oro!") }
                                 sessionModified = true
                             } else {
-                                log("⚠️ Inventario pieno per il tipo $itemType. In attesa della decisione del giocatore.")
-                                _uiFeedbackEvent.emit("Hai trovato: ${newItem.name}, ma il tuo inventario è pieno!")
-                            }
+                                val newItem = GameItem(name = itemName, type = itemType, quantity = quantity)
+                                val weaponCount = inventory.count { it.type == ItemType.WEAPON }
+                                val backpackItemCount = inventory.count { it.type == ItemType.BACKPACK_ITEM }
+                                var canAddDirectly = true
 
+                                if (itemType == ItemType.WEAPON && weaponCount >= 2) {
+                                    _inventoryFullState.value = InventoryFullState(
+                                        newItem,
+                                        inventory.filter { it.type == ItemType.WEAPON },
+                                        itemType
+                                    )
+                                    canAddDirectly = false
+                                } else if (itemType == ItemType.BACKPACK_ITEM && backpackItemCount >= 8) {
+                                    _inventoryFullState.value = InventoryFullState(
+                                        newItem,
+                                        inventory.filter { it.type == ItemType.BACKPACK_ITEM },
+                                        itemType
+                                    )
+                                    canAddDirectly = false
+                                }
+
+                                if (canAddDirectly) {
+                                    inventory.add(newItem)
+                                    log("✅ Aggiunto all'inventario: ${newItem.name} (x$quantity)")
+                                    viewModelScope.launch { _uiFeedbackEvent.emit("Hai trovato: ${newItem.name}") }
+                                    sessionModified = true
+                                } else {
+                                    log("⚠️ Inventario pieno per il tipo $itemType. In attesa della decisione del giocatore.")
+                                    viewModelScope.launch { _uiFeedbackEvent.emit("Hai trovato: ${newItem.name}, ma il tuo inventario è pieno!") }
+                                }
+                            }
                         } catch (e: IllegalArgumentException) {
                             log("❌ ERRORE: Tipo di oggetto non valido '$itemTypeStr' per il comando addItem.")
                         }
                     }
                 }
-
-                // **MODIFICA**: Il comando "addGold" è stato rimosso. La sua logica andrà dentro "addItem".
 
                 "updateChoiceText" -> {
                     val choiceId = command.parameters["id"] as? String
@@ -689,64 +673,59 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
 
-                // **MODIFICA**: "requireMeal" diventa "requireAction"
                 "requireAction" -> {
-                    // Per ora la logica rimane la stessa, ma il nome del comando è aggiornato.
                     val inventory = hero.details?.inventory ?: mutableListOf()
-                    val meal = inventory.find { it.type == ItemType.MEAL }
+                    val meal = inventory.find { it.name == "Pasto" }
 
                     if (meal != null && meal.quantity > 0) {
-                        val updatedMeal = meal.copy(quantity = meal.quantity - 1)
-                        val updatedInventory =
-                            inventory.map { if (it.id == meal.id) updatedMeal else it }
-                                .toMutableList()
-
-                        if (updatedMeal.quantity <= 0) {
-                            updatedInventory.remove(updatedMeal)
+                        meal.quantity--
+                        if (meal.quantity == 0) {
+                            inventory.remove(meal)
                         }
-
-                        val updatedDetails = hero.details?.copy(inventory = updatedInventory)
-                        val updatedHero = hero.copy(details = updatedDetails)
-                        _gameCharacters.update { list -> list.map { if (it.id == hero.id) updatedHero else it } }
-
                         log("✅ Pasto consumato. Il giocatore ha mangiato.")
-                        _uiFeedbackEvent.emit("Hai consumato un Pasto.")
-
+                        viewModelScope.launch { _uiFeedbackEvent.emit("Hai consumato un Pasto.") }
                     } else {
                         val currentEndurance = hero.stats?.resistenza ?: 0
-                        val newEndurance =
-                            (currentEndurance - 3).coerceAtLeast(0)
-
+                        val newEndurance = (currentEndurance - 3).coerceAtLeast(0)
                         val updatedStats = hero.stats?.copy(resistenza = newEndurance)
                         val updatedHero = hero.copy(stats = updatedStats)
-                        _gameCharacters.update { list -> list.map { if (it.id == hero.id) updatedHero else it } }
+                        val heroIndex = characters.indexOf(hero)
+                        if (heroIndex != -1) characters[heroIndex] = updatedHero
+                        _gameCharacters.value = characters
 
                         if (newEndurance <= 0) {
                             _isHeroDead.value = true
                         }
-
                         log("❌ Nessun pasto disponibile. Il giocatore perde 3 punti Resistenza.")
-                        _uiFeedbackEvent.emit("Non hai cibo! Perdi 3 punti Resistenza.")
+                        viewModelScope.launch { _uiFeedbackEvent.emit("Non hai cibo! Perdi 3 punti Resistenza.") }
                     }
                     sessionModified = true
                 }
 
-                // **MODIFICA**: "removeAllWeaponsAndBackpackItems" diventa "removeAllItems"
                 "removeAllItems" -> {
-                    // Per ora la logica rimane la stessa, ma il nome del comando è aggiornato.
-                    val inventory = hero.details?.inventory ?: mutableListOf()
+                    val itemTypeToRemoveStr = command.parameters["type"] as? String
+                    if (itemTypeToRemoveStr != null) {
+                        try {
+                            val itemTypeToRemove = ItemType.valueOf(itemTypeToRemoveStr.uppercase())
+                            val inventory = hero.details?.inventory ?: mutableListOf()
+                            val itemsRemoved = inventory.removeAll { item ->
+                                item.type == itemTypeToRemove && item.isDiscardable
+                            }
 
-                    inventory.removeAll { item ->
-                        (item.type == ItemType.WEAPON || item.type == ItemType.BACKPACK_ITEM) && item.isDiscardable
+                            if (itemsRemoved) {
+                                val updatedDetails = hero.details?.copy(inventory = inventory)
+                                val updatedHero = hero.copy(details = updatedDetails)
+                                val heroIndex = characters.indexOf(hero)
+                                if (heroIndex != -1) characters[heroIndex] = updatedHero
+                                _gameCharacters.value = characters
+                                log("‼️ Rimosso/i ${itemTypeToRemove.name} dall'inventario.")
+                                viewModelScope.launch { _uiFeedbackEvent.emit("Hai perso i tuoi oggetti di tipo ${itemTypeToRemove.name}!") }
+                                sessionModified = true
+                            }
+                        } catch (e: IllegalArgumentException) {
+                            log("❌ ERRORE: Tipo di oggetto non valido '$itemTypeToRemoveStr' per il comando removeAllItems.")
+                        }
                     }
-
-                    val updatedDetails = hero.details?.copy(inventory = inventory)
-                    val updatedHero = hero.copy(details = updatedDetails)
-                    _gameCharacters.update { list -> list.map { if(it.id == hero.id) updatedHero else it } }
-
-                    log("‼️ Oggetti scartabili (Armi e Zaino) rimossi.")
-                    _uiFeedbackEvent.emit("Hai perso il tuo equipaggiamento!")
-                    sessionModified = true
                 }
 
                 "applyStatModifier" -> {
@@ -757,7 +736,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         val heroStats = hero.stats ?: return@forEach
                         var newCombatSkill = heroStats.combattivita
                         var newEndurance = heroStats.resistenza
-
                         val amount = amountStr.toIntOrNull()
 
                         if (amount != null) {
@@ -774,9 +752,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
                             val updatedStats = heroStats.copy(combattivita = newCombatSkill, resistenza = newEndurance)
                             val updatedHero = hero.copy(stats = updatedStats)
-                            _gameCharacters.update { list -> list.map { if(it.id == hero.id) updatedHero else it } }
+                            val heroIndex = characters.indexOf(hero)
+                            if (heroIndex != -1) characters[heroIndex] = updatedHero
+                            _gameCharacters.value = characters
 
-                            _uiFeedbackEvent.emit("La tua $statName è cambiata di $amount!")
+                            viewModelScope.launch { _uiFeedbackEvent.emit("La tua $statName è cambiata di $amount!") }
                             sessionModified = true
                         }
                     }
@@ -788,9 +768,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         if (sessionModified) {
-            val updatedCharacters =
-                currentSession.characters.map { if (it.id == CharacterID.HERO) hero else it }
-            gameStateManager.saveSession(currentSession.copy(characters = updatedCharacters))
+            gameStateManager.saveSession(currentSession.copy(characters = characters))
             log("Salvataggio sessione dopo l'aggiornamento.")
         }
     }
@@ -802,7 +780,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
             val inventory = hero.details?.inventory ?: return@launch
 
-            // Rimuovi il vecchio oggetto e aggiungi il nuovo
             inventory.remove(itemToDiscard)
             inventory.add(newItem)
 
@@ -810,7 +787,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             log("✅ Scambiato '${itemToDiscard.name}' con '${newItem.name}'.")
             _uiFeedbackEvent.emit("'${itemToDiscard.name}' scartato, '${newItem.name}' raccolto.")
 
-            // Resetta lo stato per nascondere il dialogo
             _inventoryFullState.value = null
         }
     }
@@ -829,7 +805,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _activeNarrativeChoices.update { currentChoices ->
             currentChoices.map { choice ->
                 if (choice.id == choiceId) {
-                    // Crea una nuova istanza di NarrativeChoice con il testo italiano aggiornato
                     choice.copy(choiceText = choice.choiceText.copy(italian = italianText))
                 } else {
                     choice
@@ -852,202 +827,178 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         log("Testo per la scelta di disciplina '$disciplineId' aggiornato a: '$italianText'")
     }
 
+    // **NUOVO METODO ESTRATTO**
+    private fun buildGemmaPromptForScene(scene: Scene, lastMessageText: String): String {
+        val sceneNarrativeEnglish = scene.narrativeText.english ?: ""
+        val choicesForPrompt = scene.choices?.joinToString("\n") {
+            "CHOICE_ID: \"${it.id}\" -> TEXT: \"${it.choiceText.english}\""
+        } ?: "Nessuna scelta narrativa."
+
+        val disciplinesForPrompt = scene.disciplineChoices?.joinToString("\n") {
+            val text = it.choiceText?.english ?: "Usa la disciplina ${it.disciplineId}"
+            "DISCIPLINE_CHOICE_ID: \"${it.disciplineId}\" -> TEXT: \"$text\""
+        } ?: "Nessuna scelta di disciplina."
+
+        val currentTone = savePreferences.narrativeTone
+
+        return """
+            Tu sei il Dungeon Master per un libro-gioco. Il tuo compito è elaborare una scena per il giocatore.
+            
+            Segui queste istruzioni ESATTAMENTE:
+            
+            1.  **IDENTIFICA E SEPARA OGNI TIPO DI CONTENUTO**:
+                * **Narrazione**: Il testo puramente descrittivo escludi i TAG XML-like (es. `<addItem .../>`, `<applyStatModifier .../>`, `<addGold .../>`, `<requireMeal .../>`, `<removeAllWeaponsAndBackpackItems .../>`).
+                * **Comandi di Gioco Espliciti**: Istruzioni specifiche che alterano lo stato del gioco, presenti nel testo narrativo in formato XML-like (es. `<addItem .../>`, `<applyStatModifier .../>`, `<addGold .../>`, `<requireMeal .../>`, `<removeAllWeaponsAndBackpackItems .../>`) o in un formato abbreviato specifico come `<STAT_MOD:NOME_STATISTICA:VALORE_MODIFICATORE>`. Questi comandi saranno **fisicamente presenti** nel "TESTO NARRATIVO DA TRADURRE E PRESERVARE".
+                * **Dati Scelte**: Informazioni per le scelte del giocatore e discipline, fornite in formato "CHOICE_ID: 'id' -> TEXT: 'testo'".
+            
+            2.  **GENERA E RAGGRUPPA TUTTI I TAG RICHIESTI**: Crea una sezione separata da `--- TAGS ---`. In questa sezione, devi inserire **SOLO E SOLTANTO** i seguenti tipi di tag, basati **ESCLUSIVAMENTE** e **SENZA ALCUNA ECCEZIONE** sui dati forniti nell'input:
+                * Tutti i "Comandi di Gioco Espliciti" esattamente come erano nell'input originale. **Se un comando è nel formato abbreviato `<STAT_MOD:NOME:VALORE>`.** **NON GENERARE MAI NUOVI Comandi di Gioco basandoti sul contesto narrativo o su azioni implicite.** Devono essere copiati direttamente dall'input se presenti.
+                * Tag delle scelte in italiano, usando il formato `<choice_it id="ID_SCELTA">Testo Tradotto.</choice_it>`, generati solo dai "Dati Scelte" forniti.
+                * Tag delle discipline in italiano, usando il formato `<discipline_it id="ID_DISCIPLINA">Testo Tradotto.</discipline_it>`, generati solo dai "Dati Scelte" forniti.
+                **È FONDAMENTALE: NON INVENTARE, NON AGGIUNGERE, E NON GENERARE MAI NUOVI TAG O INFORMAZIONI CHE NON SIANO ESPLICITAMENTE PRESENTI O DERIVABILI DALL'INPUT FORNITO. TUTTI I TAG DEVONO ESSERE NEL FORMATO XML-LIKE (`<.../>` o `<...></...>` COME NEGLI ESEMPI).**
+            
+            L'output DEVE avere due parti: la narrazione tradotta e pulita, seguita dal separatore, seguito da tutti i tag raggruppati.
+            
+            ESEMPIO DI OUTPUT PERFETTO:
+            Sei di fronte a un altare di pietra. Sullo sfondo, senti un rumore.
+            --- TAGS ---
+            <addItem itemType="WEAPON" weaponType="SWORD" itemName="Spada Lunga" modifier="+2" quantity="1"/>
+            <choice_it id="choice_1_1">Esamina l'altare.</choice_it>
+            
+            Non aggiungere commenti o saluti.
+            
+            ---
+            
+            **DATI DELLA SCENA:**
+            
+            [CONTESTO DELL'AZIONE PRECEDENTE]
+            $lastMessageText
+            
+            [TESTO NARRATIVO DA TRADURRE ]
+            $sceneNarrativeEnglish
+            
+            [SCELTE NARRATIVE DA TRADURRE E INSERIRE NEI TAG <choice_it>]
+            $choicesForPrompt
+            
+            [SCELTE DI DISCIPLINA DA TRADURRE E INSERIRE NEI TAG <discipline_it>]
+            $disciplinesForPrompt
+            ---
+            
+            **NARRATORE (in italiano, tono $currentTone):**
+            """.trimIndent()
+    }
+
+
+// Inserisci o sostituisci nel file: java/io/github/luposolitario/immundanoctis/view/MainViewModel.kt
+
+    // Inserisci o sostituisci nel file: java/io/github/luposolitario/immundanoctis/view/MainViewModel.kt
+
     private suspend fun processCurrentSceneNarrative(shouldGenerateNarration: Boolean = true) {
         val scene = _currentScene.value ?: run {
             log("ERRORE: Tentativo di processare una scena nulla.")
             return
         }
 
-        var stringRaw : String = ""
-
-        prepareChoicesForScene(scene)
-        if (shouldGenerateNarration) {
-            if (_isGenerating.value) return
-            _isGenerating.value = true
-            _streamingText.value = ""
-            _respondingCharacterId.value = CharacterID.DM
-
-            try {
-                _engineLoadingState.first { it is EngineLoadingState.Success }
-
-                val sceneNarrativeEnglish = scene.narrativeText.english ?: ""
-                val choicesTextListEnglish =
-                    scene.choices?.mapNotNull { it.choiceText.english } ?: emptyList()
-                val choicesStringEnglish = choicesTextListEnglish.joinToString(", ")
-                val lastMessageText =
-                    _chatMessages.value.lastOrNull()?.text ?: "L'avventura ha inizio."
-
-                // Recupera il tono narrativo dalle preferenze
-                val currentTone = savePreferences.narrativeTone // <-- Recupera il tono salvato
-                val toneInstruction = if (currentTone != "originale") {
-                    "Adatta il tono generale della narrazione per essere $currentTone. Arricchisci la descrizione con dettagli vividi e sensoriali che rafforzino questo tono, senza però inventare nuovi eventi o stravolgere la trama originale della scena."
-                } else {
-                    "Mantieni lo stile del testo originale." // Quando è "originale", solo traduce senza alterazioni di tono
-                }
-
-
-                // 1. Estrai e formatta le scelte per il prompt (questo codice va prima della definizione del prompt)
-                val choicesForPrompt = scene.choices?.joinToString("\n") {
-                    "CHOICE_ID: \"${it.id}\" -> TEXT: \"${it.choiceText.english}\""
-                } ?: "Nessuna scelta narrativa."
-
-                val disciplinesForPrompt = scene.disciplineChoices?.joinToString("\n") {
-                    // Gestisce il caso in cui choiceText potrebbe essere nullo
-                    val text = it.choiceText?.english ?: "Usa la disciplina ${it.disciplineId}"
-                    "DISCIPLINE_CHOICE_ID: \"${it.disciplineId}\" -> TEXT: \"$text\""
-                } ?: "Nessuna scelta di disciplina."
-
-                // 2. Definisci il nuovo prompt per Gemma con le correzioni applicate
-
-                // Sostituisci il vecchio prompt con il nuovo nella chiamata all'engine:
-                // dmEngine.sendMessage(newPromptForGemma)...
-                log("DEBUG: Invio prompt di armonizzazione, traduzione e tonale al DM per la scena ID=${scene.id}")
-                val promptForGemma = """
-                Tu sei il Dungeon Master per un libro-gioco. Il tuo compito è elaborare una scena per il giocatore.
-                 
-                Segui queste istruzioni ESATTAMENTE:
-                                 
-                1.  **IDENTIFICA E SEPARA OGNI TIPO DI CONTENUTO**:
-                    * **Narrazione**: Il testo puramente descrittivo escludi i TAG XML-like (es. `<addItem .../>`, `<applyStatModifier .../>`, `<addGold .../>`, `<requireMeal .../>`, `<removeAllWeaponsAndBackpackItems .../>`).
-                    * **Comandi di Gioco Espliciti**: Istruzioni specifiche che alterano lo stato del gioco, presenti nel testo narrativo in formato XML-like (es. `<addItem .../>`, `<applyStatModifier .../>`, `<addGold .../>`, `<requireMeal .../>`, `<removeAllWeaponsAndBackpackItems .../>`) o in un formato abbreviato specifico come `<STAT_MOD:NOME_STATISTICA:VALORE_MODIFICATORE>`. Questi comandi saranno **fisicamente presenti** nel "TESTO NARRATIVO DA TRADURRE E PRESERVARE".
-                    * **Dati Scelte**: Informazioni per le scelte del giocatore e discipline, fornite in formato "CHOICE_ID: 'id' -> TEXT: 'testo'".
-                                 
-                2.  **GENERA E RAGGRUPPA TUTTI I TAG RICHIESTI**: Crea una sezione separata da `--- TAGS ---`. In questa sezione, devi inserire **SOLO E SOLTANTO** i seguenti tipi di tag, basati **ESCLUSIVAMENTE** e **SENZA ALCUNA ECCEZIONE** sui dati forniti nell'input:
-                    * Tutti i "Comandi di Gioco Espliciti" esattamente come erano nell'input originale. **Se un comando è nel formato abbreviato `<STAT_MOD:NOME:VALORE>`.** **NON GENERARE MAI NUOVI Comandi di Gioco basandoti sul contesto narrativo o su azioni implicite.** Devono essere copiati direttamente dall'input se presenti.
-                    * Tag delle scelte in italiano, usando il formato `<choice_it id="ID_SCELTA">Testo Tradotto.</choice_it>`, generati solo dai "Dati Scelte" forniti.
-                    * Tag delle discipline in italiano, usando il formato `<discipline_it id="ID_DISCIPLINA">Testo Tradotto.</discipline_it>`, generati solo dai "Dati Scelte" forniti.
-                    **È FONDAMENTALE: NON INVENTARE, NON AGGIUNGERE, E NON GENERARE MAI NUOVI TAG O INFORMAZIONI CHE NON SIANO ESPLICITAMENTE PRESENTI O DERIVABILI DALL'INPUT FORNITO. TUTTI I TAG DEVONO ESSERE NEL FORMATO XML-LIKE (`<.../>` o `<...></...>` COME NEGLI ESEMPI).**
-                       
-                                  
-                L'output DEVE avere due parti: la narrazione tradotta e pulita, seguita dal separatore, seguito da tutti i tag raggruppati.
-                                 
-                ESEMPIO DI OUTPUT PERFETTO:
-                Sei di fronte a un altare di pietra. Sullo sfondo, senti un rumore.
-                --- TAGS ---
-                <addItem itemType="WEAPON" weaponType="SWORD" itemName="Spada Lunga" modifier="+2" quantity="1"/>
-                <choice_it id="choice_1_1">Esamina l'altare.</choice_it>
-                                 
-                Non aggiungere commenti o saluti.
-                                 
-                ---
-                                 
-                **DATI DELLA SCENA:**
-                                 
-                [CONTESTO DELL'AZIONE PRECEDENTE]
-                $lastMessageText
-                
-                [TESTO NARRATIVO DA TRADURRE ]
-                $sceneNarrativeEnglish
-                
-                [SCELTE NARRATIVE DA TRADURRE E INSERIRE NEI TAG <choice_it>]
-                $choicesForPrompt
-                
-                [SCELTE DI DISCIPLINA DA TRADURRE E INSERIRE NEI TAG <discipline_it>]
-                $disciplinesForPrompt
-                ---
-                
-                **NARRATORE (in italiano, tono $currentTone):**
-                """.trimIndent()
-                Log.d(tag, "DEBUG_GEMMA_PROMPT_SENT: \n---\n${promptForGemma}\n---") // Per debug
-
-                var stopStreamingToText = false // Flag per interrompere lo streaming al testo visualizzato
-
-
-                dmEngine.sendMessage(promptForGemma)
-                    .collect { token ->
-                        stringRaw = stringRaw+ token
-                        if (!stopStreamingToText) {
-                            // Se il token contiene '<', prendi solo la parte precedente e ferma lo streaming.
-                            log("DEBUG_TOKEN: $token")
-                            if (token.contains("<") ) {
-                                val partBeforeTag = token.substringBefore("<")
-                                _streamingText.update { it + partBeforeTag }
-                                stopStreamingToText = true // Interrompi lo streaming a _streamingText da qui in poi
-                            } else if (token.contains("---")) {
-                                val partBeforeTag = token.substringBefore("---")
-                                _streamingText.update { it + partBeforeTag }
-                                stopStreamingToText = true // Interrompi lo streaming a _streamingText da qui in poi
-                            } else
-                            {
-                                _streamingText.update { it + token }
-                            }
-                        }
-                    }
-
-            } catch (e: Exception) {
-                Log.e(
-                    tag,
-                    "Errore durante la generazione della narrazione della scena: ${e.message}",
-                    e
-                )
-                log("ERRORE: Impossibile generare la narrazione del DM. ${e.message}")
-                // Dentro MainViewModel.kt, sostituisci il blocco finally in sendMessage E processCurrentSceneNarrative
-
-                // Dentro MainViewModel.kt, nel blocco try della generazione...
-
-            } finally {
-                log("Generazione completata. Inizio parsing della risposta.")
-                log("STREAM: " + _streamingText.value )
-                log("RAW: $stringRaw")
-                val rawLLMResponse = stringRaw
-                val respondingCharacter =
-                    _gameCharacters.value.find { it.id == _respondingCharacterId.value }
-                val llmLanguage = respondingCharacter?.language ?: Locale.ITALIAN.language
-
-                // --- LOGICA DEFINITIVA DI PARSING ---
-
-                // 1. Dividi la risposta di Gemma in narrazione e tag
-                val parts = rawLLMResponse.split("--- TAGS ---", limit = 2)
-                val narrativePart = parts.getOrNull(0)?.trim()
-                    ?: rawLLMResponse // Fallback all'intera risposta se il separatore non c'è
-                val tagsPart = parts.getOrNull(1)?.trim() ?: ""
-
-                val allCommands = mutableListOf<EngineCommand>()
-                // Applica una regex per rimuovere tutti i tag XML-like dalla narrativePart
-                val cleanedNarrativeFromRegex = narrativePart.replace(Regex("<[^>]+>"), "")
-                // 2. Processa la parte narrativa per pulirla e trovare comandi legacy (es. {STAT_MOD...})
-                // NOTA: La pulizia dei tag dalla narrazione è ora gestita primariamente dal prompt di Gemma.
-                // Questa funzione parseAndReplaceWithCommands si aspetta che la maggior parte dei tag XML-like
-                // sia già stata rimossa dal modello.
-//                val (cleanedNarrative, narrativeCommands) = stringTagParser.parseAndReplaceWithCommands(
-//                    inputString = cleanedNarrativeFromRegex,
-//                    currentActor = respondingCharacter?.type,
-//                    lang = llmLanguage
-//                )
-//                allCommands.addAll(narrativeCommands)
-
-                // 3. Processa la parte dei tag per ottenere i comandi di aggiornamento delle scelte
-                if (tagsPart.isNotBlank()) {
-                    val (_, choiceCommands) = stringTagParser.parseAndReplaceWithCommands(
-                        inputString = tagsPart,
-                        currentActor = respondingCharacter?.type,
-                        lang = llmLanguage
-                    )
-                    allCommands.addAll(choiceCommands)
-                }
-
-                // 4. Aggiungi il messaggio di chat con la narrazione PULITA (solo se non è vuota)
-                if (cleanedNarrativeFromRegex.isNotBlank()) {
-                    val finalMessage = ChatMessage(
-                        authorId = _respondingCharacterId.value ?: CharacterID.DM,
-                        position = messageCounter.getAndIncrement(),
-                        text = cleanedNarrativeFromRegex
-                    )
-                    _chatMessages.update { it + finalMessage }
-                    autoSaveChatIfEnabled()
-                }
-                log("_chatMessages.value: " + _chatMessages.value)
-
-                // 5. Esegui TUTTI i comandi raccolti
-                if (allCommands.isNotEmpty()) {
-                    processCommands(allCommands)
-                }
-
-                // 6. Resetta lo stato della generazione
-                _isGenerating.value = false
-                _streamingText.value = ""
-                _respondingCharacterId.value = null
+        // --- FASE 1: ESECUZIONE IMMEDIATA DELLE MECCANICHE DI GIOCO ---
+        val gameMechanics = scene.gameMechanics ?: emptyList()
+        if (gameMechanics.isNotEmpty()) {
+            log("Trovate ${gameMechanics.size} meccaniche di gioco predefinite nella scena.")
+            val commandsToExecute = mutableListOf<EngineCommand>()
+            gameMechanics.forEach { mechanicString ->
+                // Usiamo il parser sulla singola stringa di meccanica
+                val (_, commands) = stringTagParser.parseAndReplaceWithCommands(mechanicString, CharacterType.DM)
+                commandsToExecute.addAll(commands)
             }
+            // Eseguiamo subito i comandi
+            if (commandsToExecute.isNotEmpty()) {
+                processCommands(commandsToExecute)
+            }
+        }
+        // --- FINE FASE 1 ---
+
+        // Prepara le scelte UI dopo aver applicato le meccaniche, nel caso i flag siano cambiati
+        prepareChoicesForScene(scene)
+
+        // Se non dobbiamo generare una nuova narrazione, il lavoro finisce qui.
+        if (!shouldGenerateNarration) {
+            // Aggiungiamo un messaggio "dummy" per far scrollare la chat se necessario.
+            // O potremmo mostrare la narrazione inglese se non c'è una traduzione.
+            _chatMessages.update {
+                it + ChatMessage(
+                    authorId = CharacterID.DM,
+                    text = scene.narrativeText.english ?: "...", // Mostra il testo inglese come fallback
+                    position = messageCounter.getAndIncrement()
+                )
+            }
+            autoSaveChatIfEnabled()
+            return
+        }
+
+        // --- FASE 2: GENERAZIONE NARRATIVA CON GEMMA ---
+        if (_isGenerating.value) return
+        _isGenerating.value = true
+        _streamingText.value = ""
+        _respondingCharacterId.value = CharacterID.DM
+        var stringRaw = ""
+
+        try {
+            _engineLoadingState.first { it is EngineLoadingState.Success }
+
+            val lastMessageText = _chatMessages.value.lastOrNull()?.text ?: "L'avventura ha inizio."
+
+            // Passiamo solo le scelte valide e filtrate a Gemma per il contesto
+            val promptForGemma = buildGemmaPromptForScene(scene, lastMessageText)
+
+            Log.d(tag, "DEBUG_GEMMA_PROMPT_SENT: \n---\n${promptForGemma}\n---")
+
+            var stopStreamingToText = false
+
+            dmEngine.sendMessage(promptForGemma)
+                .collect { token ->
+                    stringRaw += token
+                    if (!stopStreamingToText && (token.contains("<") || token.contains("---"))) {
+                        val partBeforeTag = token.substringBefore("<").substringBefore("---")
+                        _streamingText.update { it + partBeforeTag }
+                        stopStreamingToText = true
+                    } else if (!stopStreamingToText) {
+                        _streamingText.update { it + token }
+                    }
+                }
+
+        } catch (e: Exception) {
+            Log.e(tag, "Errore durante la generazione della narrazione della scena: ${e.message}", e)
+            log("ERRORE: Impossibile generare la narrazione del DM. ${e.message}")
+        } finally {
+            log("Generazione completata. Inizio parsing della risposta.")
+            log("RAW: $stringRaw")
+
+            // La logica qui ora gestisce solo la narrazione e i tag delle scelte
+            val parts = stringRaw.split("--- TAGS ---", limit = 2)
+            val narrativePart = parts.getOrNull(0)?.trim() ?: stringRaw
+            val tagsPart = parts.getOrNull(1)?.trim() ?: ""
+
+            val cleanedNarrative = narrativePart.replace(Regex("<[^>]+>"), "").trim()
+
+            if (cleanedNarrative.isNotBlank()) {
+                val finalMessage = ChatMessage(
+                    authorId = _respondingCharacterId.value ?: CharacterID.DM,
+                    position = messageCounter.getAndIncrement(),
+                    text = cleanedNarrative
+                )
+                _chatMessages.update { it + finalMessage }
+                autoSaveChatIfEnabled()
+            }
+
+            if (tagsPart.isNotBlank()) {
+                val (_, choiceCommands) = stringTagParser.parseAndReplaceWithCommands(tagsPart, CharacterType.DM)
+                if (choiceCommands.isNotEmpty()) {
+                    processCommands(choiceCommands)
+                }
+            }
+
+            _isGenerating.value = false
+            _streamingText.value = ""
+            _respondingCharacterId.value = null
         }
     }
 

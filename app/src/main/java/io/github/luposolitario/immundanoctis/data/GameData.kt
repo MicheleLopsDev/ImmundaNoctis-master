@@ -173,8 +173,11 @@ data class Scene(
     val disciplineChoices: List<DisciplineChoice>? = null,
     val location: LocationInfo? = null,
     val challengeLevel: ChallengeLevel,
-    val commands: List<String>? = null // <-- AGGIUNGI QUESTA RIGA
-)
+    val commands: List<String>? = null, // <-- AGGIUNGI QUESTA RIGA
+    val gameMechanics:  List<String>? = null
+) {
+
+}
 
 data class TagParameter(
     val id: String = UUID.randomUUID().toString(),

@@ -45,24 +45,30 @@ class StringTagParser(context: android.content.Context) {
             if (currentActor != null && tagConfig.actor != "ANY" && tagConfig.actor != currentActor.name) {
                 // Salta questo tag se non è per l'attore corrente
             } else {
-                val regex = Regex(tagConfig.regex)
+                // **MODIFICA 1: Aggiunta opzione IGNORE_CASE per la regex**
+                val regex = Regex(tagConfig.regex, RegexOption.IGNORE_CASE)
                 val matches = regex.findAll(processedString).toList()
 
                 matches.forEach { matchResult ->
                     if (tagConfig.command != null) {
                         val commandParams = mutableMapOf<String, Any?>()
                         tagConfig.parameters?.forEach { paramConfig ->
-                            var paramValue: Any? = paramConfig.value?.toString()
-                            if (paramValue is String) {
-                                val placeholderRegex = Regex("\\<captured_value_from_regex_(\\d+)\\>")
-                                placeholderRegex.findAll(paramValue).forEach { placeholderMatch ->
+                            var paramValueTemplate = paramConfig.value?.toString()
+                            var finalParamValue: Any? = paramValueTemplate
+
+                            if (paramValueTemplate != null && paramValueTemplate.contains("captured_value_from_regex")) {
+                                // **MODIFICA 2: Corretta la regex per il placeholder**
+                                val placeholderRegex = Regex("\\{captured_value_from_regex_(\\d+)\\}")
+                                val placeholderMatch = placeholderRegex.find(paramValueTemplate)
+
+                                if (placeholderMatch != null) {
                                     val groupIndex = placeholderMatch.groupValues[1].toInt()
                                     if (groupIndex < matchResult.groupValues.size) {
-                                        paramValue = matchResult.groupValues[groupIndex]
+                                        finalParamValue = matchResult.groupValues[groupIndex]
                                     }
                                 }
                             }
-                            commandParams[paramConfig.name] = paramValue
+                            commandParams[paramConfig.name] = finalParamValue
                         }
                         foundCommands.add(EngineCommand(tagConfig.command, commandParams))
                     }
@@ -75,7 +81,6 @@ class StringTagParser(context: android.content.Context) {
         }
         return Pair(processedString.trim(), foundCommands)
     }
-
     /**
      * NUOVO METODO: Specifico per la narrazione del librogame.
      * Pulisce il testo da tag e spazi e restituisce i comandi.
