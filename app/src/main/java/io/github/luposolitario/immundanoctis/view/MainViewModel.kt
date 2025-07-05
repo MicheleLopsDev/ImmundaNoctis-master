@@ -785,7 +785,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         log("Testo per la scelta di disciplina '$disciplineId' aggiornato a: '$italianText'")
     }
 
-    // Inserisci o sostituisci in: java/io/github/luposolitario/immundanoctis/view/MainViewModel.kt
 
     private fun buildGemmaPromptForScene(scene: Scene, lastMessageText: String): String {
         val sceneNarrativeEnglish = scene.narrativeText.english ?: ""
@@ -809,19 +808,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         Segui queste istruzioni ESATTAMENTE:
         
         1.  **Traduci e Armonizza**: Leggi il [TESTO NARRATIVO DA TRADURRE] e le [SCELTE] fornite. Traduci tutto in italiano, mantenendo uno stile coerente e un tono narrativo '$currentTone'.
-        2.  **REGOLA FONDAMENTALE**: NON ripetere il testo da [CONTESTO DELL'AZIONE PRECEDENTE]. La tua risposta deve iniziare DIRETTAMENTE con la traduzione della narrazione.
+        2.  **REGOLA FONDAMENTALE**: La tua risposta deve iniziare DIRETTAMENTE con la traduzione del [TESTO NARRATIVO DA TRADURRE]. NON includere o ripetere il testo da [CONTESTO DELL'AZIONE PRECEDENTE].
         3.  **Formatta l'Output**:
             * Scrivi prima la narrazione tradotta e pulita.
             * Poi, aggiungi il separatore `--- TAGS ---`.
-            * Sotto il separatore, inserisci SOLO le traduzioni delle scelte che ti sono state fornite.
+            * Sotto il separatore, inserisci SOLO le traduzioni delle scelte che ti sono state fornite, usando i tag `<choice_it id="ID_DELLA_SCELTA">Testo Tradotto.</choice_it>` e `<discipline_it id="ID_DELLA_DISCIPLINA">Testo Tradotto.</discipline_it>`.
         
-        4.  **REGOLE PER I TAG DELLE SCELTE (MOLTO IMPORTANTE)**:
-            * Per le scelte narrative, usa SEMPRE E SOLTANTO il formato: `<choice_it id="ID_DELLA_SCELTA">Testo Tradotto.</choice_it>`.
-            * Per le scelte di disciplina, usa SEMPRE E SOLTANTO il formato: `<discipline_it id="ID_DELLA_DISCIPLINA">Testo Tradotto.</discipline_it>`.
-            * **ESEMPIO CORRETTO**: `<choice_it id="choice_1_1">Questo è un esempio.</choice_it>`
-            * **ESEMPIO ERRATO**: `<choice_1_1 id="choice_1_1">Questo è sbagliato.</choice_1_1>`
-            * Il nome del tag deve essere `choice_it` o `discipline_it`, non l'ID della scelta.
-
         **NON GENERARE MAI TAG di meccaniche di gioco come `<ADD_ITEM...>` o `<STAT_MOD...>` nella tua risposta.**
         
         ---
@@ -846,7 +838,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         """.trimIndent()
     }
 
-
     private suspend fun processCurrentSceneNarrative(shouldGenerateNarration: Boolean = true) {
         val scene = _currentScene.value ?: run {
             log("ERRORE: Tentativo di processare una scena nulla.")
@@ -870,18 +861,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         prepareChoicesForScene(scene)
 
+        // --- MODIFICA CHIAVE QUI ---
         if (!shouldGenerateNarration) {
-            val narrativeText = scene.narrativeText.italian ?: scene.narrativeText.english ?: "..."
-            _chatMessages.update {
-                it + ChatMessage(
-                    authorId = CharacterID.DM,
-                    text = narrativeText,
-                    position = messageCounter.getAndIncrement()
-                )
-            }
-            autoSaveChatIfEnabled()
+            log("Sessione caricata. La narrazione non viene rigenerata, la chat è ripristinata dal salvataggio.")
+            // Non aggiungiamo più nessun messaggio qui. La cronologia della chat
+            // viene caricata da `loadChatFromAutoSave` all'avvio.
             return
         }
+        // --- FINE MODIFICA ---
 
         if (_isGenerating.value) return
         _isGenerating.value = true
