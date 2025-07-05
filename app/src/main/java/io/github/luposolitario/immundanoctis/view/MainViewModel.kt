@@ -9,44 +9,21 @@ import androidx.lifecycle.viewModelScope
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
 import io.github.luposolitario.immundanoctis.data.*
-import io.github.luposolitario.immundanoctis.engine.GameLogicManager
-import io.github.luposolitario.immundanoctis.engine.GameRulesEngine
-import io.github.luposolitario.immundanoctis.engine.GemmaEngine
-import io.github.luposolitario.immundanoctis.engine.InferenceEngine
-import io.github.luposolitario.immundanoctis.engine.LlamaCppEngine
-import io.github.luposolitario.immundanoctis.engine.TokenInfo
-import io.github.luposolitario.immundanoctis.engine.TranslationEngine
+import io.github.luposolitario.immundanoctis.engine.*
 import io.github.luposolitario.immundanoctis.engine.rules.LoneWolfRules
-import io.github.luposolitario.immundanoctis.util.EnginePreferences
-import io.github.luposolitario.immundanoctis.util.GameStateManager
-import io.github.luposolitario.immundanoctis.util.LlamaPreferences
-import io.github.luposolitario.immundanoctis.util.SavePreferences
-import io.github.luposolitario.immundanoctis.util.StringTagParser
-import io.github.luposolitario.immundanoctis.util.ThemePreferences
-import io.github.luposolitario.immundanoctis.util.getAppSpecificDirectory
+import io.github.luposolitario.immundanoctis.util.*
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileReader
 import java.io.FileWriter
 import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import java.util.*
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.random.Random
 
@@ -54,14 +31,11 @@ import kotlin.random.Random
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val tag: String? = this::class.simpleName
 
-
-    // Dentro MainViewModel.kt
     data class InventoryFullState(
         val newItem: GameItem,
         val existingItems: List<GameItem>,
         val itemType: ItemType
     )
-
 
     sealed interface EngineLoadingState {
         data object Loading : EngineLoadingState
@@ -75,7 +49,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     var isPickingForDm: Boolean = false
 
-
     private val _sessionName = MutableStateFlow("Immunda Noctis")
     val sessionName: StateFlow<String> = _sessionName.asStateFlow()
 
@@ -83,7 +56,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val enginePreferences = EnginePreferences(application)
     private val themePreferences = ThemePreferences(application)
     private val llamaPreferences = LlamaPreferences(application)
-
     private val savePreferences = SavePreferences(application)
     private val _chatMessages = MutableStateFlow<List<ChatMessage>>(emptyList())
     val chatMessages: StateFlow<List<ChatMessage>> = _chatMessages.asStateFlow()
@@ -114,23 +86,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val saveChatEvent: SharedFlow<String> = _saveChatEvent.asSharedFlow()
 
     private var generationJob: Job? = null
-
     private val messageCounter = AtomicLong(0)
-
     private val useGemmaForAll = enginePreferences.useGemmaForAll
-
     private val dmEngine: InferenceEngine
     private val playerEngine: InferenceEngine
     private val translationEngine = TranslationEngine()
-
     private lateinit var stringTagParser: StringTagParser
-
-    val currentScene: StateFlow<Scene?>
-        get() = _currentScene
-    private val _currentScene = MutableStateFlow<Scene?>(null)
-
-
     private lateinit var gameLogicManager: GameLogicManager
+
+    private val _currentScene = MutableStateFlow<Scene?>(null)
+    val currentScene: StateFlow<Scene?> get() = _currentScene
 
     private val _activeNarrativeChoices = MutableStateFlow<List<NarrativeChoice>>(emptyList())
     val activeNarrativeChoices: StateFlow<List<NarrativeChoice>> =
@@ -149,17 +114,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _randomNumberResult = MutableStateFlow<Int?>(null)
     val randomNumberResult: StateFlow<Int?> = _randomNumberResult.asStateFlow()
 
-    // Dentro la classe MainViewModel
     private val _inventoryFullState = MutableStateFlow<InventoryFullState?>(null)
     val inventoryFullState: StateFlow<InventoryFullState?> = _inventoryFullState.asStateFlow()
 
-    // All'interno della classe MainViewModel, vicino alle altre dichiarazioni di StateFlow
-
-    // Usiamo un SharedFlow per eventi "spara e dimentica" come i Toast.
     private val _uiFeedbackEvent = MutableSharedFlow<String>()
     val uiFeedbackEvent: SharedFlow<String> = _uiFeedbackEvent.asSharedFlow()
 
-    // All'inizio della classe MainViewModel
     private val _isHeroDead = MutableStateFlow(false)
     val isHeroDead: StateFlow<Boolean> = _isHeroDead.asStateFlow()
 
@@ -217,7 +177,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         if (actualIsNewAdventure) {
             _sessionName.value =
-                gameLogicManager.adventureName // <--- Usa il nome dell'avventura dal file JSON
+                gameLogicManager.adventureName
             gameLogicManager.resetUsedScenes()
             _currentScene.value = gameLogicManager.selectRandomStartScene(Genre.FANTASY)
             log("Scena iniziale NUOVA AVVENTURA impostata da GameLogicManager: ${_currentScene.value?.id ?: "Nessuna scena iniziale"}. Nome Avventura: ${_sessionName.value}")
@@ -591,7 +551,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         log("Processing ${commands.size} commands: ${commands.map { it.commandName }}")
         val currentSession = gameStateManager.loadSession() ?: return
         val characters = currentSession.characters.toMutableList()
-        val hero = characters.find { it.id == CharacterID.HERO } ?: return
+        val heroIndex = characters.indexOfFirst { it.id == CharacterID.HERO }
+        if (heroIndex == -1) return
+        var hero = characters[heroIndex]
         var sessionModified = false
 
         commands.forEach { command ->
@@ -621,7 +583,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                 viewModelScope.launch { _uiFeedbackEvent.emit("Hai trovato ${quantity} Corone d'Oro!") }
                                 sessionModified = true
                             } else {
-                                val newItem = GameItem(name = itemName, type = itemType, quantity = quantity)
+                                val newItem = GameItem(name = itemName, type = itemType, quantity = quantity, notes = command.parameters["notes"] as? String)
                                 val weaponCount = inventory.count { it.type == ItemType.WEAPON }
                                 val backpackItemCount = inventory.count { it.type == ItemType.BACKPACK_ITEM }
                                 var canAddDirectly = true
@@ -658,6 +620,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
 
+                "setFlag" -> {
+                    val flagName = command.parameters["flagName"] as? String
+                    val flagValue = command.parameters["flagValue"] as? String
+                    if (flagName != null && flagValue != null) {
+                        hero.details?.gameFlags?.set(flagName, flagValue)
+                        log("🚩 Flag impostato: '$flagName' a '$flagValue'")
+                        sessionModified = true
+                    } else {
+                        log("❌ ERRORE: Parametri mancanti per il comando setFlag.")
+                    }
+                }
+
                 "updateChoiceText" -> {
                     val choiceId = command.parameters["id"] as? String
                     val italianText = command.parameters["italianText"] as? String
@@ -688,11 +662,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         val currentEndurance = hero.stats?.resistenza ?: 0
                         val newEndurance = (currentEndurance - 3).coerceAtLeast(0)
                         val updatedStats = hero.stats?.copy(resistenza = newEndurance)
-                        val updatedHero = hero.copy(stats = updatedStats)
-                        val heroIndex = characters.indexOf(hero)
-                        if (heroIndex != -1) characters[heroIndex] = updatedHero
-                        _gameCharacters.value = characters
-
+                        hero = hero.copy(stats = updatedStats)
                         if (newEndurance <= 0) {
                             _isHeroDead.value = true
                         }
@@ -713,11 +683,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             }
 
                             if (itemsRemoved) {
-                                val updatedDetails = hero.details?.copy(inventory = inventory)
-                                val updatedHero = hero.copy(details = updatedDetails)
-                                val heroIndex = characters.indexOf(hero)
-                                if (heroIndex != -1) characters[heroIndex] = updatedHero
-                                _gameCharacters.value = characters
                                 log("‼️ Rimosso/i ${itemTypeToRemove.name} dall'inventario.")
                                 viewModelScope.launch { _uiFeedbackEvent.emit("Hai perso i tuoi oggetti di tipo ${itemTypeToRemove.name}!") }
                                 sessionModified = true
@@ -749,12 +714,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                     log("STAT MOD: Resistenza modificata di $amount. Nuovo valore: $newEndurance")
                                 }
                             }
-
                             val updatedStats = heroStats.copy(combattivita = newCombatSkill, resistenza = newEndurance)
-                            val updatedHero = hero.copy(stats = updatedStats)
-                            val heroIndex = characters.indexOf(hero)
-                            if (heroIndex != -1) characters[heroIndex] = updatedHero
-                            _gameCharacters.value = characters
+                            hero = hero.copy(stats = updatedStats)
 
                             viewModelScope.launch { _uiFeedbackEvent.emit("La tua $statName è cambiata di $amount!") }
                             sessionModified = true
@@ -768,6 +729,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         if (sessionModified) {
+            characters[heroIndex] = hero
             gameStateManager.saveSession(currentSession.copy(characters = characters))
             log("Salvataggio sessione dopo l'aggiornamento.")
         }
@@ -777,16 +739,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val session = gameStateManager.loadSession() ?: return@launch
             val hero = session.characters.find { it.id == CharacterID.HERO } ?: return@launch
-
             val inventory = hero.details?.inventory ?: return@launch
-
             inventory.remove(itemToDiscard)
             inventory.add(newItem)
-
             gameStateManager.saveSession(session)
             log("✅ Scambiato '${itemToDiscard.name}' con '${newItem.name}'.")
             _uiFeedbackEvent.emit("'${itemToDiscard.name}' scartato, '${newItem.name}' raccolto.")
-
             _inventoryFullState.value = null
         }
     }
@@ -827,73 +785,67 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         log("Testo per la scelta di disciplina '$disciplineId' aggiornato a: '$italianText'")
     }
 
-    // **NUOVO METODO ESTRATTO**
+    // Inserisci o sostituisci in: java/io/github/luposolitario/immundanoctis/view/MainViewModel.kt
+
     private fun buildGemmaPromptForScene(scene: Scene, lastMessageText: String): String {
         val sceneNarrativeEnglish = scene.narrativeText.english ?: ""
-        val choicesForPrompt = scene.choices?.joinToString("\n") {
-            "CHOICE_ID: \"${it.id}\" -> TEXT: \"${it.choiceText.english}\""
-        } ?: "Nessuna scelta narrativa."
 
-        val disciplinesForPrompt = scene.disciplineChoices?.joinToString("\n") {
+        val choicesForPrompt = activeNarrativeChoices.value.joinToString("\n") {
+            "CHOICE_ID: \"${it.id}\" -> TEXT: \"${it.choiceText.english}\""
+        }.ifEmpty { "Nessuna scelta narrativa." }
+
+        val disciplinesForPrompt = activeDisciplineChoices.value.joinToString("\n") {
             val text = it.choiceText?.english ?: "Usa la disciplina ${it.disciplineId}"
             "DISCIPLINE_CHOICE_ID: \"${it.disciplineId}\" -> TEXT: \"$text\""
-        } ?: "Nessuna scelta di disciplina."
+        }.ifEmpty { "Nessuna scelta di disciplina." }
 
         val currentTone = savePreferences.narrativeTone
+        val sceneTypeInfo = "INFO: Il tipo di scena è '${scene.sceneType}' e il livello di sfida è '${scene.challengeLevel}'."
 
+        // --- PROMPT AGGIORNATO CON ISTRUZIONI PIÙ STRINGENTI ---
         return """
-            Tu sei il Dungeon Master per un libro-gioco. Il tuo compito è elaborare una scena per il giocatore.
-            
-            Segui queste istruzioni ESATTAMENTE:
-            
-            1.  **IDENTIFICA E SEPARA OGNI TIPO DI CONTENUTO**:
-                * **Narrazione**: Il testo puramente descrittivo escludi i TAG XML-like (es. `<addItem .../>`, `<applyStatModifier .../>`, `<addGold .../>`, `<requireMeal .../>`, `<removeAllWeaponsAndBackpackItems .../>`).
-                * **Comandi di Gioco Espliciti**: Istruzioni specifiche che alterano lo stato del gioco, presenti nel testo narrativo in formato XML-like (es. `<addItem .../>`, `<applyStatModifier .../>`, `<addGold .../>`, `<requireMeal .../>`, `<removeAllWeaponsAndBackpackItems .../>`) o in un formato abbreviato specifico come `<STAT_MOD:NOME_STATISTICA:VALORE_MODIFICATORE>`. Questi comandi saranno **fisicamente presenti** nel "TESTO NARRATIVO DA TRADURRE E PRESERVARE".
-                * **Dati Scelte**: Informazioni per le scelte del giocatore e discipline, fornite in formato "CHOICE_ID: 'id' -> TEXT: 'testo'".
-            
-            2.  **GENERA E RAGGRUPPA TUTTI I TAG RICHIESTI**: Crea una sezione separata da `--- TAGS ---`. In questa sezione, devi inserire **SOLO E SOLTANTO** i seguenti tipi di tag, basati **ESCLUSIVAMENTE** e **SENZA ALCUNA ECCEZIONE** sui dati forniti nell'input:
-                * Tutti i "Comandi di Gioco Espliciti" esattamente come erano nell'input originale. **Se un comando è nel formato abbreviato `<STAT_MOD:NOME:VALORE>`.** **NON GENERARE MAI NUOVI Comandi di Gioco basandoti sul contesto narrativo o su azioni implicite.** Devono essere copiati direttamente dall'input se presenti.
-                * Tag delle scelte in italiano, usando il formato `<choice_it id="ID_SCELTA">Testo Tradotto.</choice_it>`, generati solo dai "Dati Scelte" forniti.
-                * Tag delle discipline in italiano, usando il formato `<discipline_it id="ID_DISCIPLINA">Testo Tradotto.</discipline_it>`, generati solo dai "Dati Scelte" forniti.
-                **È FONDAMENTALE: NON INVENTARE, NON AGGIUNGERE, E NON GENERARE MAI NUOVI TAG O INFORMAZIONI CHE NON SIANO ESPLICITAMENTE PRESENTI O DERIVABILI DALL'INPUT FORNITO. TUTTI I TAG DEVONO ESSERE NEL FORMATO XML-LIKE (`<.../>` o `<...></...>` COME NEGLI ESEMPI).**
-            
-            L'output DEVE avere due parti: la narrazione tradotta e pulita, seguita dal separatore, seguito da tutti i tag raggruppati.
-            
-            ESEMPIO DI OUTPUT PERFETTO:
-            Sei di fronte a un altare di pietra. Sullo sfondo, senti un rumore.
-            --- TAGS ---
-            <addItem itemType="WEAPON" weaponType="SWORD" itemName="Spada Lunga" modifier="+2" quantity="1"/>
-            <choice_it id="choice_1_1">Esamina l'altare.</choice_it>
-            
-            Non aggiungere commenti o saluti.
-            
-            ---
-            
-            **DATI DELLA SCENA:**
-            
-            [CONTESTO DELL'AZIONE PRECEDENTE]
-            $lastMessageText
-            
-            [TESTO NARRATIVO DA TRADURRE ]
-            $sceneNarrativeEnglish
-            
-            [SCELTE NARRATIVE DA TRADURRE E INSERIRE NEI TAG <choice_it>]
-            $choicesForPrompt
-            
-            [SCELTE DI DISCIPLINA DA TRADURRE E INSERIRE NEI TAG <discipline_it>]
-            $disciplinesForPrompt
-            ---
-            
-            **NARRATORE (in italiano, tono $currentTone):**
-            """.trimIndent()
+        Tu sei il Dungeon Master per un libro-gioco. Il tuo compito è elaborare una scena per il giocatore.
+        
+        Segui queste istruzioni ESATTAMENTE:
+        
+        1.  **Traduci e Armonizza**: Leggi il [TESTO NARRATIVO DA TRADURRE] e le [SCELTE] fornite. Traduci tutto in italiano, mantenendo uno stile coerente e un tono narrativo '$currentTone'.
+        2.  **REGOLA FONDAMENTALE**: NON ripetere il testo da [CONTESTO DELL'AZIONE PRECEDENTE]. La tua risposta deve iniziare DIRETTAMENTE con la traduzione della narrazione.
+        3.  **Formatta l'Output**:
+            * Scrivi prima la narrazione tradotta e pulita.
+            * Poi, aggiungi il separatore `--- TAGS ---`.
+            * Sotto il separatore, inserisci SOLO le traduzioni delle scelte che ti sono state fornite.
+        
+        4.  **REGOLE PER I TAG DELLE SCELTE (MOLTO IMPORTANTE)**:
+            * Per le scelte narrative, usa SEMPRE E SOLTANTO il formato: `<choice_it id="ID_DELLA_SCELTA">Testo Tradotto.</choice_it>`.
+            * Per le scelte di disciplina, usa SEMPRE E SOLTANTO il formato: `<discipline_it id="ID_DELLA_DISCIPLINA">Testo Tradotto.</discipline_it>`.
+            * **ESEMPIO CORRETTO**: `<choice_it id="choice_1_1">Questo è un esempio.</choice_it>`
+            * **ESEMPIO ERRATO**: `<choice_1_1 id="choice_1_1">Questo è sbagliato.</choice_1_1>`
+            * Il nome del tag deve essere `choice_it` o `discipline_it`, non l'ID della scelta.
+
+        **NON GENERARE MAI TAG di meccaniche di gioco come `<ADD_ITEM...>` o `<STAT_MOD...>` nella tua risposta.**
+        
+        ---
+        
+        **DATI DELLA SCENA:**
+        
+        [METADATI SCENA]
+        $sceneTypeInfo
+
+        [CONTESTO DELL'AZIONE PRECEDENTE]
+        $lastMessageText
+        
+        [TESTO NARRATIVO DA TRADURRE]
+        $sceneNarrativeEnglish
+        
+        [SCELTE DA TRADURRE E INSERIRE NEI TAG]
+        $choicesForPrompt
+        $disciplinesForPrompt
+        ---
+        
+        **NARRATORE (in italiano, tono $currentTone):**
+        """.trimIndent()
     }
 
-
-// Inserisci o sostituisci nel file: java/io/github/luposolitario/immundanoctis/view/MainViewModel.kt
-
-    // Inserisci o sostituisci nel file: java/io/github/luposolitario/immundanoctis/view/MainViewModel.kt
-
-// Inserisci o sostituisci nel file: java/io/github/luposolitario/immundanoctis/view/MainViewModel.kt
 
     private suspend fun processCurrentSceneNarrative(shouldGenerateNarration: Boolean = true) {
         val scene = _currentScene.value ?: run {
@@ -901,27 +853,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
-        // --- FASE 1: ESECUZIONE IMMEDIATA DELLE MECCANICHE DI GIOCO DAL JSON ---
         val gameMechanics = scene.gameMechanics
         if (!gameMechanics.isNullOrEmpty()) {
             log("Trovate ${gameMechanics.size} meccaniche di gioco predefinite nella scena: $gameMechanics")
             val commandsToExecute = mutableListOf<EngineCommand>()
 
-            // Itera su ogni stringa di comando fornita dal JSON
             gameMechanics.forEach { mechanicString ->
-                // Usiamo il parser sulla singola stringa di meccanica
                 val (_, commands) = stringTagParser.parseAndReplaceWithCommands(mechanicString, CharacterType.DM)
                 commandsToExecute.addAll(commands)
             }
 
-            // Eseguiamo subito i comandi
             if (commandsToExecute.isNotEmpty()) {
                 processCommands(commandsToExecute)
             }
         }
-        // --- FINE FASE 1 ---
 
-        // Prepara le scelte UI dopo aver applicato le meccaniche, nel caso i flag siano cambiati
         prepareChoicesForScene(scene)
 
         if (!shouldGenerateNarration) {
@@ -937,7 +883,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
-        // --- FASE 2: GENERAZIONE NARRATIVA CON GEMMA ---
         if (_isGenerating.value) return
         _isGenerating.value = true
         _streamingText.value = ""
@@ -951,10 +896,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val promptForGemma = buildGemmaPromptForScene(scene, lastMessageText)
             Log.d(tag, "DEBUG_GEMMA_PROMPT_SENT (Refactored): \n---\n$promptForGemma\n---")
 
-            dmEngine.sendMessage(promptForGemma)
-                .collect { token ->
-                    stringRaw += token
-                }
+            dmEngine.sendMessage(promptForGemma).collect { token ->
+                stringRaw += token
+            }
 
         } catch (e: Exception) {
             Log.e(tag, "Errore durante la generazione della narrazione della scena: ${e.message}", e)
@@ -1009,7 +953,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val scene = _currentScene.value ?: return
         val hero = _gameCharacters.value.find { it.id == CharacterID.HERO }
         if (hero != null) {
-            val availableNarrativeChoices = scene.choices ?: emptyList()
+            val narrativeChoices = scene.choices ?: emptyList()
+            val playerFlags = hero.details?.gameFlags ?: emptyMap()
+            val playerInventory = hero.details?.inventory ?: emptyList()
+
+            val availableNarrativeChoices = narrativeChoices.filter { choice ->
+                var conditionMet = true
+
+                choice.requiredFlag?.let { required ->
+                    val playerFlagValue = playerFlags[required.name]
+                    conditionMet = playerFlagValue == required.value
+                }
+                if (conditionMet && choice.requiredItem != null) {
+                    conditionMet = playerInventory.any { it.name == choice.requiredItem }
+                }
+                conditionMet
+            }
+
             _activeNarrativeChoices.value = availableNarrativeChoices
 
             val availableDisciplineChoices = scene.disciplineChoices?.filter { disciplineChoice ->
@@ -1017,7 +977,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             } ?: emptyList()
             _activeDisciplineChoices.value = availableDisciplineChoices
 
-            log("DEBUG: Scelte popolate per la scena ${scene.id}. Scelte narrative: ${availableNarrativeChoices.size}, Discipline: ${availableDisciplineChoices.size}")
+            log("DEBUG: Scelte popolate per la scena ${scene.id}. Scelte totali: ${narrativeChoices.size}, Scelte valide: ${availableNarrativeChoices.size}, Discipline: ${availableDisciplineChoices.size}")
         }
     }
 

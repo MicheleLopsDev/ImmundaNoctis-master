@@ -94,12 +94,28 @@ data class LocalizedText(
     val italian: String?
 )
 
+data class ChoiceCondition(
+    val stat: String,
+    val operator: String,
+    val value: Int
+)
+
+data class RequiredFlag(
+    val name: String,
+    val value: String
+)
+
 data class NarrativeChoice(
     val id: String,
     val choiceText: LocalizedText,
     val nextSceneId: String,
     val minRoll: Int? = null,
-    val maxRoll: Int? = null
+    val maxRoll: Int? = null,
+    // --- NUOVI CAMPI AGGIUNTI ---
+    val requiredItem: String? = null,
+    val choiceCondition: ChoiceCondition? = null,
+    val requiredFlag: RequiredFlag? = null,
+    val gameMechanics: List<String>? = null
 )
 
 data class LoneWolfStats(
@@ -138,7 +154,8 @@ data class HeroDetails(
     val specialAbilities: List<String>,
     val inventory: MutableList<GameItem> = mutableListOf(),
     val activeModifiers: MutableList<StatModifier> = mutableListOf(),
-    val weaponSkillType: WeaponType? = null
+    val weaponSkillType: WeaponType? = null,
+    val gameFlags: MutableMap<String, String> = mutableMapOf() // <-- NUOVA RIGA
 )
 
 data class GameCharacter(
