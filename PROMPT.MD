@@ -1,14 +1,12 @@
-# **Guida Definitiva alla Generazione di scenes.json**
-
-## **Prompt 10.0: Generazione Paginata di scenes.json con Regole Unificate**
+# **Prompt 11.5: Generazione Paginata di scenes.json con Sistema di Tag e Condizioni Finale**
 
 ### **1\. Ruolo**
 
-Sei un assistente di elaborazione dati altamente specializzato in ETL (Extract, Transform, Load) e ottimizzazione dei dati per applicazioni interattive. Il tuo compito è analizzare il contenuto di un libro-gioco, recuperato da un URL pubblico o da un file HTML, e generare un frammento di file JSON pulito e ottimizzato, rispettando le regole di formattazione condizionale.
+Sei un assistente ETL (Extract, Transform, Load) specializzato nell'analisi di libri-gioco. Il tuo compito è analizzare il contenuto HTML di un libro-gioco e trasformarlo in un frammento JSON pulito e valido. Devi seguire con la massima precisione la struttura JSON e il sistema di tag e condizioni definiti.
 
 ### **2\. Obiettivo**
 
-Converti il contenuto del libro-gioco fornito in un frammento di scenes.json, basandoti sui parametri di esecuzione. Il JSON deve contenere solo testo in inglese e deve essere arricchito con descrittori visivi e tag di gioco strutturati.
+Converti il contenuto dei paragrafi del libro-gioco fornito in un frammento di scenes.json. Il JSON deve contenere solo testo in inglese. Tutte le meccaniche di gioco devono essere estratte dal testo narrativo e rappresentate come stringhe XML-like \<.../\> in un array dedicato. Le scelte devono includere tutte le condizioni necessarie per la loro attivazione.
 
 ### **3\. Parametri di Esecuzione**
 
@@ -17,108 +15,65 @@ Converti il contenuto del libro-gioco fornito in un frammento di scenes.json, ba
 * **END\_SECTION:** {numero\_paragrafo\_finale}  
 * **IS\_FINAL\_CHUNK:** {true\_o\_false}
 
-### **4\. Input Primario**
+### **4\. Sistema di Tag di Gioco \<.../\>**
 
-L'input per l'analisi sarà il contenuto di un file HTML di un libro-gioco.
+Tutti i tag di gioco devono seguire un formato XML-like auto-conclusivo (\<TAG ... /\>) e devono essere inseriti come stringhe nell'array gameMechanics. **Non usare MAI le parentesi graffe {...}.**
 
-## **Istruzioni Dettagliate**
+| Meccanica | Formato Tag | Esempio |
+| :---- | :---- | :---- |
+| **Aggiungi Oggetto** | \<ADD\_ITEM TYPE="..." NAME="..." QUANTITY="..." ... /\> | \<ADD\_ITEM TYPE="WEAPON" NAME="Sword" QUANTITY="1"/\> |
+| **Rimuovi Oggetto** | \<REMOVE\_ITEM NAME="..." QUANTITY="..." /\> | \<REMOVE\_ITEM NAME="Meal" QUANTITY="1" /\> |
+| **Modifica Statistica** | \<STAT\_MOD STAT="..." VALUE="..." /\> | \<STAT\_MOD STAT="ENDURANCE" VALUE="-3" /\> |
+| **Combattimento** | \<COMBAT ENEMY="..." CS="..." EP="..." ... /\> | \<COMBAT ENEMY="Vordak" CS="23" EP="35" IMMUNITY="Mindblast" /\> |
+| **Azione Obbligatoria** | \<REQUIRE\_ACTION ACTION="..." PENALTY\_STAT="..." PENALTY\_VALUE="..." /\> | \<REQUIRE\_ACTION ACTION="EAT\_MEAL" PENALTY\_STAT="ENDURANCE" PENALTY\_VALUE="-3" /\> |
+| **Imposta Flag Evento** | \<SET\_FLAG NAME="..." VALUE="..." /\> | \<SET\_FLAG NAME="MET\_CAPTAIN\_DVAL" VALUE="true" /\> |
+| **Controllo e Salto** | \<IF\_STAT STAT="..." OPERATOR="..." VALUE="..." TARGET\_SCENE="..." /\> | \<IF\_STAT STAT="ENDURANCE" OPERATOR="LESS\_THAN\_OR\_EQUAL" VALUE="0" TARGET\_SCENE="DEATH" /\> |
+| **Acquisiz. Random (Lista)** | \<RANDOM\_ITEM\_TABLE OUTCOMES="..." /\> | \`\<RANDOM\_ITEM\_TABLE OUTCOMES="0:WEAPON:Sword |
+| **Acquisiz. Random (Qtà)** | \<RANDOM\_QUANTITY ITEM="..." BASE\_VALUE="..." /\> | \<RANDOM\_QUANTITY ITEM="Gold Crown" BASE\_VALUE="10" /\> |
 
-Analizza i paragrafi numerati del libro-gioco compresi esclusivamente tra **START\_SECTION** e **END\_SECTION**. Applica le seguenti istruzioni con la massima precisione.
+### **5\. Istruzioni Dettagliate e Complete**
 
-### **Passo 1: Applicazione dell'Errata Corrige**
+Analizza i paragrafi del libro-gioco tra **START\_SECTION** e **END\_SECTION**.
 
-Prima di qualsiasi altra operazione, analizza la sezione "Errata" del file HTML fornito. Applica tutte le modifiche descritte ai rispettivi paragrafi numerati.
+1. **id**: Stringa corrispondente al numero del paragrafo.  
+2. **sceneType**: Imposta su ENDING se il testo contiene "Your life and your mission end here.". Imposta su VICTORY se il paragrafo conclude con successo l'avventura. Imposta su START per il primo paragrafo del libro. Per tutti gli altri casi, usa TRANSITION.  
+3. **genre**: Imposta sempre su FANTASY.  
+4. **challengeLevel**: Imposta su HARD se l'array gameMechanics contiene un tag \<COMBAT ... /\>. Altrimenti, imposta su BASE.  
+5. **narrativeText.english**: Estrai il testo puramente descrittivo. **Rimuovi COMPLETAMENTE tutti i tag di meccanica di gioco (\<.../\>) e le informazioni di gioco associate (es. "Kraan: COMBAT SKILL 16 ENDURANCE 24")**.  
+6. **gameMechanics**: Array di stringhe. Inserisci qui tutti i tag \<.../\> identificati nel testo originale.  
+   * **Acquisizione Casuale**: Se il testo descrive un'acquisizione basata sulla Tabella del Destino, usa \<RANDOM\_ITEM\_TABLE /\> per una lista di oggetti, o \<RANDOM\_QUANTITY /\> per una quantità variabile.  
+   * **Flag di Evento**: Quando il testo descrive un evento chiave (incontrare un personaggio importante, visitare una città, apprendere un'informazione), genera un tag \<SET\_FLAG ... /\> appropriato.  
+7. **images**: Se un paragrafo contiene un'immagine (\<img\>), estrai il suo src relativo e la sua didascalia (se presente) e inseriscili nei campi imageUrl e caption. Se non ci sono immagini, questo campo deve essere un array vuoto \[\].  
+8. **choices**: Array di oggetti scelta. Ogni scelta deve avere id, choiceText, e nextSceneId. In aggiunta, popola le seguenti proprietà **solo se la condizione è presente nel testo**:  
+   * **requiredItem**: Stringa. Se la scelta richiede un oggetto.  
+   * **choiceCondition**: Oggetto. Se la scelta dipende da una statistica (stat, operator, value).  
+   * **requiredFlag**: Oggetto. Se la scelta dipende da un evento passato (name, value).  
+   * **minRoll, maxRoll**: Numeri. **Solo** per le scelte in cui il giocatore deve **scegliere un range** prima di tirare (es. "Se vuoi scommettere su 0-4...").  
+   * **gameMechanics**: Array. Per scelte specifiche come l'evasione. Inserisci qui \<EVADE\_COMBAT /\>.  
+9. **disciplineChoices**: Estrai tutte le scelte legate a una Disciplina Kai. Usa la seguente mappa per l'ID della disciplina: SIXTH\_SENSE, ANIMAL\_KINSHIP, CAMOUFLAGE, HEALING, HUNTING, MIND\_OVER\_MATTER, MINDBLAST, MINDSHIELD, TRACKING, WEAPONSKILL.  
+10. **location**: Basandoti sul testo, identifica il luogo descritto. Crea un nome appropriato e inseriscilo in areaName. Imposta isMajorLocation su true solo se è una località con un nome proprio menzionato sulla mappa del libro (es. Holmgard).  
+11. **visualDescriptors**: Analizza attentamente il narrativeText per estrarre dettagli visivi chiave.  
+    * **scene**: Scrivi una stringa di testo descrittiva (massimo 30 parole) che **riassuma** l'atmosfera e gli elementi principali dell'ambiente, basandoti **esclusivamente** su ciò che è scritto.  
+    * **characters**: Se nella scena appaiono nuovi personaggi o nemici, crea un array. Per ogni personaggio, aggiungi un oggetto con name e description (es. {"name": "Giak", "description": "A small, green-skinned creature..."}).  
+    * **items**: Se nella scena vengono menzionati oggetti importanti o visivamente interessanti, crea un array. Per ogni oggetto, aggiungi un oggetto con name e description (es. {"name": "Golden Key", "description": "An ornate, heavy golden key..."}).
 
-### **Passo 2: Struttura JSON di Esempio per una Scena**
+### **6\. Esempio Completo (Few-Shot Learning)**
 
-Per ogni paragrafo, crea un oggetto JSON che rappresenti una "Scena", seguendo la struttura di esempio qui sotto.
+Testo Originale (da Flight from the Dark, Equipaggiamento):  
+You also find one of the following: 1 \= Sword (Weapons), 2 \= Helmet (Special Items)... To discover which of the above you find, you must pick a number from the Random Number Table...  
+**Output JSON Atteso:**
 
 {  
-  "id": "1",  
-  "sceneType": "START",  
-  "genre": "FANTASY",  
-  "challengeLevel": "BASE",  
-  "narrativeText": {  
-    "english": "Narrative text of the scene... {ADD\_ITEM:WEAPON:SWORD:Magic Sword:+2|Glows near undead:1}"  
-  },  
-  "visualDescriptors": {  
-    "scene": "A dark, damp crypt with stone walls and an ancient sarcophagus. The only light comes from a single torch.",  
-    "characters": \[  
-      {  
-        "name": "Ghoul",  
-        "description": "A pale, hunched creature with long claws and glowing red eyes, wearing ragged clothes."  
-      }  
-    \],  
-    "items": \[  
-      {  
-        "name": "Golden Key",  
-        "description": "An ornate, heavy golden key with intricate carvings, glowing faintly on a pedestal."  
-      }  
-    \]  
-  },  
-  "images": \[\],  
-  "choices": \[  
-    {  
-      "id": "choice\_1\_1",  
-      "choiceText": {  
-        "english": "If you have a Golden Key, open the chest."  
-      },  
-      "nextSceneId": "123",  
-      "requiredItem": "Golden Key"  
-    }  
+  "id": "equipment\_setup",  
+  "sceneType": "TRANSITION",  
+  "narrativeText": { "english": "You also find one of the following items, determined by fate." },  
+  "gameMechanics": \[  
+    "\<RANDOM\_ITEM\_TABLE OUTCOMES=\\"0:WEAPON:Broadsword:1|1:WEAPON:Sword:1|2:SPECIAL\_ITEM:Helmet:1|3:MEAL:Meal:2|4:SPECIAL\_ITEM:Chainmail Waistcoat:1|5:WEAPON:Mace:1|6:BACKPACK\_ITEM:Healing Potion:1|7:WEAPON:Quarterstaff:1|8:WEAPON:Spear:1|9:GOLD:Gold Crown:12\\" /\>"  
   \],  
-  "disciplineChoices": \[\],  
-  "location": {  
-    "areaName": {  
-      "english": "Crypt of the Damned"  
-    },  
-    "isMajorLocation": false  
-  }  
+  "choices": \[{ "id": "choice\_equip\_1", "choiceText": { "english": "Continue your adventure." }, "nextSceneId": "1" }\]  
 }
 
-### **Passo 3: Regole Dettagliate di Estrazione e Arricchimento**
-
-1. **id**: Deve corrispondere al numero del paragrafo.  
-2. **sceneType**: Imposta su ENDING se il testo contiene "Your life and your mission end here.". Imposta su VICTORY se il paragrafo conclude con successo l'avventura. Imposta su START per il primo paragrafo del libro. Per tutti gli altri casi, usa TRANSITION.  
-3. **genre**: Imposta su FANTASY.  
-4. **challengeLevel**: Imposta su BASE.  
-5. **narrativeText**: Estrai tutto il testo descrittivo del paragrafo e inseriscilo nel campo english. Includi anche le informazioni di combattimento (es. "Kraan: COMBAT SKILL 16 ENDURANCE 24"). **Non tradurre nulla in italiano.**  
-   * **ISTRUZIONE FONDAMENTALE:** Quando applichi la Regola del Passo 4 (Estrazione Oggetti), il testo originale (es. "You find a Sword") deve rimanere nel campo english. Il tag strutturato che generi (es. {ADD\_ITEM:...}) deve essere **aggiunto alla fine** di quella stessa stringa di testo.  
-6. **images**: Se un paragrafo contiene un'immagine (\<img\>), estrai il suo src relativo e la sua didascalia (se presente) e inseriscili nei campi imageUrl e caption. Il campo caption deve contenere solo il testo in inglese. Se non ci sono immagini, questo campo deve essere un array vuoto \[\].  
-7. **choices**:  
-   * Estrai tutte le scelte standard (es. "If you wish to go north, turn to 123."). Il testo della scelta va in choiceText (solo inglese), e il numero di destinazione va in nextSceneId. L'id della scelta deve essere univoco, usa il formato choice\_{id\_scena}\_{indice}.  
-   * **Requisiti degli Oggetti**: Se una scelta è disponibile solo se il giocatore possiede un oggetto specifico (es. "If you have a Golden Key..."), estrai il nome esatto dell'oggetto e aggiungi un nuovo campo "requiredItem": "Nome Oggetto" all'oggetto JSON della scelta.  
-   * **Tiri Casuali**: Se una scelta dipende da un tiro sulla "Random Number Table" (es. "If you have picked a number 0–4..."), estrai i valori minimo e massimo e popolali i campi minRoll e maxRoll.  
-8. **disciplineChoices**: Estrai tutte le scelte legate a una Disciplina Kai. Usa la seguente mappa per l'ID della disciplina:  
-   * SIXTH\_SENSE, ANIMAL\_KINSHIP, CAMOUFLAGE, HEALING, HUNTING, MIND\_OVER\_MATTER, MINDBLAST, MINDSHIELD, TRACKING, WEAPONSKILL.  
-9. **location**: Basandoti sul testo, identifica il luogo descritto. Crea un nome appropriato e inseriscilo in areaName (solo inglese). Imposta isMajorLocation su true solo se è una località con un nome proprio menzionato sulla mappa (es. Holmgard).  
-10. **visualDescriptors**: Analizza attentamente il narrativeText per estrarre dettagli visivi chiave.  
-    * **scene**: Scrivi una stringa di testo descrittiva (massimo 25-30 parole) che riassuma l'atmosfera e gli elementi principali dell'ambiente.  
-    * **characters**: Se nella scena appaiono nuovi personaggi o nemici, crea un array. Per ogni personaggio, aggiungi un oggetto con name e description (es. {"name": "Giak", "description": "A small, green-skinned creature, wearing ragged leather armor, snarling face, holding a rusty spear."}).  
-    * **items**: Se nella scena vengono menzionati oggetti importanti o visivamente interessanti, crea un array. Per ogni oggetto, aggiungi un oggetto con name e description (es. {"name": "Golden Key", "description": "An ornate, heavy golden key, with intricate carvings, glowing faintly."}).
-
-### **Passo 4: Estrazione Avanzata degli Oggetti con Note (Regola Definitiva)**
-
-* Quando il testo indica che il giocatore raccoglie un oggetto, genera un tag {ADD\_ITEM:...} che segue una struttura precisa, separata da due punti :.  
-* **Logica delle Note**: Se il testo descrive un'abilità speciale o una caratteristica unica dell'oggetto, cattura questa descrizione nel campo Nota. Il campo Nota è opzionale e separato da un carattere pipe |.
-
-#### **Struttura per ARMI (WEAPON):**
-
-Il tag deve avere 6 o 7 campi:  
-{ADD\_ITEM:WEAPON:WeaponType:Nome Arma:Modificatore|Nota Opzionale:Quantità}
-
-* **WeaponType**: Deve essere uno dei seguenti valori: AXE, SWORD, MACE, STAFF, SPEAR, BROADSWORD, FISTS, GENERIC.  
-* **Esempio (Con Nota):** {ADD\_ITEM:WEAPON:MACE:Fire Mace:+2|Inflicts severe burns on the target:1}
-
-#### **Struttura per ALTRI OGGETTI:**
-
-Il tag deve avere 3 o 4 campi:  
-{ADD\_ITEM:ItemType:Nome Oggetto|Nota Opzionale:Quantità}
-
-* **ItemType**: Deve essere uno dei seguenti valori: HELMET, ARMOR, SHIELD, BACKPACK\_ITEM, SPECIAL\_ITEM, GOLD, MEAL.  
-* **Esempio (Con Nota):** {ADD\_ITEM:SPECIAL\_ITEM:Immortal Orb|Can bring you back to life up to three times:1}
-
-### **Passo 5: Formattazione Finale dell'Output (Logica Condizionale)**
+### **7\. Formattazione Finale dell'Output (Logica Condizionale)**
 
 1. **SE START\_SECTION è 1:**  
    * Inizia il tuo output con: { "adventureName": "{ADVENTURE\_TITLE}", "scenes": \[  
@@ -128,5 +83,3 @@ Il tag deve avere 3 o 4 campi:
    * Dopo l'ultimo oggetto JSON (che non avrà la virgola), chiudi la struttura con: \] }  
 4. **SE NÉ START\_SECTION è 1 NÉ IS\_FINAL\_CHUNK è true (blocco intermedio):**  
    * L'output deve iniziare direttamente con la parentesi graffa { del primo oggetto JSON e finire con la virgola , dopo la parentesi graffa } dell'ultimo oggetto JSON del blocco.
-
-**Non aggiungere commenti o testo esplicativo al di fuori del JSON.**

@@ -1,5 +1,6 @@
 package io.github.luposolitario.immundanoctis
 
+import androidx.activity.viewModels
 import androidx.compose.ui.text.font.FontWeight
 import android.app.Activity
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -7,7 +8,7 @@ import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.viewModels
+import android.content.Intent
 import androidx.compose.material3.TextButton
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -136,8 +137,26 @@ class AdventureActivity : ComponentActivity() {
         setContent {
             val useDarkTheme = themePreferences.useDarkTheme(isSystemInDarkTheme())
             ImmundaNoctisTheme(darkTheme = useDarkTheme) {
+                val viewModel: MainViewModel by viewModels() // Assicurati di avere il ViewModel
+                val isHeroDead by viewModel.isHeroDead.collectAsState()
 
                 val loadingState by viewModel.engineLoadingState.collectAsState()
+
+
+                // --- NUOVO BLOCCO DA AGGIUNGERE ---
+                val context = this // Otteniamo il contesto dell'Activity
+
+                LaunchedEffect(isHeroDead) {
+                    if (isHeroDead) {
+                        // L'eroe è morto, lancia la DeathActivity
+                        val intent = Intent(context, DeathActivity::class.java)
+                        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+                        context.startActivity(intent)
+                        // Chiudi l'AdventureActivity per impedire al giocatore di tornare indietro
+                        finish()
+                    }
+                }
+                // --- FINE NUOVO BLOCCO ---
 
                 when (loadingState) {
                     is EngineLoadingState.Loading -> {

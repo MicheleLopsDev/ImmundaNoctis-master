@@ -27,52 +27,36 @@
       "replace": true
     },
     {
-      "id": "add_weapon_item_tag",
+      "id": "add_item_tag",
       "type": "gameMechanic",
-      "regex": "\\{ADD_ITEM:WEAPON:([^:]+):([^:|]+):([+-]?\\d+)(?:\\|([^:]+))?:(\\d+)\\}",
-      "parameters": [
-        { "name": "itemType", "value": "WEAPON" },
-        { "name": "weaponType", "value": "{captured_value_from_regex_1}" },
-        { "name": "itemName", "value": "{captured_value_from_regex_2}" },
-        { "name": "modifier", "value": "{captured_value_from_regex_3}" },
-        { "name": "notes", "value": "{captured_value_from_regex_4}" },
-        { "name": "quantity", "value": "{captured_value_from_regex_5}" }
-      ],
-      "actor": "DM",
-      "command": "addItem",
-      "replace": true
-    },
-    {
-      "id": "add_generic_item_tag",
-      "type": "gameMechanic",
-      "regex": "\\{ADD_ITEM:(HELMET|ARMOR|SHIELD|BACKPACK_ITEM|SPECIAL_ITEM|GOLD|MEAL):([^:|]+)(?:\\|([^:]+))?:(\\d+)\\}",
+      "regex": "<ADD_ITEM\\s+TYPE=\\\"([^\\\"]*)\\\"\\s+NAME=\\\"([^\\\"]*)\\\"\\s+QUANTITY=\\\"(\\d+)\\\"(?:\\s+MODIFIER=\\\"([^\\\"]*)\\\")?(?:\\s+NOTES=\\\"([^\\\"]*)\\\")?\\s*\\/>",
       "parameters": [
         { "name": "itemType", "value": "{captured_value_from_regex_1}" },
         { "name": "itemName", "value": "{captured_value_from_regex_2}" },
-        { "name": "notes", "value": "{captured_value_from_regex_3}" },
-        { "name": "quantity", "value": "{captured_value_from_regex_4}" }
+        { "name": "quantity", "value": "{captured_value_from_regex_3}" },
+        { "name": "modifier", "value": "{captured_value_from_regex_4}" },
+        { "name": "notes", "value": "{captured_value_from_regex_5}" }
       ],
       "actor": "DM",
       "command": "addItem",
       "replace": true
     },
     {
-      "id": "add_gold_tag",
+      "id": "remove_item_tag",
       "type": "gameMechanic",
-      "regex": "\\{ADD_GOLD:(\\d+)\\}",
-      "replacement": null,
+      "regex": "<REMOVE_ITEM\\s+NAME=\\\"([^\\\"]*)\\\"\\s+QUANTITY=\\\"([^\\\"]*)\\\"\\s*\\/>",
       "parameters": [
-        { "name": "amount", "value": "{captured_value_from_regex_1}" }
+        { "name": "itemName", "value": "{captured_value_from_regex_1}" },
+        { "name": "quantity", "value": "{captured_value_from_regex_2}" }
       ],
       "actor": "DM",
-      "command": "addGold",
+      "command": "removeItem",
       "replace": true
     },
     {
       "id": "stat_mod_tag",
       "type": "gameMechanic",
-      "regex": "\\{STAT_MOD:([^:]+):([+-]?\\d+|[+-]?MAX_RESISTANCE_RESTORE)\\}",
-      "replacement": null,
+      "regex": "<STAT_MOD\\s+STAT=\\\"([^\\\"]*)\\\"\\s+VALUE=\\\"([+-]?\\\\d+|FULL)\\\"\\s*\\/>",
       "parameters": [
         { "name": "statName", "value": "{captured_value_from_regex_1}" },
         { "name": "amount", "value": "{captured_value_from_regex_2}" }
@@ -82,23 +66,113 @@
       "replace": true
     },
     {
-      "id": "require_meal_tag",
+      "id": "combat_tag",
       "type": "gameMechanic",
-      "regex": "\\{REQUIRE_MEAL\\}",
-      "replacement": null,
-      "parameters": [],
+      "regex": "<COMBAT\\s+ENEMY=\\\"([^\\\"]*)\\\"\\s+CS=\\\"(\\d+)\\\"\\s+EP=\\\"(\\d+)\\\"(?:\\s+IMMUNITY=\\\"([^\\\"]*)\\\")?(?:\\s+BONUS_CS=\\\"([+-]?\\\\d+)\\\"\\s+BONUS_ROUNDS=\\\"(\\d+)\\\")?\\s*\\/>",
+      "parameters": [
+        { "name": "enemyName", "value": "{captured_value_from_regex_1}" },
+        { "name": "combatSkill", "value": "{captured_value_from_regex_2}" },
+        { "name": "endurance", "value": "{captured_value_from_regex_3}" },
+        { "name": "immunity", "value": "{captured_value_from_regex_4}" },
+        { "name": "bonusCS", "value": "{captured_value_from_regex_5}" },
+        { "name": "bonusRounds", "value": "{captured_value_from_regex_6}" }
+      ],
       "actor": "DM",
-      "command": "requireMeal",
+      "command": "startCombat",
       "replace": true
     },
     {
-      "id": "remove_all_weapons_backpack_tag",
+      "id": "evade_combat_tag",
       "type": "gameMechanic",
-      "regex": "\\{REMOVE_ALL_WEAPONS_AND_BACKPACK_ITEMS\\}",
-      "replacement": null,
+      "regex": "<EVADE_COMBAT\\s*\\/>",
       "parameters": [],
       "actor": "DM",
-      "command": "removeAllWeaponsAndBackpackItems",
+      "command": "evadeCombat",
+      "replace": true
+    },
+    {
+      "id": "require_action_tag",
+      "type": "gameMechanic",
+      "regex": "<REQUIRE_ACTION\\s+ACTION=\\\"([^\\\"]*)\\\"\\s+PENALTY_STAT=\\\"([^\\\"]*)\\\"\\s+PENALTY_VALUE=\\\"([+-]?\\\\d+)\\\"\\s*\\/>",
+      "parameters": [
+        { "name": "action", "value": "{captured_value_from_regex_1}" },
+        { "name": "penaltyStat", "value": "{captured_value_from_regex_2}" },
+        { "name": "penaltyValue", "value": "{captured_value_from_regex_3}" }
+      ],
+      "actor": "DM",
+      "command": "requireAction",
+      "replace": true
+    },
+    {
+      "id": "remove_all_tag",
+      "type": "gameMechanic",
+      "regex": "<REMOVE_ALL\\s+TYPE=\\\"([^\\\"]*)\\\"\\s*\\/>",
+      "parameters": [
+        { "name": "type", "value": "{captured_value_from_regex_1}" }
+      ],
+      "actor": "DM",
+      "command": "removeAllItems",
+      "replace": true
+    },
+    {
+      "id": "heal_tag",
+      "type": "gameMechanic",
+      "regex": "<HEAL\\s+STAT=\\\"([^\\\"]*)\\\"\\s+VALUE=\\\"(\\d+)\\\"\\s*\\/>",
+      "parameters": [
+        { "name": "statName", "value": "{captured_value_from_regex_1}" },
+        { "name": "amount", "value": "{captured_value_from_regex_2}" }
+      ],
+      "actor": "DM",
+      "command": "healStat",
+      "replace": true
+    },
+    {
+      "id": "set_flag_tag",
+      "type": "gameMechanic",
+      "regex": "<SET_FLAG\\s+NAME=\\\"([^\\\"]*)\\\"\\s+VALUE=\\\"([^\\\"]*)\\\"\\s*\\/>",
+      "parameters": [
+        { "name": "flagName", "value": "{captured_value_from_regex_1}" },
+        { "name": "flagValue", "value": "{captured_value_from_regex_2}" }
+      ],
+      "actor": "DM",
+      "command": "setFlag",
+      "replace": true
+    },
+    {
+      "id": "if_stat_tag",
+      "type": "gameMechanic",
+      "regex": "<IF_STAT\\s+STAT=\\\"([^\\\"]*)\\\"\\s+OPERATOR=\\\"([^\\\"]*)\\\"\\s+VALUE=\\\"([+-]?\\\\d+)\\\"\\s+TARGET_SCENE=\\\"([^\\\"]*)\\\"\\s*\\/>",
+      "parameters": [
+        { "name": "statName", "value": "{captured_value_from_regex_1}" },
+        { "name": "operator", "value": "{captured_value_from_regex_2}" },
+        { "name": "value", "value": "{captured_value_from_regex_3}" },
+        { "name": "targetScene", "value": "{captured_value_from_regex_4}" }
+      ],
+      "actor": "DM",
+      "command": "checkStatAndJump",
+      "replace": true
+    },
+    {
+      "id": "random_item_table_tag",
+      "type": "gameMechanic",
+      "regex": "<RANDOM_ITEM_TABLE\\s+OUTCOMES=\\\"([^\\\"]*)\\\"\\s*\\/>",
+      "parameters": [
+        { "name": "outcomes", "value": "{captured_value_from_regex_1}" }
+      ],
+      "actor": "DM",
+      "command": "rollOnItemTable",
+      "replace": true
+    },
+    {
+      "id": "random_quantity_tag",
+      "type": "gameMechanic",
+      "regex": "<RANDOM_QUANTITY\\s+ITEM=\\\"([^\\\"]*)\\\"\\s+BASE_VALUE=\\\"(\\d+)\\\"\\s*\\/>",
+      "parameters": [
+        { "name": "item", "value": "{captured_value_from_regex_1}" },
+        { "name": "baseValue", "value": "{captured_value_from_regex_2}" }
+      ],
+      "actor": "DM",
+      "command": "rollForQuantity",
       "replace": true
     },
     {

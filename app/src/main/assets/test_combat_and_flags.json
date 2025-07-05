@@ -1,0 +1,86 @@
+{
+  "adventureName": "Test: Combat and Flags",
+  "scenes": [
+    {
+      "id": "1",
+      "sceneType": "START",
+      "genre": "FANTASY",
+      "challengeLevel": "BASE",
+      "narrativeText": {
+        "english": "You meet an old guard named Alric. He tells you the secret password to the city's east gate is 'Sunrise'."
+      },
+      "gameMechanics": [
+        "<SET_FLAG NAME=\"MET_ALRIC\" VALUE=\"true\" />",
+        "<SET_FLAG NAME=\"PASSWORD_VALUE\" VALUE=\"Sunrise\" />"
+      ],
+      "choices": [
+        {
+          "id": "choice_1_1",
+          "choiceText": {
+            "english": "Thank him and proceed towards the forest."
+          },
+          "nextSceneId": "2"
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "sceneType": "TRANSITION",
+      "genre": "FANTASY",
+      "challengeLevel": "HARD",
+      "narrativeText": {
+        "english": "A vicious Cave Troll blocks your path. It roars and raises its massive club. You must fight it."
+      },
+      "gameMechanics": [
+        "<COMBAT ENEMY=\"Cave Troll\" CS=\"18\" EP=\"28\" />"
+      ],
+      "choices": [
+        {
+          "id": "choice_2_1",
+          "choiceText": {
+            "english": "If you win the combat, continue to the city gate."
+          },
+          "nextSceneId": "3"
+        },
+        {
+          "id": "choice_2_2",
+          "choiceText": {
+            "english": "You can attempt to evade combat by diving into the bushes."
+          },
+          "nextSceneId": "3",
+          "gameMechanics": ["<EVADE_COMBAT />"]
+        }
+      ]
+    },
+    {
+      "id": "3",
+      "sceneType": "TRANSITION",
+      "genre": "FANTASY",
+      "challengeLevel": "BASE",
+      "narrativeText": {
+        "english": "You reach the east gate. A stern-faced guard steps forward. 'Halt! State the password.'"
+      },
+      "gameMechanics": [],
+      "choices": [
+        {
+          "id": "choice_3_1",
+          "choiceText": {
+            "english": "If you know the password, speak it."
+          },
+          "nextSceneId": "END",
+          "requiredFlag": {
+            "name": "MET_ALRIC",
+            "value": "true"
+          }
+        },
+        {
+          "id": "choice_3_2",
+          "choiceText": {
+            "english": "If you do not know the password, you must try to fight the guards."
+          },
+          "nextSceneId": "DEATH_GUARDS"
+        }
+      ]
+    }
+  ]
+}

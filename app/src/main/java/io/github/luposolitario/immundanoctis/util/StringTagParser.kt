@@ -1,6 +1,8 @@
+// in file: java/io/github/luposolitario/immundanoctis/util/StringTagParser.kt
+
 package io.github.luposolitario.immundanoctis.util
 
-import android.content.Context
+// ... (tutti gli import restano uguali) ...
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import com.fasterxml.jackson.module.kotlin.readValue
@@ -11,31 +13,26 @@ import io.github.luposolitario.immundanoctis.data.TagsConfigWrapper
 import java.io.InputStream
 import java.util.Collections
 
-class StringTagParser(private val context: Context) {
+
+class StringTagParser(context: android.content.Context) {
 
     private val objectMapper = ObjectMapper().registerModule(KotlinModule())
     private var tagConfigurations: List<TagConfig> = emptyList()
-    private val failedTranslatorModels: MutableSet<String> =
-        Collections.synchronizedSet(mutableSetOf())
 
     init {
-        loadConfigurations()
-    }
-
-    private fun loadConfigurations() {
-        var configStream: InputStream? = null
         try {
-            configStream = context.assets.open("config.json")
-            val wrapper: TagsConfigWrapper = objectMapper.readValue(configStream)
-            tagConfigurations = wrapper.tags
+            context.assets.open("config.json").use { inputStream ->
+                val wrapper: TagsConfigWrapper = objectMapper.readValue(inputStream)
+                tagConfigurations = wrapper.tags
+            }
         } catch (e: Exception) {
-            System.err.println("Errore nel caricamento delle configurazioni dei tag da assets/config.json: ${e.message}")
-            e.printStackTrace()
-        } finally {
-            configStream?.close()
+            System.err.println("Errore nel caricamento di config.json: ${e.message}")
         }
     }
 
+    /**
+     * Metodo originale per la chat. Rimane invariato per non rompere la compatibilità.
+     */
     fun parseAndReplaceWithCommands(
         inputString: String,
         currentActor: CharacterType? = null,
@@ -45,24 +42,19 @@ class StringTagParser(private val context: Context) {
         val foundCommands = mutableListOf<EngineCommand>()
 
         tagConfigurations.forEach { tagConfig ->
-            // Applica il filtro per l'attore, se specificato
             if (currentActor != null && tagConfig.actor != "ANY" && tagConfig.actor != currentActor.name) {
                 // Salta questo tag se non è per l'attore corrente
             } else {
                 val regex = Regex(tagConfig.regex)
                 val matches = regex.findAll(processedString).toList()
 
-                // *** INIZIO LOGICA CORRETTA ***
-                // Itera su OGNI corrispondenza trovata per questo tag
                 matches.forEach { matchResult ->
                     if (tagConfig.command != null) {
                         val commandParams = mutableMapOf<String, Any?>()
-
-                        // Popola i parametri basandosi sui gruppi catturati dalla regex
                         tagConfig.parameters?.forEach { paramConfig ->
                             var paramValue: Any? = paramConfig.value?.toString()
                             if (paramValue is String) {
-                                val placeholderRegex = Regex("\\{captured_value_from_regex_(\\d+)\\}")
+                                val placeholderRegex = Regex("\\<captured_value_from_regex_(\\d+)\\>")
                                 placeholderRegex.findAll(paramValue).forEach { placeholderMatch ->
                                     val groupIndex = placeholderMatch.groupValues[1].toInt()
                                     if (groupIndex < matchResult.groupValues.size) {
@@ -72,30 +64,45 @@ class StringTagParser(private val context: Context) {
                             }
                             commandParams[paramConfig.name] = paramValue
                         }
-
-                        // Aggiungi il comando alla lista, uno per ogni match
                         foundCommands.add(EngineCommand(tagConfig.command, commandParams))
                     }
                 }
-                // *** FINE LOGICA CORRETTA ***
 
-                // Se il tag deve essere rimosso dal testo, fallo ora
                 if (tagConfig.replace) {
                     processedString = regex.replace(processedString, "")
                 }
             }
         }
-
-        // Restituisci il testo pulito e la lista completa dei comandi
         return Pair(processedString.trim(), foundCommands)
     }
 
     /**
-     * Recupera una TagConfig specifica tramite il suo ID.
-     * @param tagId L'ID del tag da cercare.
-     * @return La TagConfig corrispondente, o null se non trovata.
+     * NUOVO METODO: Specifico per la narrazione del librogame.
+     * Pulisce il testo da tag e spazi e restituisce i comandi.
      */
-    fun getTagConfigById(tagId: String): TagConfig? {
-        return tagConfigurations.find { it.id == tagId }
+    fun parseNarrationAndCreateCommands(rawResponse: String): Pair<String, List<EngineCommand>> {
+        // Separa la narrazione dai tag delle scelte
+        val narrativePart = rawResponse.split("--- TAGS ---").getOrElse(0) { "" }
+        val choicesPart = rawResponse.split("--- TAGS ---").getOrElse(1) { "" }
+
+        // Estrai i comandi da entrambe le parti
+        val (_, gameCommands) = parseAndReplaceWithCommands(narrativePart)
+        val (_, choiceCommands) = parseAndReplaceWithCommands(choicesPart)
+
+        val allCommands = gameCommands + choiceCommands
+
+        // Pulisci il testo narrativo da tutti i tag e gli spazi extra
+        var cleanNarrative = narrativePart
+        tagConfigurations.forEach { tagConfig ->
+            if (tagConfig.replace) {
+                cleanNarrative = cleanNarrative.replace(Regex(tagConfig.regex), "")
+            }
+        }
+
+        // Rimuove i blocchi di codice e normalizza gli spazi
+        cleanNarrative = cleanNarrative.replace("```xml", "").replace("```", "")
+        cleanNarrative = cleanNarrative.lines().joinToString("\n") { it.trim() }.trim()
+
+        return Pair(cleanNarrative, allCommands)
     }
 }

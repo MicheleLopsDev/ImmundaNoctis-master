@@ -69,6 +69,10 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".DeathActivity"
+            android:exported="false"
+            android:theme="@style/Theme.ImmundaNoctis" />
 
         <activity
             android:name=".StdfGenerationActivity"

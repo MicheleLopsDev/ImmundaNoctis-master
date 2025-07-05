@@ -172,7 +172,8 @@ data class Scene(
     val choices: List<NarrativeChoice>? = null,
     val disciplineChoices: List<DisciplineChoice>? = null,
     val location: LocationInfo? = null,
-    val challengeLevel: ChallengeLevel
+    val challengeLevel: ChallengeLevel,
+    val commands: List<String>? = null // <-- AGGIUNGI QUESTA RIGA
 )
 
 data class TagParameter(

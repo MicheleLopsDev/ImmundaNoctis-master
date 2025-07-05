@@ -1,0 +1,64 @@
+{
+  "adventureName": "Test: Instant Death",
+  "scenes": [
+    {
+      "id": "1",
+      "sceneType": "START",
+      "genre": "FANTASY",
+      "challengeLevel": "BASE",
+      "narrativeText": {
+        "english": "You stand before two doors. The left door is made of solid oak, reinforced with iron. The right door is a shimmering, unstable portal of green energy."
+      },
+      "gameMechanics": [],
+      "choices": [
+        {
+          "id": "choice_1_1",
+          "choiceText": {
+            "english": "Open the oak door."
+          },
+          "nextSceneId": "3"
+        },
+        {
+          "id": "choice_1_2",
+          "choiceText": {
+            "english": "Step through the green portal."
+          },
+          "nextSceneId": "2"
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "sceneType": "ENDING",
+      "genre": "FANTASY",
+      "challengeLevel": "BASE",
+      "narrativeText": {
+        "english": "As you step through the portal, your body is instantly disintegrated by raw magic. Your atoms are scattered across the dimensions.\n\nYour life and your mission end here."
+      },
+      "gameMechanics": [],
+      "choices": []
+    },
+    {
+      "id": "3",
+      "sceneType": "TRANSITION",
+      "genre": "FANTASY",
+      "challengeLevel": "BASE",
+      "narrativeText": {
+        "english": "The door opens into a dark room. A swinging axe blade flies from the ceiling and strikes you a glancing blow before you can react. You lose 15 ENDURANCE points. If your ENDURANCE is now 0 or less, you have bled to death."
+      },
+      "gameMechanics": [
+        "<STAT_MOD STAT=\"ENDURANCE\" VALUE=\"-15\" />",
+        "<IF_STAT STAT=\"ENDURANCE\" OPERATOR=\"LESS_THAN_OR_EQUAL\" VALUE=\"0\" TARGET_SCENE=\"DEATH\" />"
+      ],
+      "choices": [
+        {
+          "id": "choice_3_1",
+          "choiceText": {
+            "english": "If you survive, you continue into the darkness."
+          },
+          "nextSceneId": "END"
+        }
+      ]
+    }
+  ]
+}

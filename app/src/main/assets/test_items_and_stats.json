@@ -1,0 +1,69 @@
+{
+  "adventureName": "Test: Items and Stats",
+  "scenes": [
+    {
+      "id": "1",
+      "sceneType": "START",
+      "genre": "FANTASY",
+      "challengeLevel": "BASE",
+      "narrativeText": {
+        "english": "You enter a dusty armoury. On a weapon rack, you find a pristine Broadsword. In a small chest, you discover a Potion that glows with a faint blue light."
+      },
+      "gameMechanics": [
+        "<ADD_ITEM TYPE=\"WEAPON\" NAME=\"Broadsword\" QUANTITY=\"1\" />",
+        "<ADD_ITEM TYPE=\"BACKPACK_ITEM\" NAME=\"Potion of Laumspur\" QUANTITY=\"1\" NOTES=\"Restores 4 ENDURANCE\" />"
+      ],
+      "choices": [
+        {
+          "id": "choice_1_1",
+          "choiceText": {
+            "english": "Leave the armoury."
+          },
+          "nextSceneId": "2"
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "sceneType": "TRANSITION",
+      "genre": "FANTASY",
+      "challengeLevel": "BASE",
+      "narrativeText": {
+        "english": "As you walk down a narrow corridor, you step on a pressure plate. A volley of darts shoots from the wall, and one grazes your arm before you can react."
+      },
+      "gameMechanics": [
+        "<STAT_MOD STAT=\"ENDURANCE\" VALUE=\"-4\" />"
+      ],
+      "choices": [
+        {
+          "id": "choice_2_1",
+          "choiceText": {
+            "english": "Wounded, you press on."
+          },
+          "nextSceneId": "3"
+        }
+      ]
+    },
+    {
+      "id": "3",
+      "sceneType": "TRANSITION",
+      "genre": "FANTASY",
+      "challengeLevel": "BASE",
+      "narrativeText": {
+        "english": "You find a pouch filled with gold coins. To determine how many you find, pick a number from the Random Number Table and add 10 to the result."
+      },
+      "gameMechanics": [
+        "<RANDOM_QUANTITY ITEM=\"Gold Crown\" BASE_VALUE=\"10\" />"
+      ],
+      "choices": [
+        {
+          "id": "choice_3_1",
+          "choiceText": {
+            "english": "Continue your journey."
+          },
+          "nextSceneId": "END"
+        }
+      ]
+    }
+  ]
+}
