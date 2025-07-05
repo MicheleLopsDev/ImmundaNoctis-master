@@ -893,22 +893,27 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     // Inserisci o sostituisci nel file: java/io/github/luposolitario/immundanoctis/view/MainViewModel.kt
 
+// Inserisci o sostituisci nel file: java/io/github/luposolitario/immundanoctis/view/MainViewModel.kt
+
     private suspend fun processCurrentSceneNarrative(shouldGenerateNarration: Boolean = true) {
         val scene = _currentScene.value ?: run {
             log("ERRORE: Tentativo di processare una scena nulla.")
             return
         }
 
-        // --- FASE 1: ESECUZIONE IMMEDIATA DELLE MECCANICHE DI GIOCO ---
-        val gameMechanics = scene.gameMechanics ?: emptyList()
-        if (gameMechanics.isNotEmpty()) {
-            log("Trovate ${gameMechanics.size} meccaniche di gioco predefinite nella scena.")
+        // --- FASE 1: ESECUZIONE IMMEDIATA DELLE MECCANICHE DI GIOCO DAL JSON ---
+        val gameMechanics = scene.gameMechanics
+        if (!gameMechanics.isNullOrEmpty()) {
+            log("Trovate ${gameMechanics.size} meccaniche di gioco predefinite nella scena: $gameMechanics")
             val commandsToExecute = mutableListOf<EngineCommand>()
+
+            // Itera su ogni stringa di comando fornita dal JSON
             gameMechanics.forEach { mechanicString ->
                 // Usiamo il parser sulla singola stringa di meccanica
                 val (_, commands) = stringTagParser.parseAndReplaceWithCommands(mechanicString, CharacterType.DM)
                 commandsToExecute.addAll(commands)
             }
+
             // Eseguiamo subito i comandi
             if (commandsToExecute.isNotEmpty()) {
                 processCommands(commandsToExecute)
@@ -919,14 +924,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         // Prepara le scelte UI dopo aver applicato le meccaniche, nel caso i flag siano cambiati
         prepareChoicesForScene(scene)
 
-        // Se non dobbiamo generare una nuova narrazione, il lavoro finisce qui.
         if (!shouldGenerateNarration) {
-            // Aggiungiamo un messaggio "dummy" per far scrollare la chat se necessario.
-            // O potremmo mostrare la narrazione inglese se non c'è una traduzione.
+            val narrativeText = scene.narrativeText.italian ?: scene.narrativeText.english ?: "..."
             _chatMessages.update {
                 it + ChatMessage(
                     authorId = CharacterID.DM,
-                    text = scene.narrativeText.english ?: "...", // Mostra il testo inglese come fallback
+                    text = narrativeText,
                     position = messageCounter.getAndIncrement()
                 )
             }
@@ -945,24 +948,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _engineLoadingState.first { it is EngineLoadingState.Success }
 
             val lastMessageText = _chatMessages.value.lastOrNull()?.text ?: "L'avventura ha inizio."
-
-            // Passiamo solo le scelte valide e filtrate a Gemma per il contesto
             val promptForGemma = buildGemmaPromptForScene(scene, lastMessageText)
-
-            Log.d(tag, "DEBUG_GEMMA_PROMPT_SENT: \n---\n${promptForGemma}\n---")
-
-            var stopStreamingToText = false
+            Log.d(tag, "DEBUG_GEMMA_PROMPT_SENT (Refactored): \n---\n$promptForGemma\n---")
 
             dmEngine.sendMessage(promptForGemma)
                 .collect { token ->
                     stringRaw += token
-                    if (!stopStreamingToText && (token.contains("<") || token.contains("---"))) {
-                        val partBeforeTag = token.substringBefore("<").substringBefore("---")
-                        _streamingText.update { it + partBeforeTag }
-                        stopStreamingToText = true
-                    } else if (!stopStreamingToText) {
-                        _streamingText.update { it + token }
-                    }
                 }
 
         } catch (e: Exception) {
@@ -972,18 +963,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             log("Generazione completata. Inizio parsing della risposta.")
             log("RAW: $stringRaw")
 
-            // La logica qui ora gestisce solo la narrazione e i tag delle scelte
             val parts = stringRaw.split("--- TAGS ---", limit = 2)
-            val narrativePart = parts.getOrNull(0)?.trim() ?: stringRaw
+            val narrativePart = (parts.getOrNull(0)?.trim() ?: stringRaw).replace(Regex("<[^>]+>"), "").trim()
             val tagsPart = parts.getOrNull(1)?.trim() ?: ""
 
-            val cleanedNarrative = narrativePart.replace(Regex("<[^>]+>"), "").trim()
-
-            if (cleanedNarrative.isNotBlank()) {
+            if (narrativePart.isNotBlank()) {
                 val finalMessage = ChatMessage(
                     authorId = _respondingCharacterId.value ?: CharacterID.DM,
                     position = messageCounter.getAndIncrement(),
-                    text = cleanedNarrative
+                    text = narrativePart
                 )
                 _chatMessages.update { it + finalMessage }
                 autoSaveChatIfEnabled()
