@@ -544,6 +544,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         return totalRoll
     }
 
+// Inserisci o sostituisci nel file: java/io/github/luposolitario/immundanoctis/view/MainViewModel.kt
+
     private suspend fun processCommands(commands: List<EngineCommand>) {
         if (commands.isEmpty()) {
             return
@@ -632,6 +634,46 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
 
+                // --- NUOVO COMANDO IMPLEMENTATO ---
+                "checkStatAndJump" -> {
+                    val statName = command.parameters["statName"] as? String
+                    val operator = command.parameters["operator"] as? String
+                    val valueStr = command.parameters["value"] as? String
+                    val targetScene = command.parameters["targetScene"] as? String
+
+                    if (statName != null && operator != null && valueStr != null && targetScene != null) {
+                        val value = valueStr.toIntOrNull()
+                        val heroStats = hero.stats
+                        if (value != null && heroStats != null) {
+                            val statToCompare = when (statName.uppercase()) {
+                                "ENDURANCE", "RESISTENZA" -> heroStats.resistenza
+                                "COMBATSKILL", "COMBATTIVITA" -> heroStats.combattivita
+                                else -> null
+                            }
+
+                            if (statToCompare != null) {
+                                val conditionMet = when (operator) {
+                                    "LESS_THAN_OR_EQUAL" -> statToCompare <= value
+                                    "GREATER_THAN_OR_EQUAL" -> statToCompare >= value
+                                    "EQUALS" -> statToCompare == value
+                                    else -> false
+                                }
+
+                                if (conditionMet) {
+                                    log("✅ Condizione IF_STAT verificata ($statName $operator $value). Navigazione a '$targetScene'.")
+                                    if (targetScene.equals("DEATH", ignoreCase = true)) {
+                                        _isHeroDead.value = true
+                                    } else {
+                                        navigateToScene(targetScene)
+                                    }
+                                } else {
+                                    log("ℹ️ Condizione IF_STAT non verificata ($statName $operator $value). Nessuna azione.")
+                                }
+                            }
+                        }
+                    }
+                }
+
                 "updateChoiceText" -> {
                     val choiceId = command.parameters["id"] as? String
                     val italianText = command.parameters["italianText"] as? String
@@ -705,11 +747,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
                         if (amount != null) {
                             when (statName.uppercase()) {
-                                "COMBATTIVITA" -> {
+                                "COMBATSKILL", "COMBATTIVITA" -> {
                                     newCombatSkill = (newCombatSkill + amount).coerceAtLeast(0)
                                     log("STAT MOD: Combattività modificata di $amount. Nuovo valore: $newCombatSkill")
                                 }
-                                "RESISTENZA" -> {
+                                "ENDURANCE", "RESISTENZA" -> {
                                     newEndurance = (newEndurance + amount).coerceAtLeast(0)
                                     log("STAT MOD: Resistenza modificata di $amount. Nuovo valore: $newEndurance")
                                 }
@@ -840,34 +882,49 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     // Inserisci o sostituisci nel file: java/io/github/luposolitario/immundanoctis/view/MainViewModel.kt
 
+// Inserisci o sostituisci nel file: java/io/github/luposolitario/immundanoctis/view/MainViewModel.kt
+
+// Inserisci o sostituisci nel file: java/io/github/luposolitario/immundanoctis/view/MainViewModel.kt
+
     private suspend fun processCurrentSceneNarrative(shouldGenerateNarration: Boolean = true) {
         val scene = _currentScene.value ?: run {
             log("ERRORE: Tentativo di processare una scena nulla.")
             return
         }
 
+        // --- FASE 1: ESECUZIONE IMMEDIATA DELLE MECCANICHE DI GIOCO DAL JSON ---
         val gameMechanics = scene.gameMechanics
         if (!gameMechanics.isNullOrEmpty()) {
             log("Trovate ${gameMechanics.size} meccaniche di gioco predefinite nella scena: $gameMechanics")
             val commandsToExecute = mutableListOf<EngineCommand>()
 
             gameMechanics.forEach { mechanicString ->
+                // Usiamo il parser sulla singola stringa di meccanica
                 val (_, commands) = stringTagParser.parseAndReplaceWithCommands(mechanicString, CharacterType.DM)
                 commandsToExecute.addAll(commands)
             }
 
             if (commandsToExecute.isNotEmpty()) {
+                // -->> MODIFICA CRUCIALE: ESEGUIAMO SUBITO I COMANDI <<--
                 processCommands(commandsToExecute)
+                log("LOG SPECIALIZZATO: Eseguiti ${commandsToExecute.size} comandi da gameMechanics.")
             }
+        }
+        // --- FINE FASE 1 ---
+
+        if (_isHeroDead.value) {
+            log("Eroe morto dopo l'esecuzione delle meccaniche. Interrompo l'elaborazione della scena.")
+            return
         }
 
         prepareChoicesForScene(scene)
 
         if (!shouldGenerateNarration) {
-            log("Sessione caricata. La narrazione non viene rigenerata, la chat è ripristinata dal salvataggio.")
+            log("Sessione caricata. La narrazione non viene rigenerata.")
             return
         }
 
+        // --- FASE 2: GENERAZIONE NARRATIVA CON GEMMA ---
         if (_isGenerating.value) return
         _isGenerating.value = true
         _streamingText.value = ""
@@ -885,19 +942,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
             dmEngine.sendMessage(promptForGemma)
                 .collect { token ->
-                    // Aggiungiamo sempre il token alla risposta completa
                     stringRaw += token
-
-                    // Aggiorniamo la UI solo se non abbiamo ancora raggiunto i tag
                     if (!stopStreamingToText) {
                         if (token.contains("---")) {
-                            // Se troviamo il separatore, aggiungiamo solo il testo che lo precede
-                            // e poi fermiamo gli aggiornamenti futuri della UI.
                             val partBeforeTag = token.substringBefore("---")
                             _streamingText.update { it + partBeforeTag }
                             stopStreamingToText = true
                         } else {
-                            // Altrimenti, continuiamo ad aggiornare la UI
                             _streamingText.update { it + token }
                         }
                     }
@@ -910,9 +961,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             log("Generazione completata. Inizio parsing della risposta.")
             log("RAW: $stringRaw")
 
-            // La parte di parsing rimane invariata, ma ora lavora sulla stringRaw completa
             val parts = stringRaw.split("--- TAGS ---", limit = 2)
-            // La narrazione finale da aggiungere alla chat è quella streamata
             val narrativePart = _streamingText.value.trim()
             val tagsPart = parts.getOrNull(1)?.trim() ?: ""
 

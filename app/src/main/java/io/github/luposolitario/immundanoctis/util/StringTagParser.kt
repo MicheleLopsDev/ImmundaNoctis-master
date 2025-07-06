@@ -3,6 +3,7 @@
 package io.github.luposolitario.immundanoctis.util
 
 // ... (tutti gli import restano uguali) ...
+import android.util.Log
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import com.fasterxml.jackson.module.kotlin.readValue
@@ -48,6 +49,10 @@ class StringTagParser(context: android.content.Context) {
                 // **MODIFICA 1: Aggiunta opzione IGNORE_CASE per la regex**
                 val regex = Regex(tagConfig.regex, RegexOption.IGNORE_CASE)
                 val matches = regex.findAll(processedString).toList()
+
+//                if (matches.isEmpty()){
+//                    Log.d("StringTagParser", "Parsing tag ${tagConfig.id} failed: $processedString regEx: $regex  ")
+//                }
 
                 matches.forEach { matchResult ->
                     if (tagConfig.command != null) {
