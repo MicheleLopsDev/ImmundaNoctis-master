@@ -557,6 +557,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (heroIndex == -1) return
         var hero = characters[heroIndex]
         var sessionModified = false
+        val newCommandsToProcess = mutableListOf<EngineCommand>()
 
         commands.forEach { command ->
             Log.d(
@@ -634,7 +635,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
 
-                // --- NUOVO COMANDO IMPLEMENTATO ---
+                "rollForQuantity" -> {
+                    val itemName = command.parameters["item"] as? String
+                    val baseValueStr = command.parameters["baseValue"] as? String
+                    if (itemName != null && baseValueStr != null) {
+                        val baseValue = baseValueStr.toIntOrNull() ?: 0
+                        val roll = rollDice(1, 10) -1 // Tira un dado da 10 facce (0-9)
+                        val finalQuantity = baseValue + roll
+
+                        log("🎲 Comando rollForQuantity: Base=$baseValue, Tiro=$roll, Quantità Finale=$finalQuantity")
+
+                        // Creiamo un nuovo comando addItem e lo aggiungiamo alla lista da processare
+                        val addItemCommand = EngineCommand(
+                            commandName = "addItem",
+                            parameters = mapOf(
+                                "itemName" to itemName,
+                                "itemType" to "GOLD", // Assumiamo sia sempre oro per ora
+                                "quantity" to finalQuantity.toString()
+                            )
+                        )
+                        newCommandsToProcess.add(addItemCommand)
+                    }
+                }
+
                 "checkStatAndJump" -> {
                     val statName = command.parameters["statName"] as? String
                     val operator = command.parameters["operator"] as? String
@@ -774,13 +797,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
 
+        // Se sono stati generati nuovi comandi (es. da rollForQuantity), li processiamo
+        if (newCommandsToProcess.isNotEmpty()) {
+            processCommands(newCommandsToProcess)
+        }
+
         if (sessionModified) {
             characters[heroIndex] = hero
-
-            // --- 👇 MODIFICA CHIAVE QUI 👇 ---
             // Assegna la NUOVA lista allo StateFlow per notificare la UI
             _gameCharacters.value = characters.toList()
-
             gameStateManager.saveSession(currentSession.copy(characters = characters))
             log("Salvataggio sessione dopo l'aggiornamento.")
         }

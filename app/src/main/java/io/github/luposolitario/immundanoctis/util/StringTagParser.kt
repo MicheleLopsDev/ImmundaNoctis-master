@@ -13,6 +13,7 @@ import io.github.luposolitario.immundanoctis.data.TagConfig
 import io.github.luposolitario.immundanoctis.data.TagsConfigWrapper
 import java.io.InputStream
 import java.util.Collections
+import java.util.StringTokenizer
 
 
 class StringTagParser(context: android.content.Context) {
@@ -50,9 +51,12 @@ class StringTagParser(context: android.content.Context) {
                 val regex = Regex(tagConfig.regex, RegexOption.IGNORE_CASE)
                 val matches = regex.findAll(processedString).toList()
 
-//                if (matches.isEmpty()){
-//                    Log.d("StringTagParser", "Parsing tag ${tagConfig.id} failed: $processedString regEx: $regex  ")
-//                }
+                if (processedString.split(" ")[0].equals(tagConfig.regex.split("\\s")[0]))
+                {
+                        if (matches.isEmpty()){
+                            Log.d("StringTagParser", "Parsing tag ${tagConfig.id} failed: $processedString regEx: $regex  ")
+                        }
+                }
 
                 matches.forEach { matchResult ->
                     if (tagConfig.command != null) {
