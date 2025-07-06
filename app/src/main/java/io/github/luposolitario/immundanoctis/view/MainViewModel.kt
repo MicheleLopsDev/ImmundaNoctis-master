@@ -756,7 +756,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                     log("STAT MOD: Resistenza modificata di $amount. Nuovo valore: $newEndurance")
                                 }
                             }
+
+                            // --- 👇 MODIFICA CHIAVE QUI 👇 ---
+                            // 1. Crea una NUOVA istanza di LoneWolfStats
                             val updatedStats = heroStats.copy(combattivita = newCombatSkill, resistenza = newEndurance)
+                            // 2. Crea una NUOVA istanza di GameCharacter con le statistiche aggiornate
                             hero = hero.copy(stats = updatedStats)
 
                             viewModelScope.launch { _uiFeedbackEvent.emit("La tua $statName è cambiata di $amount!") }
@@ -772,6 +776,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         if (sessionModified) {
             characters[heroIndex] = hero
+
+            // --- 👇 MODIFICA CHIAVE QUI 👇 ---
+            // Assegna la NUOVA lista allo StateFlow per notificare la UI
+            _gameCharacters.value = characters.toList()
+
             gameStateManager.saveSession(currentSession.copy(characters = characters))
             log("Salvataggio sessione dopo l'aggiornamento.")
         }
