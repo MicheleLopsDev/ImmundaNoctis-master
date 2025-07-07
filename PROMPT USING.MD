@@ -1,145 +1,55 @@
-Ho capito perfettamente il problema. È una sfida classica quando si deve processare una grande mole di dati, e la tua soluzione di "spezzare" il lavoro in blocchi è quella giusta. Il fastidio di dover poi "cucire" i pezzi di JSON, rimuovendo le intestazioni e le chiusure superflue, è esattamente il tipo di lavoro manuale che vogliamo automatizzare.
+## **Guida Rapida al Flusso di Estrazione per Lupo Solitario**
 
-Hai ragione, la soluzione sta nel rendere il prompt più "intelligente", dandogli il contesto necessario per capire se sta lavorando sul primo blocco, uno intermedio o quello finale.
+Questo documento riassume il funzionamento dei due prompt specializzati per l'estrazione dei dati dai libri-gioco della serie Lupo Solitario.
 
-Ho modificato il tuo prompt per includere questa logica. Ho aggiunto una nuova sezione all'inizio, **"Parametri di Esecuzione"**, che dovrai compilare tu ogni volta che avvii una generazione parziale. In base a questi parametri, il prompt ora sa come formattare l'output.
+### **1\. Prompt per l'Estrazione degli Oggetti (**items.json**)**
 
------
+Questo è il **primo passo** del processo. Il suo unico scopo è analizzare l'intero libro per creare un database completo e centralizzato di tutti gli oggetti esistenti.
 
-### Prompt 3.0: Versione con Generazione "Chunk-Aware"
+#### **Obiettivo Principale**
 
-Ecco la versione aggiornata del tuo prompt. Sostituisci interamente il vecchio testo con questo.
+* **Creare una Fonte Unica di Verità:** Analizza l'intero libro e genera un singolo file items.json. Ogni oggetto (spada, pozione, oggetto di missione) viene definito una sola volta.  
+* **Garantire Coerenza:** Evita che lo stesso oggetto venga definito con proprietà diverse in punti diversi del gioco.
 
-```text
-### **Prompt 3.0: Generazione Paginata di `scenes.json`**
+#### **Come Funziona**
 
-**Ruolo:** Sei un assistente di elaborazione dati altamente specializzato in ETL (Extract, Transform, Load) e ottimizzazione dei dati per applicazioni interattive. Il tuo compito è analizzare una porzione di un libro-gioco fornito in formato HTML e generare un frammento di file JSON pulito e ottimizzato, rispettando le regole di formattazione condizionale.
+1. **Input:** Richiede solo il file HTML del libro-gioco.  
+2. **Processo:**  
+   * Applica le correzioni dall'Errata Corrige.  
+   * Scansiona l'intero documento, con particolare attenzione alle sezioni "Equipment" e ai paragrafi di gioco.  
+   * Identifica ogni oggetto, ne estrae le proprietà (itemType, modifier, notes) e crea una voce univoca nel database.  
+3. **Output:** Un array JSON completo che rappresenta il database degli oggetti per quell'avventura.
 
-**Obiettivo:** Converti il contenuto del libro-gioco "Flight from the Dark" (fornito di seguito) in un frammento di `scenes.json`, basandoti sui parametri di esecuzione forniti.
+### **2\. Prompt per l'Estrazione delle Scene (**scenes.json**)**
 
------
-**Parametri di Esecuzione (da compilare per ogni richiesta):**
+Questo è il **secondo passo**. Utilizza il libro per generare la sequenza delle scene, le narrazioni e le meccaniche di gioco, facendo riferimento agli oggetti già definiti.
 
-* **START_SECTION:** {numero_paragrafo_iniziale}
-* **END_SECTION:** {numero_paragrafo_finale}
-* **IS_FINAL_CHUNK:** {true_o_false}
+#### **Obiettivo Principale**
 
------
-**Input Primario (File HTML):**
+* **Estrarre la Struttura del Gioco:** Converte i paragrafi numerati in scene JSON, complete di testo, scelte e logica di gioco.  
+* **Interpretare la Logica:** Non si limita a estrarre testo, ma interpreta le regole e le condizioni narrative per generare i tag XML corretti (\<combat\>, \<ifCondition\>, \<randomCheck\>, ecc.).
 
-*(A questo punto, la tua istanza riceverà l'intero contenuto del file `Flight from the Dark.html`.)*
+#### **Come Funziona**
 
------
+1. **Input:** Richiede i seguenti parametri:  
+   * START\_SECTION: Il paragrafo da cui iniziare (obbligatorio).  
+   * END\_SECTION: Il paragrafo a cui fermarsi (opzionale).  
+   * IS\_FINAL\_CHUNK: true o false (usato solo se END\_SECTION è specificato).  
+2. **Processo:**  
+   * Applica le correzioni dall'Errata Corrige.  
+   * Si focalizza **esclusivamente** sul contenuto dei paragrafi numerati.  
+   * Analizza l'intervallo di paragrafi richiesto.  
+   * Estrae il testo narrativo e lo separa dalle meccaniche di gioco.  
+   * Converte le meccaniche di gioco in tag XML, inserendole nell'array gameMechanics.  
+3. **Output:** Un array JSON di scene.  
+   * Se END\_SECTION non viene specificato, l'output è un file JSON completo e chiuso (IS\_FINAL\_CHUNK è considerato true).  
+   * Se END\_SECTION viene specificato, l'output è un frammento che può essere concatenato con altri.
 
-**Istruzioni Dettagliate:**
+### **Flusso di Lavoro Consigliato**
 
-Analizza i paragrafi numerati del libro-gioco compresi esclusivamente tra **START_SECTION** e **END_SECTION**. Applica le seguenti istruzioni con la massima precisione.
+1. **Esegui il Prompt degli Oggetti:** Passagli il file HTML del libro per generare il file items.json completo.  
+2. **Esegui il Prompt delle Scene:** Passagli lo stesso file HTML e i parametri START\_SECTION (ed eventualmente END\_SECTION) per generare il file scenes.json.
 
-**Passo 1: Applicazione dell'Errata Corige**
+Seguendo questo processo in due fasi, otterrai un set di dati pulito, normalizzato e molto più facile da gestire per il tuo motore di gioco.
 
-(Questa sezione rimane invariata, applica le correzioni al testo come prima)
-...
-
-**Passo 2: Estrazione e Strutturazione per Ogni Paragrafo**
-
-(La struttura JSON della singola scena rimane invariata)
-...
-
-**Passo 3: Regole di Estrazione, Arricchimento Tag e Ottimizzazione del Testo**
-
-(Tutte le regole per estrarre dati e aggiungere tag rimangono invariate)
-...
-
------
-
-**Passo 4: Formattazione Finale dell'Output (Logica Condizionale)**
-
-Questa è la regola più importante. Formatta il tuo output finale basandoti sui **Parametri di Esecuzione**:
-
-1.  **SE `START_SECTION` è `1`:**
-    * Inizia il tuo output con la struttura di apertura del JSON: `{ "adventureName": "Flight from the Dark", "scenes": [` (Estrai il nome dell'avventura dal tag `<h1>` o `<title>`).
-
-2.  **GENERAZIONE DEGLI OGGETTI SCENA:**
-    * Genera gli oggetti JSON per ogni scena nel range specificato.
-    * Aggiungi una virgola (`,`) dopo ogni oggetto JSON, **TRANNE** l'ultimo oggetto dell'ultimo blocco (cioè quando `IS_FINAL_CHUNK` è `true`).
-
-3.  **SE `IS_FINAL_CHUNK` è `true`:**
-    * Dopo l'ultimo oggetto JSON (che non avrà la virgola), chiudi la struttura con: `] }`
-
-4.  **SE NÉ `START_SECTION` è `1` NÉ `IS_FINAL_CHUNK` è `true` (blocco intermedio):**
-    * Genera **SOLO** la lista degli oggetti JSON, ognuno seguito da una virgola. Non includere né l'apertura `{ "adventureName": ... [` né la chiusura `] }`.
-
-**Non aggiungere commenti o testo esplicativo al di fuori del JSON.**
-
-```
-
------
-
-### Come Usare il Nuovo Prompt
-
-Ora, quando mi chiederai di generare il file, dovrai solo compilare i parametri all'inizio.
-
-**Esempio 1: Primo Blocco (paragrafi 1-120)**
-
-```
-...
-* START_SECTION: 1
-* END_SECTION: 120
-* IS_FINAL_CHUNK: false
-...
-```
-
-**Output atteso:**
-
-```json
-{
-  "adventureName": "Flight from the Dark",
-  "scenes": [
-    {... scen_1 ...},
-    {... scen_2 ...},
-    ...
-    {... scen_120 ...},
-```
-
-**Esempio 2: Blocco Intermedio (paragrafi 121-240)**
-
-```
-...
-* START_SECTION: 121
-* END_SECTION: 240
-* IS_FINAL_CHUNK: false
-...
-```
-
-**Output atteso:**
-
-```json
-    {... scen_121 ...},
-    {... scen_122 ...},
-    ...
-    {... scen_240 ...},
-```
-
-**Esempio 3: Blocco Finale (paragrafi 241-350)**
-
-```
-...
-* START_SECTION: 241
-* END_SECTION: 350
-* IS_FINAL_CHUNK: true
-...
-```
-
-**Output atteso:**
-
-```json
-    {... scen_241 ...},
-    ...
-    {... scen_350 ...}
-  ]
-}
-```
-
-In questo modo, potrai semplicemente copiare e incollare gli output uno dopo l'altro per formare un unico file `scenes.json` valido, senza più dover fare pulizia manuale.
-
-Questa nuova versione del prompt è pronta. Ora dimmi pure qual era l'aggiunta che ti interessava, così la integriamo nel nostro piano d'azione.
+(consiglio giro di test RUN o DEBUG).
