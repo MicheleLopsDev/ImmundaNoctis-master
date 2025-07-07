@@ -92,7 +92,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val playerEngine: InferenceEngine
     private val translationEngine = TranslationEngine()
     private lateinit var stringTagParser: StringTagParser
-    private lateinit var gameLogicManager: GameLogicManager
 
     private val _currentScene = MutableStateFlow<Scene?>(null)
     val currentScene: StateFlow<Scene?> get() = _currentScene
@@ -135,7 +134,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             playerEngine = LlamaCppEngine(application.applicationContext)
         }
         stringTagParser = StringTagParser(application.applicationContext)
-        gameLogicManager = GameLogicManager(application.applicationContext)
+        viewModelScope.launch(Dispatchers.IO) {
+            GameLogicManager.loadAllScenes(application.applicationContext)
+        }
     }
 
     val activeTokenInfo: StateFlow<TokenInfo> = conversationTargetId.flatMapLatest { targetId ->
@@ -177,9 +178,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         if (actualIsNewAdventure) {
             _sessionName.value =
-                gameLogicManager.adventureName
-            gameLogicManager.resetUsedScenes()
-            _currentScene.value = gameLogicManager.selectRandomStartScene(Genre.FANTASY)
+                GameLogicManager.adventureName
+            GameLogicManager.resetUsedScenes()
+            _currentScene.value = GameLogicManager.selectRandomStartScene(Genre.FANTASY)
             log("Scena iniziale NUOVA AVVENTURA impostata da GameLogicManager: ${_currentScene.value?.id ?: "Nessuna scena iniziale"}. Nome Avventura: ${_sessionName.value}")
             viewModelScope.launch {
                 sendInitialDmPrompt(currentSession)
@@ -187,9 +188,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         } else {
             val lastSceneId = currentSession.usedScenes.lastOrNull()
             _currentScene.value = if (lastSceneId != null) {
-                gameLogicManager.getSceneById(lastSceneId)
+                GameLogicManager.getSceneById(lastSceneId)
             } else {
-                gameLogicManager.selectRandomStartScene(Genre.FANTASY)
+                GameLogicManager.selectRandomStartScene(Genre.FANTASY)
             }
             log("Scena sessione esistente impostata a: ${_currentScene.value?.id ?: "Nessuna scena valida trovata. Riprovo con casuale START."}")
             viewModelScope.launch {
@@ -525,9 +526,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
             engineToUse.resetSession(systemPromptForReset)
             log("Reset della sessione completato per ${engineToUse::class.simpleName}.")
-            _currentScene.value = gameLogicManager.selectRandomStartScene(Genre.FANTASY)
+            _currentScene.value = GameLogicManager.selectRandomStartScene(Genre.FANTASY)
             log("Scena reimpostata a una scena START casuale di genere FANTASY.")
-            gameLogicManager.resetUsedScenes()
+            GameLogicManager.resetUsedScenes()
             val currentSession =
                 gameStateManager.loadSession() ?: gameStateManager.createDefaultSession()
             if (_currentScene.value?.id != null) {
@@ -1102,7 +1103,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun navigateToScene(sceneId: String) {
         viewModelScope.launch {
-            val nextScene = gameLogicManager.getSceneById(sceneId)
+            val nextScene = GameLogicManager.getSceneById(sceneId)
             if (nextScene != null) {
                 log("Navigazione alla scena: ${nextScene.id}")
 

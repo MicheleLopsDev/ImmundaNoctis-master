@@ -2,89 +2,103 @@ package io.github.luposolitario.immundanoctis.engine
 
 import android.content.Context
 import android.util.Log
-import com.google.gson.GsonBuilder
+import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import io.github.luposolitario.immundanoctis.data.Genre
-import io.github.luposolitario.immundanoctis.data.Scene
-import io.github.luposolitario.immundanoctis.data.SceneType
-import io.github.luposolitario.immundanoctis.data.ScenesWrapper
+import io.github.luposolitario.immundanoctis.data.*
 import io.github.luposolitario.immundanoctis.util.SavePreferences
-import io.github.luposolitario.immundanoctis.util.getAppSpecificDirectory
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.FileInputStream
 import java.io.InputStream
 import java.util.Collections
 import kotlin.random.Random
 
 /**
- * Gestisce la logica centrale relativa alle scene di gioco.
- * Include il caricamento, la selezione casuale di scene iniziali e il tracciamento delle scene usate.
- * Ora è responsabile anche del caricamento delle scene da assets.
+ * Gestisce il caricamento e l'accesso alle scene del gioco da un file JSON.
+ * Utilizza un pattern Singleton per garantire che i dati delle scene siano caricati una sola volta.
  */
-class GameLogicManager(private val context: Context) {
-
-    private val savePreferences by lazy { SavePreferences(context) }
+object GameLogicManager {
     private val tag = "GameLogicManager"
-    private var allScenes: List<Scene> = emptyList()
-    private val usedScenesInSession: MutableSet<String> = Collections.synchronizedSet(mutableSetOf())
-
     private var _adventureName: String = "" // Nuovo campo per memorizzare il nome dell'avventura
     val adventureName: String get() = _adventureName  // Esposizione pubblica del nome
+    // Variabili per la cache
+    private var scenesCache: List<Scene> = emptyList()
 
-    init {
-        loadAllScenes()
-    }
+    private val usedScenesInSession: MutableSet<String> = Collections.synchronizedSet(mutableSetOf())
 
-    private fun loadAllScenes() {
-        var scenesStream: InputStream? = null
+    private var currentLoadedPath: String? = null
+
+    /**
+     * Carica tutte le scene dal file JSON specificato nelle preferenze.
+     * Esegue il parsing solo se il file non è già stato caricato in memoria.
+     */
+    suspend fun loadAllScenes(context: Context) = withContext(Dispatchers.IO) {
+
+        val scenesPath = SavePreferences(context).scenesPath ?: return@withContext
+        val inputStream: InputStream?  = null
+
+            // GUARDIA DI CONTROLLO: Se il file richiesto è già in cache, non fare nulla.
+        if (scenesPath == currentLoadedPath && scenesCache.isNotEmpty()) {
+            Log.d("GameLogicManager", "Scene da '$scenesPath' già presenti in cache. Salto parsing.")
+            return@withContext
+        }
+
+        Log.d("GameLogicManager", "Inizio caricamento e parsing da '$scenesPath'.")
         try {
-            scenesStream = FileInputStream(savePreferences.scenesPath!!)
-            val gson = GsonBuilder().create()
+            val inputStream = FileInputStream(scenesPath)
+            val jsonString = inputStream.bufferedReader().use { it.readText() }
+            val gson = Gson()
             val type = object : TypeToken<ScenesWrapper>() {}.type
-            val wrapper: ScenesWrapper = gson.fromJson(scenesStream.reader(), type)
-            allScenes = wrapper.scenes
-            // MODIFICATO: Gestione sicura di wrapper.adventureName
+
+            // Esegui il parsing solo se necessario
+            val wrapper: ScenesWrapper = gson.fromJson(jsonString, type)
+
+            // Salva i dati parsati nella cache
             _adventureName = wrapper.adventureName ?: "Avventura Caricata" // <-- Gestione del null qui, con un fallback
-            Log.d(tag, "Scene di gioco caricate con successo (${allScenes.size} scene). Avventura: $_adventureName")
+            scenesCache = wrapper.scenes
+            currentLoadedPath = scenesPath // Aggiorna il percorso del file in cache
+
+            Log.d("GameLogicManager", "Parsing completato. Avventura: '${wrapper.adventureName}'. Trovate ${scenesCache.size} scene.")
         } catch (e: Exception) {
-            Log.e(tag, "Errore durante il caricamento delle scene di gioco da scenes.json: ${e.message}", e)
-            allScenes = emptyList()
+            Log.e("GameLogicManager", "Errore durante il caricamento delle scene da '$scenesPath'", e)
+            // Pulisci la cache in caso di errore
             _adventureName = "Avventura Sconosciuta" // Fallback in caso di errore di caricamento
-        } finally {
-            scenesStream?.close()
+            scenesCache = emptyList()
+            currentLoadedPath = null
+        }finally {
+            inputStream?.close()
         }
     }
 
     /**
-     * Seleziona casualmente una scena di tipo START per un genere specifico.
-     * @param genre Il genere desiderato (es. Genre.WESTERN).
-     * @return Una Scene casuale di tipo START, o null se non ne vengono trovate.
+     * Forza il ricaricamento delle scene dal file, invalidando la cache attuale.
+     * Da usare solo quando l'utente cambia esplicitamente il file delle scene.
      */
-    fun selectRandomStartScene(genre: Genre): Scene? {
-        val startScenes = allScenes.filter {
-            it.sceneType == SceneType.START && it.genre == genre
-            // Potresti aggiungere anche && !usedScenesInSession.contains(it.id)
-            // se non vuoi ripetere scene START nella stessa sessione.
-        }
+    suspend fun forceReloadScenesFromFile(context: Context) {
+        Log.d("GameLogicManager", "Forzatura ricaricamento scene.")
+        // Invalida la cache
+        currentLoadedPath = null
+        scenesCache = emptyList()
+        // Chiama la logica di caricamento
+        loadAllScenes(context)
+    }
 
-        if (startScenes.isEmpty()) {
-            Log.e(tag, "Nessuna scena START trovata per il genere: $genre")
+    fun getSceneById(id: String): Scene? {
+        if (scenesCache.isEmpty()) {
+            Log.w("GameLogicManager", "Cache delle scene vuota. Chiamare loadAllScenes prima.")
             return null
         }
-
-        val selectedScene = startScenes.random(Random)
-        Log.d(tag, "Scena START casuale selezionata: ${selectedScene.id} per genere $genre")
-        // Non la aggiungiamo a usedScenesInSession qui, perché viene gestita a livello di ViewModel
-        // quando la scena è effettivamente "presentata" al giocatore.
-        return selectedScene
+        return scenesCache.find { it.id == id }
     }
 
-    /**
-     * Recupera una scena dal suo ID.
-     * @param sceneId L'ID della scena da cercare.
-     * @return La Scene corrispondente, o null se non trovata.
-     */
-    fun getSceneById(sceneId: String): Scene? {
-        return allScenes.find { it.id == sceneId }
+    fun selectRandomStartScene(genre: Genre): Scene? {
+        if (scenesCache.isEmpty()) return null
+        val startScenes = scenesCache.filter { it.sceneType == SceneType.START  && it.genre == genre }
+        return if (startScenes.isNotEmpty()) {
+            startScenes[Random.nextInt(startScenes.size)]
+        } else {
+            scenesCache.firstOrNull()
+        }
     }
 
     /**
@@ -103,4 +117,6 @@ class GameLogicManager(private val context: Context) {
         usedScenesInSession.clear()
         Log.d(tag, "Lista scene usate resettata.")
     }
+
+
 }

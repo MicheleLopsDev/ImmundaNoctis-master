@@ -59,14 +59,12 @@ class SetupViewModel() : ViewModel() {
     private lateinit var savePreferences: SavePreferences
     private lateinit var applicationContext: Context
     // NUOVO: Dichiarazione di gameLogicManager
-    private lateinit var gameLogicManager: GameLogicManager
 
 
     fun initialize(context: Context) {
         this.applicationContext = context
         this.savePreferences = SavePreferences(context)
         // NUOVO: Inizializzazione di gameLogicManager qui
-        this.gameLogicManager = GameLogicManager(context)
         _uiState.update { it.copy(currentScenesJsonPath = savePreferences.scenesPath) }
         Log.d(tag, "ViewModel Inizializzato.")
     }
@@ -118,6 +116,9 @@ class SetupViewModel() : ViewModel() {
                 savePreferences.scenesPath = destinationFile.absolutePath
                 _uiState.update { it.copy(currentScenesJsonPath = destinationFile.absolutePath) }
                 Log.d(tag, "File JSON copiato con successo: ${destinationFile.absolutePath}")
+
+                // Usa il nuovo metodo per forzare il ricaricamento e invalidare la cache
+                GameLogicManager.forceReloadScenesFromFile(applicationContext)
 
             } catch (e: Exception) {
                 Log.e(tag, "Errore durante la copia del file JSON: ${e.message}", e)
@@ -247,7 +248,7 @@ class SetupViewModel() : ViewModel() {
         }
 
         val finalSession = defaultSession.copy(
-            sessionName = gameLogicManager.adventureName,
+            sessionName = GameLogicManager.adventureName,
             lastUpdate = System.currentTimeMillis(),
             characters = updatedCharacters,
             isStarted = false, // Verrà impostato a true da MainViewModel.sendInitialDmPrompt

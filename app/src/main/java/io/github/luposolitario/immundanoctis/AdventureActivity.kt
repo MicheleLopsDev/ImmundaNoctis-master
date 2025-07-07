@@ -106,13 +106,16 @@ class AdventureActivity : ComponentActivity() {
     private var ttsService: TtsService? = null
     private val savePreferences by lazy { SavePreferences(applicationContext) }
     private lateinit var gameStateManager: GameStateManager
-    private lateinit var gameLogicManager: GameLogicManager
     private val currentSceneFlow = MutableStateFlow<Scene?>(null)
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Assicuriamoci che le scene siano caricate prima di fare qualsiasi altra cosa
+        lifecycleScope.launch {
+            GameLogicManager.loadAllScenes(applicationContext)
+            // La chiamata al ViewModel ora può procedere sapendo che il manager è pronto
+        }
         gameStateManager = GameStateManager(applicationContext)
-        gameLogicManager = GameLogicManager(applicationContext)
 
         val session = gameStateManager.loadSession() ?: gameStateManager.createDefaultSession()
         super.onCreate(savedInstanceState)
@@ -301,7 +304,7 @@ class AdventureActivity : ComponentActivity() {
 
         if (!session.isStarted) {
             currentSceneFlow.value =
-                gameLogicManager.selectRandomStartScene(Genre.FANTASY)
+                GameLogicManager.selectRandomStartScene(Genre.FANTASY)
             Log.d(
                 tag,
                 "Scena iniziale NUOVA AVVENTURA impostata da GameLogicManager: ${currentSceneFlow.value?.id ?: "Nessuna scena iniziale"}"
@@ -313,9 +316,9 @@ class AdventureActivity : ComponentActivity() {
         } else {
             val lastSceneId = session.usedScenes.lastOrNull()
             currentSceneFlow.value = if (lastSceneId != null) {
-                gameLogicManager.getSceneById(lastSceneId)
+                GameLogicManager.getSceneById(lastSceneId)
             } else {
-                gameLogicManager.selectRandomStartScene(Genre.FANTASY)
+                GameLogicManager.selectRandomStartScene(Genre.FANTASY)
             }
             Log.d(
                 tag,
