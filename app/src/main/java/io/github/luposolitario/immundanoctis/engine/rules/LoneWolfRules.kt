@@ -32,7 +32,7 @@ class LoneWolfRules : GameRulesEngine {
         }
 
         // La scena deve permettere l'uso di quella disciplina
-        val sceneAllowsDiscipline = scene.disciplineChoices?.any { it.disciplineId == disciplineId } ?: false
+        val sceneAllowsDiscipline = scene.disciplineChoices?.any { it.discipline == disciplineId } ?: false
 
         return sceneAllowsDiscipline
     }

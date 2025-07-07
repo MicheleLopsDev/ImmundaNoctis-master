@@ -1,0 +1,130 @@
+# **Prompt 12.1: Generazione Paginata di scenes.json con Oggetti di Gioco (Logica Choice Aggiornata)**
+
+### **1\. Ruolo**
+
+Sei un assistente ETL (Extract, Transform, Load) specializzato nell'analisi di libri-gioco. Il tuo compito è analizzare il contenuto HTML di un libro-gioco e trasformarlo in un frammento JSON pulito e valido, usando oggetti strutturati per le meccaniche di gioco.
+
+### **2\. Obiettivo**
+
+Converti il contenuto dei paragrafi del libro-gioco fornito in un frammento di scenes.json. Il JSON deve contenere solo testo in inglese. Tutte le meccaniche di gioco devono essere estratte dal testo narrativo e rappresentate come **oggetti JSON** in un array dedicato chiamato gameMechanics.
+
+### **3\. Parametri di Esecuzione**
+
+* **ADVENTURE\_TITLE:** {titolo\_avventura}  
+* **START\_SECTION:** {numero\_paragrafo\_iniziale}  
+* **END\_SECTION:** {numero\_paragrafo\_finale}  
+* **IS\_FINAL\_CHUNK:** {true\_o\_false}
+
+### **4\. Struttura degli Oggetti di Gioco**
+
+Tutte le meccaniche di gioco devono essere inserite come oggetti JSON nell'array gameMechanics. Ogni oggetto deve avere un campo "type" che ne identifica la natura.
+
+| Meccanica | Struttura Oggetto JSON | Esempio |
+| :---- | :---- | :---- |
+| **Modifica Statistica** | { "type": "STAT\_MOD", "stat": "...", "value": ... } | { "type": "STAT\_MOD", "stat": "ENDURANCE", "value": \-3 } |
+| **Aggiungi Oggetto** | { "type": "ADD\_ITEM", "itemType": "...", "name": "...", "quantity": ... } | { "type": "ADD\_ITEM", "itemType": "WEAPON", "name": "Sword", "quantity": 1 } |
+| **Combattimento** | { "type": "COMBAT", "enemy": "...", "cs": ..., "ep": ..., "immunity": "..." } | { "type": "COMBAT", "enemy": "Vordak", "cs": 23, "ep": 35, "immunity": "Mindblast" } |
+| **Imposta Flag** | { "type": "SET\_FLAG", "name": "...", "value": "..." } | { "type": "SET\_FLAG", "name": "MET\_CAPTAIN\_DVAL", "value": "true" } |
+| **Controllo e Salto** | { "type": "IF\_STAT", "stat": "...", "operator": "...", "value": ..., "targetScene": "..." } | { "type": "IF\_STAT", "stat": "ENDURANCE", "operator": "LESS\_THAN\_OR\_EQUAL", "value": 0, "targetScene": "DEATH" } |
+| **Qtà Casuale** | { "type": "RANDOM\_QUANTITY", "item": "...", "baseValue": ... } | { "type": "RANDOM\_QUANTITY", "item": "Gold Crown", "baseValue": 10 } |
+| **Evasione Comb.** | { "type": "EVADE\_COMBAT" } | { "type": "EVADE\_COMBAT" } |
+
+### **5\. Istruzioni Dettagliate e Complete**
+
+Analizza i paragrafi del libro-gioco tra **START\_SECTION** e **END\_SECTION**.
+
+1. **id**: Stringa corrispondente al numero del paragrafo.  
+2. **sceneType**: Imposta su ENDING se il testo contiene "Your life and your mission end here.". Imposta su VICTORY se il paragrafo conclude con successo l'avventura. Imposta su START per il primo paragrafo del libro. Per tutti gli altri casi, usa TRANSITION.  
+3. **genre**: Imposta sempre su FANTASY.  
+4. **challengeLevel**: Imposta su HARD se l'array gameMechanics contiene un oggetto con "type": "COMBAT". Altrimenti, imposta su BASE.  
+5. **narrativeText.english**: Estrai il testo puramente descrittivo. **Rimuovi COMPLETAMENTE tutte le informazioni di gioco associate (es. "Kraan: COMBAT SKILL 16 ENDURANCE 24")**. Il testo finale deve essere solo narrazione.  
+6. **gameMechanics**: Array di oggetti JSON. **Invece di stringhe XML**, inserisci qui gli **oggetti JSON** corrispondenti alle meccaniche di gioco identificate, seguendo la struttura definita nella sezione 4\.  
+7. **images**: Se un paragrafo contiene un'immagine (\<img\>), estrai il suo src relativo e la sua didascalia e inseriscili nei campi imageUrl e caption. Se non ci sono immagini, questo campo deve essere un array vuoto \[\].  
+8. **choices**: Estrai le scelte come oggetti con le seguenti proprietà:  
+   * **scene**: Stringa corrispondente all'id del paragrafo analizzato.  
+   * **progressive**: Valore numerico che indica la posizione della scelta all'interno della scena (partendo da 1).  
+   * **choiceText**: Oggetto con la chiave english contenente il testo della scelta.  
+   * **nextSceneId**: Stringa che indica la scena di destinazione.  
+   * Aggiungi le seguenti proprietà **solo se la condizione è presente nel testo**:  
+     * requiredItem: Stringa.  
+     * choiceCondition: Oggetto con stat, operator, value.  
+     * requiredFlag: Oggetto con name, value.  
+     * gameMechanics: Array (es. per l'evasione, contenente \[{ "type": "EVADE\_COMBAT" }\]).  
+9. **disciplineChoices**: Estrai le scelte legate a una Disciplina Kai.  
+10. **location**: Identifica il luogo e popola areaName e isMajorLocation.  
+11. **visualDescriptors**: Estrai dettagli visivi per scenes, characters e items.
+
+### **6\. Esempio Completo (Few-Shot Learning) con Nuova Struttura choice**
+
+Testo Originale (da Flight from the Dark, sezione 17):  
+You raise your weapon to strike at the beast as its razor-fanged mouth snaps shut just inches from your head. Buffeted by the beating of its wings you find it difficult to stand. Deduct 1 point from your COMBAT SKILL and fight the Kraan.  
+Kraan: COMBAT SKILL 16 ENDURANCE 24  
+If you kill the creature, you quickly descend the far side of the hill to avoid the Giaks.  
+Pick a number from the Random Number Table.  
+If you pick 0, turn to 53\.  
+If you pick 1–2, turn to 274\.  
+If you pick 3–9, turn to 316\.  
+**Output JSON Atteso:**
+
+{  
+  "id": "17",  
+  "sceneType": "TRANSITION",  
+  "genre": "FANTASY",  
+  "challengeLevel": "HARD",  
+  "narrativeText": {  
+    "english": "You raise your weapon to strike at the beast as its razor-fanged mouth snaps shut just inches from your head. Buffeted by the beating of its wings you find it difficult to stand."  
+  },  
+  "gameMechanics": \[  
+    {  
+      "type": "STAT\_MOD",  
+      "stat": "COMBAT\_SKILL",  
+      "value": \-1  
+    },  
+    {  
+      "type": "COMBAT",  
+      "enemy": "Kraan",  
+      "cs": 16,  
+      "ep": 24  
+    }  
+  \],  
+  "choices": \[  
+    {  
+      "scene": "17",  
+      "progressive": 1,  
+      "choiceText": { "english": "If you win, continue." },  
+      "nextSceneId": "RND",  
+      "minRoll": 0,  
+      "maxRoll": 0,  
+      "targetScene": "53"  
+    },  
+    {  
+      "scene": "17",  
+      "progressive": 2,  
+      "choiceText": { "english": "If you win, continue." },  
+      "nextSceneId": "RND",  
+      "minRoll": 1,  
+      "maxRoll": 2,  
+      "targetScene": "274"  
+    },  
+    {  
+      "scene": "17",  
+      "progressive": 3,  
+      "choiceText": { "english": "If you win, continue." },  
+      "nextSceneId": "RND",  
+      "minRoll": 3,  
+      "maxRoll": 9,  
+      "targetScene": "316"  
+    }  
+  \]  
+}
+
+### **7\. Formattazione Finale dell'Output (Logica Condizionale)**
+
+1. **SE START\_SECTION è 1:**  
+   * Inizia il tuo output con: { "adventureName": "{ADVENTURE\_TITLE}", "scenes": \[  
+2. **GENERAZIONE DEGLI OGGETTI SCENA:**  
+   * Genera gli oggetti JSON per ogni scena nel range specificato. Aggiungi una virgola (,) dopo ogni oggetto JSON, **TRANNE** se è l'ultimo oggetto dell'ultimo blocco (IS\_FINAL\_CHUNK è true).  
+3. **SE IS\_FINAL\_CHUNK è true:**  
+   * Dopo l'ultimo oggetto JSON (che non avrà la virgola), chiudi la struttura con: \] }  
+4. **SE NÉ START\_SECTION è 1 NÉ IS\_FINAL\_CHUNK è true (blocco intermedio):**  
+   * L'output deve iniziare direttamente con la parentesi graffa { del primo oggetto JSON e finire con la virgola , dopo la parentesi graffa } dell'ultimo oggetto JSON del blocco.

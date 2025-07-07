@@ -39,16 +39,16 @@ import java.util.Locale // AGGIUNTO IMPORT
  */
 fun getIconForDiscipline(disciplineId: String): ImageVector {
     return when (disciplineId) {
-        "CAMOUFLAGE" -> Icons.Default.VisibilityOff
-        "HUNTING" -> Icons.Default.Pets
-        "SIXTH_SENSE" -> Icons.Default.Hearing
-        "TRACKING" -> Icons.Default.LocationSearching
-        "HEALING" -> Icons.Default.Healing
-        "WEAPONSKILL" -> Icons.Default.Shield
-        "MINDSHIELD" -> Icons.Default.Security
-        "MINDBLAST" -> Icons.Default.Psychology
-        "ANIMAL_KINSHIP" -> Icons.Default.Group
-        "MIND_OVER_MATTER" -> Icons.Default.Star
+        "Camouflage" -> Icons.Default.VisibilityOff
+        "Hunting" -> Icons.Default.Pets
+        "Sixth Sense" -> Icons.Default.Hearing
+        "Tracking" -> Icons.Default.LocationSearching
+        "Healing" -> Icons.Default.Healing
+        "Weaponskill" -> Icons.Default.Shield
+        "Mindshield" -> Icons.Default.Security
+        "Mindblast" -> Icons.Default.Psychology
+        "Animal Kinship" -> Icons.Default.Group
+        "Mind Over Matter" -> Icons.Default.Star
         else -> Icons.Default.HelpOutline
     }
 }

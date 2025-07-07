@@ -59,13 +59,13 @@ fun ChoicesContainer(
 
         disciplineChoices.forEach { choice ->
 
-            val disciplineInfo = KAI_DISCIPLINES.sortedBy { it.id }.find { it.id == choice.disciplineId }
+            val disciplineInfo = KAI_DISCIPLINES.sortedBy { it.id }.find { it.id == choice.discipline }
             val cardText = choice.choiceText?.italian ?: disciplineInfo?.name ?: "Azione Speciale"
 
             ActionChoiceCard(
                 text = cardText,
                 isSpecial = true,
-                icon = getIconForDiscipline(choice.disciplineId),
+                icon = getIconForDiscipline(choice.discipline),
                 onClick = { onDisciplineChoice(choice) }
             )
         }

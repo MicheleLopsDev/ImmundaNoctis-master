@@ -131,16 +131,16 @@ fun PlayerActionsBar(
 // Funzione helper per ottenere il nome localizzato della disciplina
 private fun getDisciplineName(disciplineId: String): String {
     return when (disciplineId) {
-        "CAMOUFLAGE" -> "Mimetismo"
-        "HUNTING" -> "Caccia"
-        "SIXTH_SENSE" -> "Sesto Senso"
-        "TRACKING" -> "Orientamento"
-        "HEALING" -> "Guarigione"
-        "WEAPONSKILL" -> "Scherma"
-        "MINDSHIELD" -> "Psicoschermo"
-        "MINDBLAST" -> "Psicolaser"
-        "ANIMAL_KINSHIP" -> "Affinità Animale"
-        "MIND_OVER_MATTER" -> "Telecinesi"
+        "Camouflage" -> "Mimetismo"
+        "Hunting" -> "Caccia"
+        "Sixth Sense" -> "Sesto Senso"
+        "Tracking" -> "Orientamento"
+        "Healing" -> "Guarigione"
+        "Weaponskill" -> "Scherma"
+        "Mindshield" -> "Psicoschermo"
+        "Mindblast" -> "Psicolaser"
+        "Animal Kinship" -> "Affinità Animale"
+        "Mind Over Matter" -> "Telecinesi"
         else -> disciplineId
     }
 }

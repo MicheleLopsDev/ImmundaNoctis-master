@@ -106,7 +106,8 @@ data class RequiredFlag(
 )
 
 data class NarrativeChoice(
-    val id: String,
+    val scene: String,
+    val progressive: String,
     val choiceText: LocalizedText,
     val nextSceneId: String,
     val minRoll: Int? = null,
@@ -115,7 +116,7 @@ data class NarrativeChoice(
     val requiredItem: String? = null,
     val choiceCondition: ChoiceCondition? = null,
     val requiredFlag: RequiredFlag? = null,
-    val gameMechanics: List<String>? = null
+    val gameMechanics: List<GameMechanic>? = null
 )
 
 data class LoneWolfStats(
@@ -175,7 +176,8 @@ data class GameCharacter(
 }
 
 data class DisciplineChoice(
-    val disciplineId: String,
+    val scene: String,
+    val discipline: String,
     val choiceText: LocalizedText?,
     val nextSceneId: String
 )
@@ -191,7 +193,7 @@ data class Scene(
     val location: LocationInfo? = null,
     val challengeLevel: ChallengeLevel,
     val commands: List<String>? = null, // <-- AGGIUNGI QUESTA RIGA
-    val gameMechanics:  List<String>? = null
+    val gameMechanics:  List<GameMechanic>? = null
 ) {
 
 }
@@ -207,16 +209,16 @@ data class TagParameter(
 data class KaiDisciplineInfo(val id: String, val name: String, val description: String)
 
 val KAI_DISCIPLINES = listOf(
-    KaiDisciplineInfo("WEAPONSKILL", "Scherma", "+2 Combattività con un tipo di arma."), // Descrizione per il giocatore
-    KaiDisciplineInfo("CAMOUFLAGE", "Mimetismo", "Permette di nascondersi e passare inosservato."),
-    KaiDisciplineInfo("HUNTING", "Caccia", "Permette di trovare sempre cibo, non richiede Pasti."),
-    KaiDisciplineInfo("SIXTH_SENSE", "Sesto Senso", "Avverte di pericoli imminenti."),
-    KaiDisciplineInfo("TRACKING", "Orientamento", "Permette di seguire tracce e non perdersi."),
-    KaiDisciplineInfo("HEALING", "Guarigione", "Ripristina 1 punto Resistenza per sezione senza combattimento."),
-    KaiDisciplineInfo("MINDSHIELD", "Psicoschermo", "Immunità agli attacchi psichici."),
-    KaiDisciplineInfo("MINDBLAST", "Psicolaser", "+2 Combattività in combattimento."),
-    KaiDisciplineInfo("ANIMAL_KINSHIP", "Affinità Animale", "Permette di comunicare con gli animali."),
-    KaiDisciplineInfo("MIND_OVER_MATTER", "Telecinesi", "Permette di muovere piccoli oggetti con la mente.")
+    KaiDisciplineInfo("Weaponskill", "Scherma", "+2 Combattività con un tipo di arma."), // Descrizione per il giocatore
+    KaiDisciplineInfo("Camouflage", "Mimetismo", "Permette di nascondersi e passare inosservato."),
+    KaiDisciplineInfo("Hunting", "Caccia", "Permette di trovare sempre cibo, non richiede Pasti."),
+    KaiDisciplineInfo("Sixth Sense", "Sesto Senso", "Avverte di pericoli imminenti."),
+    KaiDisciplineInfo("Tracking", "Orientamento", "Permette di seguire tracce e non perdersi."),
+    KaiDisciplineInfo("Healing", "Guarigione", "Ripristina 1 punto Resistenza per sezione senza combattimento."),
+    KaiDisciplineInfo("Mindshield", "Psicoschermo", "Immunità agli attacchi psichici."),
+    KaiDisciplineInfo("Mindblast", "Psicolaser", "+2 Combattività in combattimento."),
+    KaiDisciplineInfo("Animal Kinship", "Affinità Animale", "Permette di comunicare con gli animali."),
+    KaiDisciplineInfo("Mind Over Matter", "Telecinesi", "Permette di muovere piccoli oggetti con la mente.")
 )
 
 enum class WeaponType {
@@ -317,11 +319,11 @@ data class EngineCommand(
 
 data class SceneImage(
     val imageUrl: String,
-    val caption: LocalizedText?
+    val caption: String
 )
 
 data class LocationInfo(
-    val areaName: LocalizedText,
+    val areaName: String,
     val coordinates: String? = null,
     val isMajorLocation: Boolean = false
 )
@@ -339,4 +341,22 @@ data class SessionData(
     val characters: List<GameCharacter>,
     val usedScenes: MutableList<String> = mutableListOf(),
     val isStarted: Boolean = false
+)
+
+data class GameMechanic(
+    val type: String, // Il nome del tag, es. "ADD_ITEM", "STAT_MOD", "COMBAT"
+    val name: String? = null,
+    val value: String? = null,
+    val itemType: String? = null,
+    val quantity: Int? = null,
+    val notes: String? = null,
+    val stat: String? = null,
+    val operator: String? = null,
+    val targetScene: String? = null,
+    val enemy: String? = null,
+    val cs: Int? = null,
+    val ep: Int? = null,
+    val immunity: String? = null,
+    val baseValue: Int? = null,
+    val item: String? = null
 )

@@ -698,10 +698,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
 
                 "updateChoiceText" -> {
-                    val choiceId = command.parameters["id"] as? String
+
+                    val sceneId = command.parameters["sceneId"] as? String
+                    val progressiveId = command.parameters["progressiveId"] as? String
                     val italianText = command.parameters["italianText"] as? String
-                    if (choiceId != null && italianText != null) {
-                        updateNarrativeChoiceText(choiceId, italianText)
+                    if (sceneId != null && progressiveId !=null && italianText != null) {
+                        updateNarrativeChoiceText(sceneId , progressiveId, italianText)
                     }
                 }
                 "updateDisciplineChoiceText" -> {
@@ -835,23 +837,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun updateNarrativeChoiceText(choiceId: String, italianText: String) {
+    private fun updateNarrativeChoiceText(sceneId: String, progressiveId: String,italianText: String) {
         _activeNarrativeChoices.update { currentChoices ->
             currentChoices.map { choice ->
-                if (choice.id == choiceId) {
+                if (choice.scene == sceneId && choice.progressive == progressiveId) {
                     choice.copy(choiceText = choice.choiceText.copy(italian = italianText))
                 } else {
                     choice
                 }
             }
         }
-        log("Testo per la scelta narrativa '$choiceId' aggiornato a: '$italianText'")
+        log("Testo per la scelta narrativa '$sceneId'_'$progressiveId' aggiornato a: '$italianText'")
     }
 
     private fun updateDisciplineChoiceText(disciplineId: String, italianText: String) {
         _activeDisciplineChoices.update { currentChoices ->
             currentChoices.map { choice ->
-                if (choice.disciplineId == disciplineId) {
+                if (choice.discipline == disciplineId) {
                     choice.copy(choiceText = choice.choiceText?.copy(italian = italianText))
                 } else {
                     choice
@@ -865,19 +867,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private fun buildGemmaPromptForScene(scene: Scene, lastMessageText: String): String {
         val sceneNarrativeEnglish = scene.narrativeText.english ?: ""
 
+        // Modificato per corrispondere al formato richiesto dal prompt migliorato
         val choicesForPrompt = activeNarrativeChoices.value.joinToString("\n") {
-            "CHOICE_ID: \"${it.id}\" -> TEXT: \"${it.choiceText.english}\""
+            "* SCELTA: ID_SCENA:\"${it.scene}\", ID_PROGRESSIVO:\"${it.progressive}\", TESTO: \"${it.choiceText.english}\""
         }.ifEmpty { "Nessuna scelta narrativa." }
 
+        // Modificato per corrispondere al formato richiesto dal prompt migliorato
         val disciplinesForPrompt = activeDisciplineChoices.value.joinToString("\n") {
-            val text = it.choiceText?.english ?: "Usa la disciplina ${it.disciplineId}"
-            "DISCIPLINE_CHOICE_ID: \"${it.disciplineId}\" -> TEXT: \"$text\""
+            val text = it.choiceText?.english ?: "Usa la disciplina ${it.discipline}"
+            "* DISCIPLINA: ID: \"${it.discipline}\", TESTO: \"$text\""
         }.ifEmpty { "Nessuna scelta di disciplina." }
 
         val currentTone = savePreferences.narrativeTone
         val sceneTypeInfo = "INFO: Il tipo di scena è '${scene.sceneType}' e il livello di sfida è '${scene.challengeLevel}'."
 
-        // --- PROMPT AGGIORNATO CON ISTRUZIONI PIÙ STRINGENTI ---
+        // --- PROMPT AGGIORNATO CON ISTRUZIONI PIÙ STRINGENTI E FORMATO SCELTE CORRETTO ---
         return """
         Tu sei il Dungeon Master per un libro-gioco. Il tuo compito è elaborare una scena per il giocatore.
         
@@ -888,7 +892,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         3.  **Formatta l'Output**:
             * Scrivi prima la narrazione tradotta e pulita.
             * Poi, aggiungi il separatore `--- TAGS ---`.
-            * Sotto il separatore, inserisci SOLO le traduzioni delle scelte che ti sono state fornite, usando i tag `<choice_it id="ID_DELLA_SCELTA">Testo Tradotto.</choice_it>` e `<discipline_it id="ID_DELLA_DISCIPLINA">Testo Tradotto.</discipline_it>`.
+            * Sotto il separatore, inserisci **TUTTE** le traduzioni delle scelte e delle discipline che ti sono state fornite in [SCELTE DA TRADURRE E INSERIRE NEI TAG], usando i seguenti formati:
+                * Per ogni SCELTA, usa il tag `<choice_it scene="ID_SCENA" progressivo="ID_PROGRESSIVO">Testo Tradotto.</choice_it>`.
+                * Per ogni DISCIPLINA, usa il tag `<discipline_it id="ID_DELLA_DISCIPLINA">Testo Tradotto.</discipline_it>`.
         
         **NON GENERARE MAI TAG di meccaniche di gioco come `<ADD_ITEM...>` o `<STAT_MOD...>` nella tua risposta.**
         
@@ -898,7 +904,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         
         [METADATI SCENA]
         $sceneTypeInfo
-
+    
         [CONTESTO DELL'AZIONE PRECEDENTE]
         $lastMessageText
         
@@ -914,11 +920,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         """.trimIndent()
     }
 
-    // Inserisci o sostituisci nel file: java/io/github/luposolitario/immundanoctis/view/MainViewModel.kt
-
-// Inserisci o sostituisci nel file: java/io/github/luposolitario/immundanoctis/view/MainViewModel.kt
-
-// Inserisci o sostituisci nel file: java/io/github/luposolitario/immundanoctis/view/MainViewModel.kt
 
     private suspend fun processCurrentSceneNarrative(shouldGenerateNarration: Boolean = true) {
         val scene = _currentScene.value ?: run {
@@ -932,17 +933,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             log("Trovate ${gameMechanics.size} meccaniche di gioco predefinite nella scena: $gameMechanics")
             val commandsToExecute = mutableListOf<EngineCommand>()
 
-            gameMechanics.forEach { mechanicString ->
-                // Usiamo il parser sulla singola stringa di meccanica
-                val (_, commands) = stringTagParser.parseAndReplaceWithCommands(mechanicString, CharacterType.DM)
-                commandsToExecute.addAll(commands)
-            }
-
-            if (commandsToExecute.isNotEmpty()) {
-                // -->> MODIFICA CRUCIALE: ESEGUIAMO SUBITO I COMANDI <<--
-                processCommands(commandsToExecute)
-                log("LOG SPECIALIZZATO: Eseguiti ${commandsToExecute.size} comandi da gameMechanics.")
-            }
+//            gameMechanics.forEach { mechanicString ->
+//                // Usiamo il parser sulla singola stringa di meccanica
+//                val (_, commands) = stringTagParser.parseAndReplaceWithCommands(mechanicString, CharacterType.DM)
+//                commandsToExecute.addAll(commands)
+//            }
+//
+//            if (commandsToExecute.isNotEmpty()) {
+//                // -->> MODIFICA CRUCIALE: ESEGUIAMO SUBITO I COMANDI <<--
+//                processCommands(commandsToExecute)
+//                log("LOG SPECIALIZZATO: Eseguiti ${commandsToExecute.size} comandi da gameMechanics.")
+//            }
         }
         // --- FINE FASE 1 ---
 
@@ -1061,7 +1062,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _activeNarrativeChoices.value = availableNarrativeChoices
 
             val availableDisciplineChoices = scene.disciplineChoices?.filter { disciplineChoice ->
-                gameRules.canUseDiscipline(hero, disciplineChoice.disciplineId, scene)
+                gameRules.canUseDiscipline(hero, disciplineChoice.discipline, scene)
             } ?: emptyList()
             _activeDisciplineChoices.value = availableDisciplineChoices
 
@@ -1082,8 +1083,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun onDisciplineChoiceSelected(choice: DisciplineChoice) {
         val choiceText =
             choice.choiceText?.italian
-                ?: KAI_DISCIPLINES.find { it.id == choice.disciplineId }?.name
-                ?: choice.disciplineId
+                ?: KAI_DISCIPLINES.find { it.id == choice.discipline }?.name
+                ?: choice.discipline
 
         val choiceMessage = ChatMessage(
             authorId = CharacterID.HERO,
