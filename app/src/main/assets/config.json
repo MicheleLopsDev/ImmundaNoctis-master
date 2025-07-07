@@ -3,7 +3,7 @@
     {
       "id": "narrative_choice_translation",
       "type": "dynamicText",
-      "regex": "<choice_it scene=\"(\\d+)\"\\s+progressivo=\"(\\d+)\">([^<]*)<\/choice_it>",
+      "regex": "<choice_it\\s+scene=\\\"(\\d+)\\\"\\s+progressivo=\\\"(\\d+)\\\">([^<]*)<\\/choice_it>",
       "replacement": null,
       "parameters": [
         { "name": "sceneId", "value": "{captured_value_from_regex_1}" },
@@ -17,7 +17,7 @@
     {
       "id": "discipline_choice_translation",
       "type": "dynamicText",
-      "regex": "<DISCIPLINE_IT id=\\\"([^\\\"]*)\\\">([^<]*)<\/discipline_it>",
+      "regex": "<DISCIPLINE_IT\\s+id=\\\"([^\\\"]*)\\\">([^<]*)<\\/discipline_it>",
       "replacement": null,
       "parameters": [
         { "name": "id", "value": "{captured_value_from_regex_1}" },
@@ -25,6 +25,155 @@
       ],
       "actor": "DM",
       "command": "updateDisciplineChoiceText",
+      "replace": true
+    },
+    {
+      "id": "add_item_tag",
+      "type": "gameMechanic",
+      "regex": "<addItem\\s+itemType=\\\"([^\\\"]*)\\\"\\s+itemName=\\\"([^\\\"]*)\\\"\\s+quantity=\\\"(\\d+)\\\"(?:\\s+modifier=\\\"([^\\\"]*)\\\")?(?:\\s+notes=\\\"([^\\\"]*)\\\")?\\s*/>",
+      "parameters": [
+        { "name": "itemType", "value": "{captured_value_from_regex_1}" },
+        { "name": "itemName", "value": "{captured_value_from_regex_2}" },
+        { "name": "quantity", "value": "{captured_value_from_regex_3}" },
+        { "name": "modifier", "value": "{captured_value_from_regex_4}" },
+        { "name": "notes", "value": "{captured_value_from_regex_5}" }
+      ],
+      "actor": "DM",
+      "command": "addItem",
+      "replace": true
+    },
+    {
+      "id": "remove_item_tag",
+      "type": "gameMechanic",
+      "regex": "<removeItem\\s+itemName=\\\"([^\\\"]*)\\\"\\s+quantity=\\\"(\\d+)\\\"\\s*/>",
+      "parameters": [
+        { "name": "itemName", "value": "{captured_value_from_regex_1}" },
+        { "name": "quantity", "value": "{captured_value_from_regex_2}" }
+      ],
+      "actor": "DM",
+      "command": "removeItem",
+      "replace": true
+    },
+    {
+      "id": "combat_tag",
+      "type": "gameMechanic",
+      "regex": "<combat\\s+enemyName=\\\"([^\\\"]*)\\\"\\s+combatSkill=\\\"(\\d+)\\\"\\s+endurance=\\\"(\\d+)\\\"(?:\\s+immunity=\\\"([^\\\"]*)\\\")?(?:\\s+bonusCS=\\\"([+-]?\\d+)\\\")?(?:\\s+bonusRounds=\\\"(\\d+)\\\")?\\s*/>",
+      "parameters": [
+        { "name": "enemyName", "value": "{captured_value_from_regex_1}" },
+        { "name": "combatSkill", "value": "{captured_value_from_regex_2}" },
+        { "name": "endurance", "value": "{captured_value_from_regex_3}" },
+        { "name": "immunity", "value": "{captured_value_from_regex_4}" },
+        { "name": "bonusCS", "value": "{captured_value_from_regex_5}" },
+        { "name": "bonusRounds", "value": "{captured_value_from_regex_6}" }
+      ],
+      "actor": "DM",
+      "command": "startCombat",
+      "replace": true
+    },
+    {
+      "id": "evade_combat_tag",
+      "type": "gameMechanic",
+      "regex": "<evadeCombat\\s*/>",
+      "parameters": [],
+      "actor": "DM",
+      "command": "evadeCombat",
+      "replace": true
+    },
+    {
+      "id": "require_action_tag",
+      "type": "gameMechanic",
+      "regex": "<requireAction\\s+action=\\\"([^\\\"]*)\\\"\\s+penaltyStat=\\\"([^\\\"]*)\\\"\\s+penaltyValue=\\\"([+-]?\\d+)\\\"\\s*/>",
+      "parameters": [
+        { "name": "action", "value": "{captured_value_from_regex_1}" },
+        { "name": "penaltyStat", "value": "{captured_value_from_regex_2}" },
+        { "name": "penaltyValue", "value": "{captured_value_from_regex_3}" }
+      ],
+      "actor": "DM",
+      "command": "requireAction",
+      "replace": true
+    },
+    {
+      "id": "remove_all_tag",
+      "type": "gameMechanic",
+      "regex": "<removeAll\\s+type=\\\"([^\\\"]*)\\\"\\s*/>",
+      "parameters": [
+        { "name": "type", "value": "{captured_value_from_regex_1}" }
+      ],
+      "actor": "DM",
+      "command": "removeAllItems",
+      "replace": true
+    },
+    {
+      "id": "heal_tag",
+      "type": "gameMechanic",
+      "regex": "<heal\\s+statName=\\\"([^\\\"]*)\\\"\\s+amount=\\\"(\\d+)\\\"\\s*/>",
+      "parameters": [
+        { "name": "statName", "value": "{captured_value_from_regex_1}" },
+        { "name": "amount", "value": "{captured_value_from_regex_2}" }
+      ],
+      "actor": "DM",
+      "command": "healStat",
+      "replace": true
+    },
+    {
+      "id": "set_flag_tag",
+      "type": "gameMechanic",
+      "regex": "<setFlag\\s+flagName=\\\"([^\\\"]*)\\\"\\s+value=\\\"([^\\\"]*)\\\"\\s*/>",
+      "parameters": [
+        { "name": "flagName", "value": "{captured_value_from_regex_1}" },
+        { "name": "flagValue", "value": "{captured_value_from_regex_2}" }
+      ],
+      "actor": "DM",
+      "command": "setFlag",
+      "replace": true
+    },
+    {
+      "id": "random_item_table_tag",
+      "type": "gameMechanic",
+      "regex": "<randomItemTable\\s+outcomes=\\\"(\\[[^\\]]*\\])\\\"\\s*/>",
+      "parameters": [
+        { "name": "outcomes", "value": "{captured_value_from_regex_1}" }
+      ],
+      "actor": "DM",
+      "command": "rollOnItemTable",
+      "replace": true
+    },
+    {
+      "id": "random_quantity_tag",
+      "type": "gameMechanic",
+      "regex": "<randomQuantity\\s+item=\\\"([^\\\"]*)\\\"\\s+baseValue=\\\"(\\d+)\\\"\\s*/>",
+      "parameters": [
+        { "name": "item", "value": "{captured_value_from_regex_1}" },
+        { "name": "baseValue", "value": "{captured_value_from_regex_2}" }
+      ],
+      "actor": "DM",
+      "command": "rollForQuantity",
+      "replace": true
+    },
+    {
+      "id": "stat_mod_tag",
+      "type": "gameMechanic",
+      "regex": "<statMod\\s+statName=\\\"([^\\\"]*)\\\"\\s+amount=\\\"([+-]?\\d+|-?FULL)\\\"\\s*/>",
+      "parameters": [
+        { "name": "statName", "value": "{captured_value_from_regex_1}" },
+        { "name": "amount", "value": "{captured_value_from_regex_2}" }
+      ],
+      "actor": "DM",
+      "command": "applyStatModifier",
+      "replace": true
+    },
+    {
+      "id": "if_stat_tag",
+      "type": "gameMechanic",
+      "regex": "<ifStat\\s+statName=\\\"([^\\\"]*)\\\"\\s+operator=\\\"([^\\\"]*)\\\"\\s+value=\\\"([+-]?\\d+)\\\"\\s+targetScene=\\\"([^\\\"]*)\\\"\\s*/>",
+      "parameters": [
+        { "name": "statName", "value": "{captured_value_from_regex_1}" },
+        { "name": "operator", "value": "{captured_value_from_regex_2}" },
+        { "name": "value", "value": "{captured_value_from_regex_3}" },
+        { "name": "targetScene", "value": "{captured_value_from_regex_4}" }
+      ],
+      "actor": "DM",
+      "command": "checkStatAndJump",
       "replace": true
     }
   ]

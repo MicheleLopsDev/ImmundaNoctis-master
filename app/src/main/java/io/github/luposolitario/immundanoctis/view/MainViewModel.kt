@@ -544,7 +544,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         return totalRoll
     }
 
-// Inserisci o sostituisci nel file: java/io/github/luposolitario/immundanoctis/view/MainViewModel.kt
 
     private suspend fun processCommands(commands: List<EngineCommand>) {
         if (commands.isEmpty()) {
@@ -781,7 +780,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                     log("STAT MOD: Resistenza modificata di $amount. Nuovo valore: $newEndurance")
                                 }
                             }
-
+                            if (newEndurance <= 0) {
+                                _isHeroDead.value = true
+                            }
                             // --- 👇 MODIFICA CHIAVE QUI 👇 ---
                             // 1. Crea una NUOVA istanza di LoneWolfStats
                             val updatedStats = heroStats.copy(combattivita = newCombatSkill, resistenza = newEndurance)
@@ -790,6 +791,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
                             viewModelScope.launch { _uiFeedbackEvent.emit("La tua $statName è cambiata di $amount!") }
                             sessionModified = true
+                        } else if (amountStr.equals("MAX_RESISTANCE_RESTORE", ignoreCase = true)) {
+                        // Logica speciale per ripristinare la resistenza al massimo (se mai servirà)
+                        // Questa è una previsione basata sui libri game, dove a volte si riposa completamente.
+                        // Per ora, questa logica non è usata, ma è pronta.
                         }
                     }
                 }
@@ -933,17 +938,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             log("Trovate ${gameMechanics.size} meccaniche di gioco predefinite nella scena: $gameMechanics")
             val commandsToExecute = mutableListOf<EngineCommand>()
 
-//            gameMechanics.forEach { mechanicString ->
-//                // Usiamo il parser sulla singola stringa di meccanica
-//                val (_, commands) = stringTagParser.parseAndReplaceWithCommands(mechanicString, CharacterType.DM)
-//                commandsToExecute.addAll(commands)
-//            }
-//
-//            if (commandsToExecute.isNotEmpty()) {
-//                // -->> MODIFICA CRUCIALE: ESEGUIAMO SUBITO I COMANDI <<--
-//                processCommands(commandsToExecute)
-//                log("LOG SPECIALIZZATO: Eseguiti ${commandsToExecute.size} comandi da gameMechanics.")
-//            }
+            gameMechanics.forEach { mechanicString ->
+                // Usiamo il parser sulla singola stringa di meccanica
+                val (_, commands) = stringTagParser.parseAndReplaceWithCommands(mechanicString, CharacterType.DM)
+                commandsToExecute.addAll(commands)
+            }
+
+            if (commandsToExecute.isNotEmpty()) {
+                // -->> MODIFICA CRUCIALE: ESEGUIAMO SUBITO I COMANDI <<--
+                processCommands(commandsToExecute)
+                log("LOG SPECIALIZZATO: Eseguiti ${commandsToExecute.size} comandi da gameMechanics.")
+            }
         }
         // --- FINE FASE 1 ---
 

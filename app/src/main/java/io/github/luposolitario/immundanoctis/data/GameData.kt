@@ -116,7 +116,7 @@ data class NarrativeChoice(
     val requiredItem: String? = null,
     val choiceCondition: ChoiceCondition? = null,
     val requiredFlag: RequiredFlag? = null,
-    val gameMechanics: List<GameMechanic>? = null
+    val gameMechanics: List<String>? = null
 )
 
 data class LoneWolfStats(
@@ -193,7 +193,7 @@ data class Scene(
     val location: LocationInfo? = null,
     val challengeLevel: ChallengeLevel,
     val commands: List<String>? = null, // <-- AGGIUNGI QUESTA RIGA
-    val gameMechanics:  List<GameMechanic>? = null
+    val gameMechanics:  List<String>? = null
 ) {
 
 }
@@ -341,22 +341,4 @@ data class SessionData(
     val characters: List<GameCharacter>,
     val usedScenes: MutableList<String> = mutableListOf(),
     val isStarted: Boolean = false
-)
-
-data class GameMechanic(
-    val type: String, // Il nome del tag, es. "ADD_ITEM", "STAT_MOD", "COMBAT"
-    val name: String? = null,
-    val value: String? = null,
-    val itemType: String? = null,
-    val quantity: Int? = null,
-    val notes: String? = null,
-    val stat: String? = null,
-    val operator: String? = null,
-    val targetScene: String? = null,
-    val enemy: String? = null,
-    val cs: Int? = null,
-    val ep: Int? = null,
-    val immunity: String? = null,
-    val baseValue: Int? = null,
-    val item: String? = null
 )

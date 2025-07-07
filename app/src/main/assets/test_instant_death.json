@@ -13,6 +13,8 @@
       "choices": [
         {
           "id": "choice_1_1",
+          "scene": "1",
+          "progressive": "1",
           "choiceText": {
             "english": "Open the oak door."
           },
@@ -20,6 +22,8 @@
         },
         {
           "id": "choice_1_2",
+          "scene": "1",
+          "progressive": "2",
           "choiceText": {
             "english": "Step through the green portal."
           },
@@ -47,12 +51,14 @@
         "english": "The door opens into a dark room. A swinging axe blade flies from the ceiling and strikes you a glancing blow before you can react. You lose 15 ENDURANCE points. If your ENDURANCE is now 0 or less, you have bled to death."
       },
       "gameMechanics": [
-        "<STAT_MOD STAT=\"ENDURANCE\" VALUE=\"-15\" />",
-        "<IF_STAT STAT=\"ENDURANCE\" OPERATOR=\"LESS_THAN_OR_EQUAL\" VALUE=\"0\" TARGET_SCENE=\"DEATH\" />"
+        "<statMod statName=\"ENDURANCE\" amount=\"-15\" />",
+        "<ifStat statName=\"ENDURANCE\" operator=\"LESS_THAN_OR_EQUAL\" value=\"0\" targetScene=\"DEATH\" />"
       ],
       "choices": [
         {
           "id": "choice_3_1",
+          "scene": "3",
+          "progressive": "1",
           "choiceText": {
             "english": "If you survive, you continue into the darkness."
           },

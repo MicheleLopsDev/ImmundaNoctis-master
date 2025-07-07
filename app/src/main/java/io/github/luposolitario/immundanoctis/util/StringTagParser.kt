@@ -41,59 +41,53 @@ class StringTagParser(context: android.content.Context) {
         lang: String = "en"
     ): Pair<String, List<EngineCommand>> {
         var processedString = inputString
-        val parti = inputString.split("\n")
         val foundCommands = mutableListOf<EngineCommand>()
 
-        // Stampa ogni parte per verifica
-        parti.forEach { riga ->
-            var riga = riga
-            tagConfigurations.forEach { tagConfig ->
-                if (currentActor != null && tagConfig.actor != "ANY" && tagConfig.actor != currentActor.name) {
-                    // Salta questo tag se non è per l'attore corrente
-                } else {
-                    // **MODIFICA 1: Aggiunta opzione IGNORE_CASE per la regex**
-                    val regex = Regex(tagConfig.regex, RegexOption.IGNORE_CASE)
-                    val matches = regex.findAll(riga).toList()
+        tagConfigurations.forEach { tagConfig ->
+            if (currentActor != null && tagConfig.actor != "ANY" && tagConfig.actor != currentActor.name) {
+                // Salta questo tag se non è per l'attore corrente
+            } else {
+                // **MODIFICA 1: Aggiunta opzione IGNORE_CASE per la regex**
+                val regex = Regex(tagConfig.regex, RegexOption.IGNORE_CASE)
+                val matches = regex.findAll(processedString).toList()
 
+                if (processedString.split(" ")[0].equals(tagConfig.regex.split("\\s")[0]))
+                {
                     if (matches.isEmpty()){
-                        Log.d("StringTagParser", "Parsing tag ${tagConfig.id} failed: $riga regEx: $regex  ")
-                    }
-
-                    matches.forEach { matchResult ->
-                        if (tagConfig.command != null) {
-                            val commandParams = mutableMapOf<String, Any?>()
-                            tagConfig.parameters?.forEach { paramConfig ->
-                                var paramValueTemplate = paramConfig.value?.toString()
-                                var finalParamValue: Any? = paramValueTemplate
-
-                                if (paramValueTemplate != null && paramValueTemplate.contains("captured_value_from_regex")) {
-                                    // **MODIFICA 2: Corretta la regex per il placeholder**
-                                    val placeholderRegex = Regex("\\{captured_value_from_regex_(\\d+)\\}")
-                                    val placeholderMatch = placeholderRegex.find(paramValueTemplate)
-
-                                    if (placeholderMatch != null) {
-                                        val groupIndex = placeholderMatch.groupValues[1].toInt()
-                                        if (groupIndex < matchResult.groupValues.size) {
-                                            finalParamValue = matchResult.groupValues[groupIndex]
-                                        }
-                                    }
-                                }
-                                commandParams[paramConfig.name] = finalParamValue
-                            }
-                            foundCommands.add(EngineCommand(tagConfig.command, commandParams))
-                        }
-                    }
-
-                    if (tagConfig.replace) {
-                        riga = regex.replace(riga, "")
+                        Log.d("StringTagParser", "Parsing tag ${tagConfig.id} failed: $processedString regEx: $regex  ")
                     }
                 }
+
+                matches.forEach { matchResult ->
+                    if (tagConfig.command != null) {
+                        val commandParams = mutableMapOf<String, Any?>()
+                        tagConfig.parameters?.forEach { paramConfig ->
+                            var paramValueTemplate = paramConfig.value?.toString()
+                            var finalParamValue: Any? = paramValueTemplate
+
+                            if (paramValueTemplate != null && paramValueTemplate.contains("captured_value_from_regex")) {
+                                // **MODIFICA 2: Corretta la regex per il placeholder**
+                                val placeholderRegex = Regex("\\{captured_value_from_regex_(\\d+)\\}")
+                                val placeholderMatch = placeholderRegex.find(paramValueTemplate)
+
+                                if (placeholderMatch != null) {
+                                    val groupIndex = placeholderMatch.groupValues[1].toInt()
+                                    if (groupIndex < matchResult.groupValues.size) {
+                                        finalParamValue = matchResult.groupValues[groupIndex]
+                                    }
+                                }
+                            }
+                            commandParams[paramConfig.name] = finalParamValue
+                        }
+                        foundCommands.add(EngineCommand(tagConfig.command, commandParams))
+                    }
+                }
+
+                if (tagConfig.replace) {
+                    processedString = regex.replace(processedString, "")
+                }
             }
-
         }
-
-
-
         return Pair(processedString.trim(), foundCommands)
     }
     /**

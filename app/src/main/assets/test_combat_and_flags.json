@@ -10,12 +10,14 @@
         "english": "You meet an old guard named Alric. He tells you the secret password to the city's east gate is 'Sunrise'."
       },
       "gameMechanics": [
-        "<SET_FLAG NAME=\"MET_ALRIC\" VALUE=\"true\" />",
-        "<SET_FLAG NAME=\"PASSWORD_VALUE\" VALUE=\"Sunrise\" />"
+        "<setFlag flagName=\"MET_ALRIC\" value=\"true\" />",
+        "<setFlag flagName=\"PASSWORD_VALUE\" value=\"Sunrise\" />"
       ],
       "choices": [
         {
           "id": "choice_1_1",
+          "scene": "1",
+          "progressive": "1",
           "choiceText": {
             "english": "Thank him and proceed towards the forest."
           },
@@ -32,11 +34,13 @@
         "english": "A vicious Cave Troll blocks your path. It roars and raises its massive club. You must fight it."
       },
       "gameMechanics": [
-        "<COMBAT ENEMY=\"Cave Troll\" CS=\"18\" EP=\"28\" />"
+        "<combat enemyName=\"Cave Troll\" combatSkill=\"18\" endurance=\"28\" />"
       ],
       "choices": [
         {
           "id": "choice_2_1",
+          "scene": "2",
+          "progressive": "1",
           "choiceText": {
             "english": "If you win the combat, continue to the city gate."
           },
@@ -44,11 +48,13 @@
         },
         {
           "id": "choice_2_2",
+          "scene": "2",
+          "progressive": "2",
           "choiceText": {
             "english": "You can attempt to evade combat by diving into the bushes."
           },
           "nextSceneId": "3",
-          "gameMechanics": ["<EVADE_COMBAT />"]
+          "gameMechanics": ["<evadeCombat />"]
         }
       ]
     },
@@ -64,6 +70,8 @@
       "choices": [
         {
           "id": "choice_3_1",
+          "scene": "3",
+          "progressive": "1",
           "choiceText": {
             "english": "If you know the password, speak it."
           },
@@ -75,6 +83,8 @@
         },
         {
           "id": "choice_3_2",
+          "scene": "3",
+          "progressive": "2",
           "choiceText": {
             "english": "If you do not know the password, you must try to fight the guards."
           },

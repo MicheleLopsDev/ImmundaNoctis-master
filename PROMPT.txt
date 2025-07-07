@@ -1,130 +1,103 @@
-# **Prompt 12.1: Generazione Paginata di scenes.json con Oggetti di Gioco (Logica Choice Aggiornata)**
+# **Prompt 12.4: Generazione Paginata con gameMechanics da config.json**
 
 ### **1\. Ruolo**
 
-Sei un assistente ETL (Extract, Transform, Load) specializzato nell'analisi di libri-gioco. Il tuo compito è analizzare il contenuto HTML di un libro-gioco e trasformarlo in un frammento JSON pulito e valido, usando oggetti strutturati per le meccaniche di gioco.
+Sei un assistente ETL (Extract, Transform, Load) specializzato nell'analisi di libri-gioco. Il tuo compito è analizzare il contenuto di un libro-gioco e trasformarlo in un frammento JSON pulito e valido.
 
 ### **2\. Obiettivo**
 
-Converti il contenuto dei paragrafi del libro-gioco fornito in un frammento di scenes.json. Il JSON deve contenere solo testo in inglese. Tutte le meccaniche di gioco devono essere estratte dal testo narrativo e rappresentate come **oggetti JSON** in un array dedicato chiamato gameMechanics.
+Converti il contenuto dei paragrafi del libro-gioco fornito in un frammento di scenes.json. Il JSON deve contenere solo testo in inglese. Tutte le meccaniche di gioco devono essere estratte dal testo narrativo e rappresentate come **stringhe XML** nell'array gameMechanics, basandosi sulla configurazione fornita.
 
 ### **3\. Parametri di Esecuzione**
 
-* **ADVENTURE\_TITLE:** {titolo\_avventura}  
-* **START\_SECTION:** {numero\_paragrafo\_iniziale}  
-* **END\_SECTION:** {numero\_paragrafo\_finale}  
+* **ADVENTURE\_TITLE:** {titolo\_avventura}
+* **START\_SECTION:** {numero\_paragrafo\_iniziale}
+* **END\_SECTION:** {numero\_paragrafo\_finale}
 * **IS\_FINAL\_CHUNK:** {true\_o\_false}
 
-### **4\. Struttura degli Oggetti di Gioco**
+### **4\. Struttura dei Tag XML per gameMechanics (da config.json)**
 
-Tutte le meccaniche di gioco devono essere inserite come oggetti JSON nell'array gameMechanics. Ogni oggetto deve avere un campo "type" che ne identifica la natura.
+Inserisci le meccaniche di gioco come **stringhe XML** nell'array gameMechanics. La struttura di ogni tag deve seguire rigorosamente le seguenti definizioni.
 
-| Meccanica | Struttura Oggetto JSON | Esempio |
-| :---- | :---- | :---- |
-| **Modifica Statistica** | { "type": "STAT\_MOD", "stat": "...", "value": ... } | { "type": "STAT\_MOD", "stat": "ENDURANCE", "value": \-3 } |
-| **Aggiungi Oggetto** | { "type": "ADD\_ITEM", "itemType": "...", "name": "...", "quantity": ... } | { "type": "ADD\_ITEM", "itemType": "WEAPON", "name": "Sword", "quantity": 1 } |
-| **Combattimento** | { "type": "COMBAT", "enemy": "...", "cs": ..., "ep": ..., "immunity": "..." } | { "type": "COMBAT", "enemy": "Vordak", "cs": 23, "ep": 35, "immunity": "Mindblast" } |
-| **Imposta Flag** | { "type": "SET\_FLAG", "name": "...", "value": "..." } | { "type": "SET\_FLAG", "name": "MET\_CAPTAIN\_DVAL", "value": "true" } |
-| **Controllo e Salto** | { "type": "IF\_STAT", "stat": "...", "operator": "...", "value": ..., "targetScene": "..." } | { "type": "IF\_STAT", "stat": "ENDURANCE", "operator": "LESS\_THAN\_OR\_EQUAL", "value": 0, "targetScene": "DEATH" } |
-| **Qtà Casuale** | { "type": "RANDOM\_QUANTITY", "item": "...", "baseValue": ... } | { "type": "RANDOM\_QUANTITY", "item": "Gold Crown", "baseValue": 10 } |
-| **Evasione Comb.** | { "type": "EVADE\_COMBAT" } | { "type": "EVADE\_COMBAT" } |
+| Funzione | Struttura Tag XML |
+| :---- | :---- |
+| **Aggiungi Oggetto** | \<addItem itemType="..." itemName="..." quantity="..." modifier="..." notes="..." /\> |
+| **Rimuovi Oggetto** | \<removeItem itemName="..." quantity="..." /\> |
+| **Combattimento** | \<combat enemyName="..." combatSkill="..." endurance="..." immunity="..." bonusCS="..." bonusRounds="..." /\> |
+| **Evasione Comb.** | \<evadeCombat /\> |
+| **Richiedi Azione** | \<requireAction action="..." penaltyStat="..." penaltyValue="..." /\> |
+| **Rimuovi Tutto** | \<removeAll type="..." /\> |
+| **Cura** | \<heal statName="..." amount="..." /\> |
+| **Imposta Flag** | \<setFlag flagName="..." flagValue="..." /\> |
+| **Tabella Oggetti Cas.** | \<randomItemTable outcomes="..." /\> |
+| **Quantità Casuale** | \<randomQuantity item="..." baseValue="..." /\> |
+| **Modifica Statistica** | \<statMod statName="..." amount="..." /\> |
+| **Controllo Statistica** | \<ifStat statName="..." operator="..." value="..." targetScene="..." /\> |
 
 ### **5\. Istruzioni Dettagliate e Complete**
 
 Analizza i paragrafi del libro-gioco tra **START\_SECTION** e **END\_SECTION**.
 
-1. **id**: Stringa corrispondente al numero del paragrafo.  
-2. **sceneType**: Imposta su ENDING se il testo contiene "Your life and your mission end here.". Imposta su VICTORY se il paragrafo conclude con successo l'avventura. Imposta su START per il primo paragrafo del libro. Per tutti gli altri casi, usa TRANSITION.  
-3. **genre**: Imposta sempre su FANTASY.  
-4. **challengeLevel**: Imposta su HARD se l'array gameMechanics contiene un oggetto con "type": "COMBAT". Altrimenti, imposta su BASE.  
-5. **narrativeText.english**: Estrai il testo puramente descrittivo. **Rimuovi COMPLETAMENTE tutte le informazioni di gioco associate (es. "Kraan: COMBAT SKILL 16 ENDURANCE 24")**. Il testo finale deve essere solo narrazione.  
-6. **gameMechanics**: Array di oggetti JSON. **Invece di stringhe XML**, inserisci qui gli **oggetti JSON** corrispondenti alle meccaniche di gioco identificate, seguendo la struttura definita nella sezione 4\.  
-7. **images**: Se un paragrafo contiene un'immagine (\<img\>), estrai il suo src relativo e la sua didascalia e inseriscili nei campi imageUrl e caption. Se non ci sono immagini, questo campo deve essere un array vuoto \[\].  
-8. **choices**: Estrai le scelte come oggetti con le seguenti proprietà:  
-   * **scene**: Stringa corrispondente all'id del paragrafo analizzato.  
-   * **progressive**: Valore numerico che indica la posizione della scelta all'interno della scena (partendo da 1).  
-   * **choiceText**: Oggetto con la chiave english contenente il testo della scelta.  
-   * **nextSceneId**: Stringa che indica la scena di destinazione.  
-   * Aggiungi le seguenti proprietà **solo se la condizione è presente nel testo**:  
-     * requiredItem: Stringa.  
-     * choiceCondition: Oggetto con stat, operator, value.  
-     * requiredFlag: Oggetto con name, value.  
-     * gameMechanics: Array (es. per l'evasione, contenente \[{ "type": "EVADE\_COMBAT" }\]).  
-9. **disciplineChoices**: Estrai le scelte legate a una Disciplina Kai.  
-10. **location**: Identifica il luogo e popola areaName e isMajorLocation.  
+1. **id**: Stringa corrispondente al numero del paragrafo.
+2. **sceneType**: ENDING se contiene "Your life and your mission end here.". VICTORY se conclude l'avventura. START per il primo paragrafo. Altrimenti, TRANSITION.
+3. **genre**: Sempre FANTASY.
+4. **challengeLevel**: HARD se gameMechanics contiene una stringa \<combat.... Altrimenti, BASE.
+5. **narrativeText.english**: Estrai solo il testo narrativo, rimuovendo le frasi relative alle meccaniche di gioco.
+6. **gameMechanics**: Array di **stringhe XML**. Inserisci qui i tag XML identificati, seguendo la struttura definita nella sezione 4\. Assicurati di effettuare l'escape dei doppi apici (es. \\").
+7. **images**: Estrai src e didascalia se presenti, altrimenti \[\].
+8. **choices**: **NON MODIFICARE**. Lascia la struttura delle scelte come nell'esempio.
+9. **disciplineChoices**: **IGNORA**. Non popolare questo campo.
+10. **location**: Identifica il luogo e popola areaName e isMajorLocation.
 11. **visualDescriptors**: Estrai dettagli visivi per scenes, characters e items.
 
-### **6\. Esempio Completo (Few-Shot Learning) con Nuova Struttura choice**
+### **6\. Esempio Completo (Few-Shot Learning) con Nuova Struttura XML**
 
-Testo Originale (da Flight from the Dark, sezione 17):  
-You raise your weapon to strike at the beast as its razor-fanged mouth snaps shut just inches from your head. Buffeted by the beating of its wings you find it difficult to stand. Deduct 1 point from your COMBAT SKILL and fight the Kraan.  
-Kraan: COMBAT SKILL 16 ENDURANCE 24  
-If you kill the creature, you quickly descend the far side of the hill to avoid the Giaks.  
-Pick a number from the Random Number Table.  
-If you pick 0, turn to 53\.  
-If you pick 1–2, turn to 274\.  
-If you pick 3–9, turn to 316\.  
+**Testo Originale (da Flight from the Dark, sezione 17):**
+
+You raise your weapon to strike at the beast... Deduct 1 point from your COMBAT SKILL and fight the Kraan.
+Kraan: COMBAT SKILL 16 ENDURANCE 24
+If you kill the creature... Pick a number...
+
 **Output JSON Atteso:**
 
-{  
-  "id": "17",  
-  "sceneType": "TRANSITION",  
-  "genre": "FANTASY",  
-  "challengeLevel": "HARD",  
-  "narrativeText": {  
-    "english": "You raise your weapon to strike at the beast as its razor-fanged mouth snaps shut just inches from your head. Buffeted by the beating of its wings you find it difficult to stand."  
-  },  
-  "gameMechanics": \[  
-    {  
-      "type": "STAT\_MOD",  
-      "stat": "COMBAT\_SKILL",  
-      "value": \-1  
-    },  
-    {  
-      "type": "COMBAT",  
-      "enemy": "Kraan",  
-      "cs": 16,  
-      "ep": 24  
-    }  
-  \],  
-  "choices": \[  
-    {  
-      "scene": "17",  
-      "progressive": 1,  
-      "choiceText": { "english": "If you win, continue." },  
-      "nextSceneId": "RND",  
-      "minRoll": 0,  
-      "maxRoll": 0,  
-      "targetScene": "53"  
-    },  
-    {  
-      "scene": "17",  
-      "progressive": 2,  
-      "choiceText": { "english": "If you win, continue." },  
-      "nextSceneId": "RND",  
-      "minRoll": 1,  
-      "maxRoll": 2,  
-      "targetScene": "274"  
-    },  
-    {  
-      "scene": "17",  
-      "progressive": 3,  
-      "choiceText": { "english": "If you win, continue." },  
-      "nextSceneId": "RND",  
-      "minRoll": 3,  
-      "maxRoll": 9,  
-      "targetScene": "316"  
-    }  
-  \]  
+{
+  "id": "17",
+  "sceneType": "TRANSITION",
+  "genre": "FANTASY",
+  "challengeLevel": "HARD",
+  "narrativeText": {
+    "english": "You raise your weapon to strike at the beast as its razor-fanged mouth snaps shut just inches from your head. Buffeted by the beating of its wings you find it difficult to stand. If you kill the creature, you quickly descend the far side of the hill to avoid the Giaks."
+  },
+  "gameMechanics": \[
+    "\<statMod statName=\\"COMBAT\_SKILL\\" amount=\\"-1\\" /\>",
+    "\<combat enemyName=\\"Kraan\\" combatSkill=\\"16\\" endurance=\\"24\\" /\>"
+  \],
+  "images": \[\],
+  "choices": \[
+    {
+      "scene": "17",
+      "progressive": 1,
+      "choiceText": { "english": "If you win, pick a number from the Random Number Table. If you pick 0, continue." },
+      "nextSceneId": "53"
+    },
+    {
+      "scene": "17",
+      "progressive": 2,
+      "choiceText": { "english": "If you win, pick a number from the Random Number Table. If you pick 1-2, continue." },
+      "nextSceneId": "274"
+    },
+    {
+      "scene": "17",
+      "progressive": 3,
+      "choiceText": { "english": "If you win, pick a number from the Random Number Table. If you pick 3-9, continue." },
+      "nextSceneId": "316"
+    }
+  \]
 }
 
 ### **7\. Formattazione Finale dell'Output (Logica Condizionale)**
 
-1. **SE START\_SECTION è 1:**  
-   * Inizia il tuo output con: { "adventureName": "{ADVENTURE\_TITLE}", "scenes": \[  
-2. **GENERAZIONE DEGLI OGGETTI SCENA:**  
-   * Genera gli oggetti JSON per ogni scena nel range specificato. Aggiungi una virgola (,) dopo ogni oggetto JSON, **TRANNE** se è l'ultimo oggetto dell'ultimo blocco (IS\_FINAL\_CHUNK è true).  
-3. **SE IS\_FINAL\_CHUNK è true:**  
-   * Dopo l'ultimo oggetto JSON (che non avrà la virgola), chiudi la struttura con: \] }  
-4. **SE NÉ START\_SECTION è 1 NÉ IS\_FINAL\_CHUNK è true (blocco intermedio):**  
-   * L'output deve iniziare direttamente con la parentesi graffa { del primo oggetto JSON e finire con la virgola , dopo la parentesi graffa } dell'ultimo oggetto JSON del blocco.
+1. **SE START\_SECTION è 1:** Inizia con: { "adventureName": "{ADVENTURE\_TITLE}", "scenes": \[
+2. **GENERAZIONE OGGETTI:** Aggiungi una virgola (,) dopo ogni oggetto JSON, **TRANNE** se è l'ultimo dell'ultimo blocco (IS\_FINAL\_CHUNK è true).
+3. **SE IS\_FINAL\_CHUNK è true:** Chiudi la struttura con: \] }
+4. **BLOCCO INTERMEDIO:** Inizia con { del primo oggetto e finisce con la , dopo } dell'ultimo oggetto.
