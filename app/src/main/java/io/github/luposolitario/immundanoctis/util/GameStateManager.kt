@@ -2,6 +2,7 @@
 
 package io.github.luposolitario.immundanoctis.util
 
+import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import io.github.luposolitario.immundanoctis.R
@@ -11,13 +12,19 @@ import java.io.FileReader
 import java.io.FileWriter
 
 class GameStateManager(private val context: android.content.Context) {
+    private val TAG: String = "GameStateManager"
     private val gson: Gson = GsonBuilder().setPrettyPrinting().create()
     private val saveFile: File = File(context.filesDir, "session.json")
 
     fun saveSession(sessionData: SessionData) {
+        val updatedHero = sessionData.hero
+        val updatedCharacters = sessionData.characters.map {
+            if (it.id == CharacterID.HERO) updatedHero else it
+        }
+        val updatedSession = sessionData.copy(characters = updatedCharacters)
         try {
             FileWriter(saveFile).use { writer ->
-                gson.toJson(sessionData, writer)
+                gson.toJson(updatedSession, writer)
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -26,6 +33,7 @@ class GameStateManager(private val context: android.content.Context) {
 
     fun loadSession(): SessionData? {
         if (!saveFile.exists()) {
+            Log.d(TAG, "loadSession: file not exists! ${saveFile.absolutePath}")
             return null
         }
         return try {
@@ -91,6 +99,7 @@ class GameStateManager(private val context: android.content.Context) {
         return SessionData(
             sessionName = "L'Ultimo dei Kai",
             lastUpdate = System.currentTimeMillis(),
+            hero = hero,
             characters = listOf(hero, dm, elara)
         )
     }

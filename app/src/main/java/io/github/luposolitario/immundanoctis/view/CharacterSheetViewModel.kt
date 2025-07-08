@@ -68,7 +68,7 @@ class CharacterSheetViewModel(application: Application) : AndroidViewModel(appli
         viewModelScope.launch {
             Log.d(tag, "Inizio caricamento dati personaggio...") // Aggiunto log per chiarezza
             val session = gameStateManager.loadSession() ?: run { Log.e(tag, "Sessione non caricata in loadCharacterData."); return@launch }
-            val hero = session.characters.find { it.id == CharacterID.HERO } ?: run { Log.e(tag, "Eroe non trovato in loadCharacterData."); return@launch }
+            val hero = session.hero
             Log.d(tag, "Eroe trovato: ${hero.name}. Discipline: ${hero.kaiDisciplines.joinToString()}. WeaponSkillType: ${hero.details?.weaponSkillType}")
             Log.d(tag, "Inventario iniziale dell'eroe: ${hero.details?.inventory?.map { it.name }}")
             Log.d(tag, "Modificatori attivi dell'eroe caricati dalla sessione: ${hero.details?.activeModifiers?.map { it.id + ":" + it.amount }}")
@@ -216,7 +216,7 @@ class CharacterSheetViewModel(application: Application) : AndroidViewModel(appli
         viewModelScope.launch {
             Log.d(tag, "Inizio selectWeapon() per: ${weapon?.name ?: "Pugni"}.")
             val session = gameStateManager.loadSession() ?: return@launch
-            val hero = session.characters.find { it.id == CharacterID.HERO } ?: return@launch
+            val hero = session.hero
 
             val newSelectedWeapon = weapon ?: FISTS_WEAPON
             val currentModifiers = hero.details?.activeModifiers?.toMutableList() ?: mutableListOf()
@@ -286,8 +286,7 @@ class CharacterSheetViewModel(application: Application) : AndroidViewModel(appli
             // 3. Salva e aggiorna la UI (logica invariata)
             val updatedHeroDetails = hero.details?.copy(activeModifiers = currentModifiers)
             val updatedHero = hero.copy(details = updatedHeroDetails)
-            val updatedCharacters = session.characters.map { if (it.id == CharacterID.HERO) updatedHero else it }
-            gameStateManager.saveSession(session.copy(characters = updatedCharacters))
+            gameStateManager.saveSession(session.copy(hero = updatedHero))
 
             val baseCS = updatedHero.stats?.combattivita ?: 0
             val baseEND = updatedHero.stats?.resistenza ?: 0
@@ -322,7 +321,7 @@ class CharacterSheetViewModel(application: Application) : AndroidViewModel(appli
 
         viewModelScope.launch {
             val session = gameStateManager.loadSession() ?: run { Log.e(tag, "Sessione non caricata in useBackpackItem."); return@launch }
-            val hero = session.characters.find { it.id == CharacterID.HERO } ?: run { Log.e(tag, "Eroe non trovato in useBackpackItem."); return@launch }
+            val hero = session.hero
             Log.d(tag, "Eroe caricato in useBackpackItem. Resistenza Base attuale: ${hero.stats?.resistenza}")
 
 
@@ -357,11 +356,9 @@ class CharacterSheetViewModel(application: Application) : AndroidViewModel(appli
                 val updatedHeroDetails = hero.details?.copy(inventory = updatedInventory, activeModifiers = currentModifiers)
                 val updatedHero = hero.copy(details = updatedHeroDetails, stats = updatedHeroStats)
 
-                val updatedCharacters = session.characters.map {
-                    if (it.id == CharacterID.HERO) updatedHero else it
-                }
-                val updatedSession = session.copy(characters = updatedCharacters)
+                val updatedSession = session.copy(hero = updatedHero)
                 gameStateManager.saveSession(updatedSession)
+
                 Log.d(tag, "Sessione salvata dopo useBackpackItem().")
 
 
@@ -405,7 +402,7 @@ class CharacterSheetViewModel(application: Application) : AndroidViewModel(appli
 
         viewModelScope.launch {
             val session = gameStateManager.loadSession() ?: run { Log.e(tag, "Sessione non caricata in discardItem."); return@launch }
-            val hero = session.characters.find { it.id == CharacterID.HERO } ?: run { Log.e(tag, "Eroe non trovato in discardItem."); return@launch }
+            val hero = session.hero
             Log.d(tag, "Eroe caricato in discardItem.")
 
             val updatedInventory = hero.details?.inventory?.toMutableList() ?: mutableListOf()
@@ -441,10 +438,7 @@ class CharacterSheetViewModel(application: Application) : AndroidViewModel(appli
                     val updatedHeroDetails = hero.details?.copy(activeModifiers = currentModifiers, inventory = updatedInventory)
                     val updatedHero = hero.copy(details = updatedHeroDetails)
 
-                    val updatedCharacters = session.characters.map {
-                        if (it.id == CharacterID.HERO) updatedHero else it
-                    }
-                    val updatedSession = session.copy(characters = updatedCharacters)
+                    val updatedSession = session.copy(hero = updatedHero)
                     gameStateManager.saveSession(updatedSession)
                     Log.d(tag, "Sessione salvata dopo discardItem() (path non selectWeapon).")
 
@@ -481,7 +475,7 @@ class CharacterSheetViewModel(application: Application) : AndroidViewModel(appli
         Log.d(tag, "Inizio addWeapon() per: ${newWeapon.name}.")
         viewModelScope.launch {
             val session = gameStateManager.loadSession() ?: run { Log.e(tag, "Sessione non caricata in addWeapon."); return@launch }
-            val hero = session.characters.find { it.id == CharacterID.HERO } ?: run { Log.e(tag, "Eroe non trovato in addWeapon."); return@launch }
+            val hero = session.hero
             Log.d(tag, "Eroe caricato in addWeapon.")
 
 
@@ -517,10 +511,7 @@ class CharacterSheetViewModel(application: Application) : AndroidViewModel(appli
 
             val updatedHeroDetails = hero.details?.copy(inventory = updatedInventory, activeModifiers = currentModifiers)
             val updatedHero = hero.copy(details = updatedHeroDetails)
-            val updatedCharacters = session.characters.map {
-                if (it.id == CharacterID.HERO) updatedHero else it
-            }
-            val updatedSession = session.copy(characters = updatedCharacters)
+            val updatedSession = session.copy(hero = updatedHero)
             gameStateManager.saveSession(updatedSession)
             Log.d(tag, "Sessione salvata dopo addWeapon().")
 

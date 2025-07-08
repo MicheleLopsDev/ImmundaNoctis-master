@@ -62,6 +62,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _gameCharacters = MutableStateFlow<List<GameCharacter>>(emptyList())
     val gameCharacters: StateFlow<List<GameCharacter>> = _gameCharacters.asStateFlow()
+    private val _gameHero = MutableStateFlow<GameCharacter?>(null)
+    val gameHero: StateFlow<GameCharacter?> = _gameHero.asStateFlow()
 
     private val _streamingText = MutableStateFlow("")
     val streamingText: StateFlow<String> = _streamingText.asStateFlow()
@@ -157,6 +159,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val actualIsNewAdventure = (session == null || startFresh)
 
         val currentSession = session ?: gameStateManager.createDefaultSession()
+        _gameHero.value = currentSession.hero
         _gameCharacters.value = currentSession.characters
         _sessionName.value = currentSession.sessionName
 
@@ -360,7 +363,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
-        val heroCharacter = _gameCharacters.value.find { it.id == CharacterID.HERO }
+        val heroCharacter = _gameHero.value
         val playerLanguage =
             heroCharacter?.language ?: Locale.ENGLISH.language
 
@@ -552,10 +555,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         log("Processing ${commands.size} commands: ${commands.map { it.commandName }}")
         val currentSession = gameStateManager.loadSession() ?: return
-        val characters = currentSession.characters.toMutableList()
-        val heroIndex = characters.indexOfFirst { it.id == CharacterID.HERO }
-        if (heroIndex == -1) return
-        var hero = characters[heroIndex]
+        var hero = currentSession.hero
         var sessionModified = false
         val newCommandsToProcess = mutableListOf<EngineCommand>()
 
@@ -811,10 +811,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         if (sessionModified) {
-            characters[heroIndex] = hero
-            // Assegna la NUOVA lista allo StateFlow per notificare la UI
-            _gameCharacters.value = characters.toList()
-            gameStateManager.saveSession(currentSession.copy(characters = characters))
+            gameStateManager.saveSession(currentSession.copy(hero = hero))
+            _gameCharacters.value = gameStateManager.loadSession()?.characters!!
+            _gameHero.value =  gameStateManager.loadSession()?.hero!!
             log("Salvataggio sessione dopo l'aggiornamento.")
         }
     }
@@ -822,11 +821,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun resolveInventoryExchange(itemToDiscard: GameItem, newItem: GameItem) {
         viewModelScope.launch {
             val session = gameStateManager.loadSession() ?: return@launch
-            val hero = session.characters.find { it.id == CharacterID.HERO } ?: return@launch
+            val hero = session.hero
             val inventory = hero.details?.inventory ?: return@launch
             inventory.remove(itemToDiscard)
             inventory.add(newItem)
             gameStateManager.saveSession(session)
+            _gameCharacters.value = gameStateManager.loadSession()?.characters!!
+            _gameHero.value =  gameStateManager.loadSession()?.hero!!
             log("✅ Scambiato '${itemToDiscard.name}' con '${newItem.name}'.")
             _uiFeedbackEvent.emit("'${itemToDiscard.name}' scartato, '${newItem.name}' raccolto.")
             _inventoryFullState.value = null
@@ -1046,7 +1047,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun populateChoicesForCurrentScene() {
         val scene = _currentScene.value ?: return
-        val hero = _gameCharacters.value.find { it.id == CharacterID.HERO }
+        val hero = _gameHero.value
         if (hero != null) {
             val narrativeChoices = scene.choices ?: emptyList()
             val playerFlags = hero.details?.gameFlags ?: emptyMap()
@@ -1116,6 +1117,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     if (!it.usedScenes.contains(nextScene.id)) {
                         it.usedScenes.add(nextScene.id)
                         gameStateManager.saveSession(it)
+                        _gameCharacters.value = gameStateManager.loadSession()?.characters!!
+                        _gameHero.value =  gameStateManager.loadSession()?.hero!!
                     }
                 }
                 processCurrentSceneNarrative()
@@ -1137,12 +1140,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         val updatedSession = sessionData.copy(isStarted = true)
         gameStateManager.saveSession(updatedSession)
+        _gameCharacters.value = gameStateManager.loadSession()?.characters!!
+        _gameHero.value =  gameStateManager.loadSession()?.hero!!
         log("DEBUG: Sessione marcata come avviata.")
         processCurrentSceneNarrative(shouldGenerateNarration = true)
     }
 
     private fun updatePlayerStatus() {
-        val hero = _gameCharacters.value.find { it.id == CharacterID.HERO }
+        val hero = _gameHero.value
         hero?.let {
             val rank = gameRules.getKaiRank(it.kaiDisciplines.size)
             _kaiRank.value = rank

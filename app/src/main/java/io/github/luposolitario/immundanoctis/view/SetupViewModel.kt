@@ -189,7 +189,7 @@ class SetupViewModel() : ViewModel() {
     fun finalizeSessionCreation(defaultSession: SessionData): SessionData {
         Log.d(tag, "Inizio finalizeSessionCreation().")
         val currentState = _uiState.value
-        val hero = defaultSession.characters.find { it.id == CharacterID.HERO }!!
+        val hero = defaultSession.hero
         Log.d(tag, "Stato UI al finalizza: CS=${currentState.combattivita}, RES=${currentState.resistenza}, Arma=${currentState.selectedWeapon?.name}, Special=${currentState.selectedSpecialItem?.name}, SchermaType=${currentState.chosenWeaponSkillType?.name}")
 
 
@@ -242,19 +242,14 @@ class SetupViewModel() : ViewModel() {
         )
         Log.d(tag, "Eroe aggiornato in finalizeSessionCreation. Final WeaponSkillType: ${updatedHero.details?.weaponSkillType}")
 
-
-        val updatedCharacters = defaultSession.characters.map {
-            if (it.id == CharacterID.HERO) updatedHero else it
-        }
-
         val finalSession = defaultSession.copy(
             sessionName = GameLogicManager.adventureName,
             lastUpdate = System.currentTimeMillis(),
-            characters = updatedCharacters,
+            hero = updatedHero,
             isStarted = false, // Verrà impostato a true da MainViewModel.sendInitialDmPrompt
             usedScenes = mutableListOf()
         )
-        Log.d(tag, "Sessione finalizzata e pronta per il salvataggio. Arma Skill Type: ${finalSession.characters.find{it.id == CharacterID.HERO}?.details?.weaponSkillType}\")")
+        Log.d(tag, "Sessione finalizzata e pronta per il salvataggio. Arma Skill Type: ${finalSession.hero.details?.weaponSkillType}\")")
         return finalSession
     }
 }

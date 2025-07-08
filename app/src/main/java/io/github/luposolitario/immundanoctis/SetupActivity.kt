@@ -422,7 +422,7 @@ fun ExistingSessionScreen(
     val formattedDate = remember {
         SimpleDateFormat("dd MMMMyyyy, HH:mm", Locale.getDefault()).format(Date(session.lastUpdate))
     }
-    val hero = session.characters.find { it.id == CharacterID.HERO }
+    val hero = session.hero
 
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),

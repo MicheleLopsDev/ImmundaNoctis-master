@@ -4,6 +4,7 @@ package io.github.luposolitario.immundanoctis.data
 
 import io.github.luposolitario.immundanoctis.R
 import androidx.annotation.DrawableRes
+import kotlinx.coroutines.flow.MutableStateFlow
 import java.util.UUID
 
 object CharacterID {
@@ -159,6 +160,17 @@ data class HeroDetails(
     val gameFlags: MutableMap<String, String> = mutableMapOf() // <-- NUOVA RIGA
 )
 
+/**
+ * Contiene le statistiche calcolate del personaggio, pronte per essere usate
+ * dalla UI e dal motore di gioco. Viene aggiornata ogni volta che lo stato del personaggio cambia.
+ */
+data class ComputedStats(
+    val effectiveCombatSkill: Int = 0,
+    val effectiveEndurance: Int = 0,
+    val selectedWeaponModifierAmount: Int = 0,
+    val activeModifiers: List<String> = emptyList() // Per ora vuota, ma pronta per il futuro
+)
+
 data class GameCharacter(
     val id: String,
     val name: String,
@@ -170,8 +182,9 @@ data class GameCharacter(
     val stats: LoneWolfStats?,
     val kaiDisciplines: List<String> = emptyList(),
     val notes: String = "",
-    val details: HeroDetails? = null
-) {
+    val details: HeroDetails? = null,
+    val computedStats: ComputedStats? = null
+){
     val characterClass: String = "Guerriero Kai"
 }
 
@@ -338,6 +351,7 @@ data class ScenesWrapper(
 data class SessionData(
     val sessionName: String,
     val lastUpdate: Long,
+    val hero: GameCharacter,
     val characters: List<GameCharacter>,
     val usedScenes: MutableList<String> = mutableListOf(),
     val isStarted: Boolean = false

@@ -115,6 +115,7 @@ class AdventureActivity : ComponentActivity() {
             GameLogicManager.loadAllScenes(applicationContext)
             // La chiamata al ViewModel ora può procedere sapendo che il manager è pronto
         }
+
         gameStateManager = GameStateManager(applicationContext)
 
         val session = gameStateManager.loadSession() ?: gameStateManager.createDefaultSession()
