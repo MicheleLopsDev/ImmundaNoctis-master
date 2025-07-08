@@ -105,15 +105,15 @@ class CharacterSheetViewModel(application: Application) : AndroidViewModel(appli
                     ItemType.BACKPACK_ITEM -> {
                         if (item.name == "Pasto") {
                             meals += item.quantity
-                        } else {
-                            backpackItems.add(item)
                         }
+                        backpackItems.add(item)
+
                     }
                     ItemType.MEAL -> meals += item.quantity
                     ItemType.WEAPON -> { /* Already handled */ }
                 }
             }
-            val finalBackpackItems = backpackItems.filter { it.name != "Pasto" }.toMutableList()
+            val finalBackpackItems = backpackItems.toMutableList()
             Log.d(tag, "Inventario categorizzato (loadCharacterData). Pasti: $meals, Oro: $gold, Backpack: ${finalBackpackItems.map { it.name }}, Special: ${specialItems.map { it.name }}")
 
             val initialSelectedWeapon = currentVisibleWeapons.firstOrNull { it.id != FISTS_WEAPON.id } ?: FISTS_WEAPON
@@ -387,6 +387,7 @@ class CharacterSheetViewModel(application: Application) : AndroidViewModel(appli
 
     // --- discardItem MODIFICATA ---
     fun discardItem(item: GameItem) {
+        var mealTot = _uiState.value.mealsCount
         Log.d(tag, "Inizio discardItem() per: ${item.name}.")
         if (!item.isDiscardable) {
             Log.w(tag, "Tentativo di scartare un oggetto non scartabile: ${item.name}. Termino.")
@@ -399,6 +400,7 @@ class CharacterSheetViewModel(application: Application) : AndroidViewModel(appli
         }
 
         viewModelScope.launch {
+
             val session = gameStateManager.loadSession() ?: run { Log.e(tag, "Sessione non caricata in discardItem."); return@launch }
             val hero = session.hero
             Log.d(tag, "Eroe caricato in discardItem.")
@@ -422,10 +424,18 @@ class CharacterSheetViewModel(application: Application) : AndroidViewModel(appli
                 // Rimuovi tutti i modificatori associati all'oggetto scartato
                 currentModifiers.removeAll { it.sourceId == item.id && it.sourceType == ModifierSourceType.ITEM }
                 // Rimuovi anche i modificatori specifici della disciplina se l'oggetto scartato è un'arma
+
+                if (item.type == ItemType.BACKPACK_ITEM && item.name == "Pasto") {
+                    mealTot -= item.quantity
+                }
+
                 if (item.type == ItemType.WEAPON) {
                     currentModifiers.removeAll { it.id == "discipline_weaponskill_match_bonus" && it.sourceId == "Weaponskill" }
                     currentModifiers.removeAll { it.id == "rule_no_weapon_penalty" && it.sourceId == "no_weapon" }
                 }
+
+
+
                 Log.d(tag, "Modificatori dopo la rimozione (discard): ${currentModifiers.map { it.id + ":" + it.amount }}")
 
                     val updatedHeroDetails = hero.details?.copy(activeModifiers = currentModifiers, inventory = updatedInventory)
@@ -461,6 +471,14 @@ class CharacterSheetViewModel(application: Application) : AndroidViewModel(appli
                 Log.w(tag, "Oggetto '${item.name}' non trovato nell'inventario per lo scarto. Termino.")
             }
         }
+
+        _uiState.update { currentState ->
+            currentState.copy(
+                mealsCount = mealTot,
+
+            )
+        }
+
     }
 
     // --- addWeapon MODIFICATA ---

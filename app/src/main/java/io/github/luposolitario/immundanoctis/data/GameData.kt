@@ -314,7 +314,8 @@ val INITIAL_SPECIAL_ITEMS = listOf(
 
 val INITIAL_COMMON_ITEMS = listOf(
     GameItem(name = "Pozione Curativa", type = ItemType.BACKPACK_ITEM, quantity = 1, description = "Ripristina 4 punti Resistenza quando usata.", iconResId = R.drawable.ic_potion, isConsumable = true, isDiscardable = true),
-    GameItem(name = "Pasto", type = ItemType.BACKPACK_ITEM, quantity = 2, description = "Un pasto nutriente per recuperare energie.", iconResId = R.drawable.ic_meal, isConsumable = false, isDiscardable = true),
+    GameItem(name = "Pasto", type = ItemType.BACKPACK_ITEM, quantity = 1, description = "Un pasto nutriente per recuperare energie.", iconResId = R.drawable.ic_meal, isConsumable = false, isDiscardable = true),
+    GameItem(name = "Pasto", type = ItemType.BACKPACK_ITEM, quantity = 1, description = "Un pasto nutriente per recuperare energie.", iconResId = R.drawable.ic_meal, isConsumable = false, isDiscardable = true),
     GameItem(name = "Corone d'Oro", type = ItemType.GOLD, quantity = 12, description = "Monete d'oro per acquisti e scambi.", iconResId = R.drawable.ic_gold, isConsumable = false, isDiscardable = false)
 )
 
