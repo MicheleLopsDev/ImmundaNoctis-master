@@ -1,17 +1,25 @@
 // immundanoctis/view/SetupViewModel.kt
 package io.github.luposolitario.immundanoctis.view
 
-import android.app.Application
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
 import android.util.Log
 import androidx.compose.runtime.mutableStateListOf
-import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.luposolitario.immundanoctis.R
-import io.github.luposolitario.immundanoctis.data.*
+import io.github.luposolitario.immundanoctis.data.CharacterID
+import io.github.luposolitario.immundanoctis.data.CharacterType
+import io.github.luposolitario.immundanoctis.data.GameCharacter
+import io.github.luposolitario.immundanoctis.data.GameItem
+import io.github.luposolitario.immundanoctis.data.HeroDetails
+import io.github.luposolitario.immundanoctis.data.INITIAL_COMMON_ITEMS
+import io.github.luposolitario.immundanoctis.data.ItemType
+import io.github.luposolitario.immundanoctis.data.LoneWolfStats
+import io.github.luposolitario.immundanoctis.data.SessionData
+import io.github.luposolitario.immundanoctis.data.WeaponType
+import io.github.luposolitario.immundanoctis.engine.GameLogicManager
 import io.github.luposolitario.immundanoctis.util.SavePreferences
 import io.github.luposolitario.immundanoctis.util.getAppSpecificDirectory
 import kotlinx.coroutines.Dispatchers
@@ -23,30 +31,26 @@ import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
 import kotlin.random.Random
-// NUOVO IMPORT
-import io.github.luposolitario.immundanoctis.engine.GameLogicManager
-import io.github.luposolitario.immundanoctis.util.GameStateManager
 
-
-// --- SetupUiState MODIFICATA per includere chosenWeaponSkillType ---
-data class SetupUiState(
-    val heroName: String = "Lupo Solitario",
-    val combattivita: Int = 0,
-    val resistenza: Int = 0,
-    val stdfPrompt: String = "",
-    val currentScenesJsonPath: String? = null,
-    val selectedWeapon: GameItem? = null,
-    val selectedSpecialItem: GameItem? = null,
-    val chosenWeaponSkillType: WeaponType? = null // <--- Spostato qui per coerenza e persistenza
-)
 
 class SetupViewModel() : ViewModel() {
 
     private val tag = "SetupViewModel" // Abbreviato per visibilità nei log
 
-    private val _uiState = MutableStateFlow(SetupUiState())
-    val uiState = _uiState.asStateFlow()
+    private val defaultHero = GameCharacter(
+        id = CharacterID.HERO,
+        name = "Lupo Solitario",
+        type = CharacterType.PLAYER,
+        portraitResId = R.drawable.ic_hero_portrait_placeholder,
+        gender = "MALE",
+        language = "it",
+        stats = LoneWolfStats(combattivita = 15, resistenza = 25),
+        kaiDisciplines = listOf("Sixth Sense", "Healing", "Mindshield", "Weaponskill", "Hunting"),
+        details = HeroDetails()
+    )
 
+    private val _uiState = MutableStateFlow(defaultHero)
+    val uiState = _uiState.asStateFlow()
     val selectedDisciplines = mutableStateListOf<String>()
 
     // Questi due stati ora riflettono la necessità del dialogo, ma il valore finale va nella uiState
@@ -55,24 +59,19 @@ class SetupViewModel() : ViewModel() {
 
     // Questo sarà il valore temporaneo rollato per il dialogo, verrà poi spostato in uiState.chosenWeaponSkillType
     private val _dialogRolledWeaponSkillType = MutableStateFlow<WeaponType?>(null)
-    val dialogRolledWeaponSkillType: StateFlow<WeaponType?> = _dialogRolledWeaponSkillType.asStateFlow()
-
+    val dialogRolledWeaponSkillType: StateFlow<WeaponType?> =
+        _dialogRolledWeaponSkillType.asStateFlow()
     private lateinit var savePreferences: SavePreferences
     private lateinit var applicationContext: Context
+
     // NUOVO: Dichiarazione di gameLogicManager
-
-
     fun initialize(context: Context) {
+
         this.applicationContext = context
         this.savePreferences = SavePreferences(context)
         // NUOVO: Inizializzazione di gameLogicManager qui
         _uiState.update { it.copy(currentScenesJsonPath = savePreferences.scenesPath) }
         Log.d(tag, "ViewModel Inizializzato.")
-    }
-
-    fun updateHeroName(newName: String) {
-        _uiState.update { it.copy(heroName = newName) }
-        Log.d(tag, "Nome eroe aggiornato: ${newName}")
     }
 
     fun updateStdfPrompt(newPrompt: String) {
@@ -86,7 +85,10 @@ class SetupViewModel() : ViewModel() {
                 resistenza = 20 + Random.nextInt(0, 10)
             )
         }
-        Log.d(tag, "Statistiche rollate: CS=${_uiState.value.combattivita}, RES=${_uiState.value.resistenza}")
+        Log.d(
+            tag,
+            "Statistiche rollate: CS=${_uiState.value.combattivita}, RES=${_uiState.value.resistenza}"
+        )
     }
 
     fun copyAndSaveScenesJson(uri: Uri) {
@@ -96,14 +98,15 @@ class SetupViewModel() : ViewModel() {
                 scenesDirectory?.mkdirs()
 
                 var displayName: String? = null
-                applicationContext.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-                    if (cursor.moveToFirst()) {
-                        val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                        if (nameIndex != -1) {
-                            displayName = cursor.getString(nameIndex)
+                applicationContext.contentResolver.query(uri, null, null, null, null)
+                    ?.use { cursor ->
+                        if (cursor.moveToFirst()) {
+                            val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                            if (nameIndex != -1) {
+                                displayName = cursor.getString(nameIndex)
+                            }
                         }
                     }
-                }
 
                 val fileName = displayName ?: "scenes_uploaded_${System.currentTimeMillis()}.json"
                 val destinationFile = File(scenesDirectory, fileName)
@@ -141,17 +144,26 @@ class SetupViewModel() : ViewModel() {
     fun toggleDiscipline(disciplineId: String) {
         if (selectedDisciplines.contains(disciplineId)) {
             selectedDisciplines.remove(disciplineId)
-            Log.d(tag, "Disciplina rimossa: ${disciplineId}. Discipline attuali: ${selectedDisciplines.joinToString()}")
+            Log.d(
+                tag,
+                "Disciplina rimossa: ${disciplineId}. Discipline attuali: ${selectedDisciplines.joinToString()}"
+            )
             // Se la disciplina rimossa è Scherma, resetta la scelta del tipo di arma nella UI State
             if (disciplineId == "Weaponskill") {
                 _uiState.update { it.copy(chosenWeaponSkillType = null) }
                 _dialogRolledWeaponSkillType.value = null
                 _showWeaponSkillDialog.value = false // Assicurati che il dialogo si chiuda
-                Log.d(tag, "Disciplina Scherma rimossa, tipo di arma resettato nella UI State e dialogo chiuso.")
+                Log.d(
+                    tag,
+                    "Disciplina Scherma rimossa, tipo di arma resettato nella UI State e dialogo chiuso."
+                )
             }
         } else if (selectedDisciplines.size < 5) {
             selectedDisciplines.add(disciplineId)
-            Log.d(tag, "Disciplina aggiunta: ${disciplineId}. Discipline attuali: ${selectedDisciplines.joinToString()}")
+            Log.d(
+                tag,
+                "Disciplina aggiunta: ${disciplineId}. Discipline attuali: ${selectedDisciplines.joinToString()}"
+            )
             // Se la disciplina aggiunta è Scherma, triggera il roll del tipo di arma
             if (disciplineId == "Weaponskill") {
                 rollWeaponSkillTypeForScherma()
@@ -165,13 +177,19 @@ class SetupViewModel() : ViewModel() {
         // MODIFICATO: Rimosso completamente il filtro per DAGGER e FISTS.
         // Adesso WeaponType.entries include FISTS, e DAGGER non esiste più.
         val availableWeaponTypes = WeaponType.entries // <--- MODIFICA QUI
-        Log.d(tag, "Tipi di arma disponibili per roll Scherma: ${availableWeaponTypes.map { it.name }}")
+        Log.d(
+            tag,
+            "Tipi di arma disponibili per roll Scherma: ${availableWeaponTypes.map { it.name }}"
+        )
 
         if (availableWeaponTypes.isNotEmpty()) {
             val rolledType = availableWeaponTypes.random(Random)
             _dialogRolledWeaponSkillType.value = rolledType // Imposta il valore per il dialogo
             _showWeaponSkillDialog.value = true // Mostra il pop-up
-            Log.d(tag, "Tipo di arma per Scherma rollato per dialogo: ${rolledType.name}. Dialogo mostrato.")
+            Log.d(
+                tag,
+                "Tipo di arma per Scherma rollato per dialogo: ${rolledType.name}. Dialogo mostrato."
+            )
         } else {
             Log.w(tag, "Nessun tipo di arma disponibile per Scherma dopo il filtro.")
             _dialogRolledWeaponSkillType.value = null
@@ -180,78 +198,74 @@ class SetupViewModel() : ViewModel() {
     }
 
     fun confirmWeaponSkillSelection() {
-        Log.d(tag, "Conferma selezione Scherma avviata. Valore dialogRolledWeaponSkillType: ${_dialogRolledWeaponSkillType.value?.name}")
+        Log.d(
+            tag,
+            "Conferma selezione Scherma avviata. Valore dialogRolledWeaponSkillType: ${_dialogRolledWeaponSkillType.value?.name}"
+        )
         _uiState.update { it.copy(chosenWeaponSkillType = _dialogRolledWeaponSkillType.value) } // <--- CRUCIALE: Associa il valore rollato allo stato UI
         _showWeaponSkillDialog.value = false // Nasconde il pop-up
-        Log.d(tag, "Selezione Scherma confermata. chosenWeaponSkillType in UI State: ${_uiState.value.chosenWeaponSkillType?.name}. Dialogo chiuso.")
+        Log.d(
+            tag,
+            "Selezione Scherma confermata. chosenWeaponSkillType in UI State: ${_uiState.value.chosenWeaponSkillType?.name}. Dialogo chiuso."
+        )
     }
     // --- FINE LOGICA SPECIFICA PER SCHERMA ---
 
+    // In SetupViewModel.kt
+
     fun finalizeSessionCreation(defaultSession: SessionData): SessionData {
         Log.d(tag, "Inizio finalizeSessionCreation().")
+        val heroState = _uiState.value
 
-        val currentState = _uiState.value
-        val hero = defaultSession.hero
-        Log.d(tag, "Stato UI al finalizza: CS=${currentState.combattivita}, RES=${currentState.resistenza}, Arma=${currentState.selectedWeapon?.name}, Special=${currentState.selectedSpecialItem?.name}, SchermaType=${currentState.chosenWeaponSkillType?.name}")
-
-
-        val initialInventory = mutableListOf<GameItem>()
-        var finalResistenza = currentState.resistenza
-
-        currentState.selectedWeapon?.let {
-            initialInventory.add(it)
-            Log.d(tag, "Aggiunto ${it.name} all'inventario finale.")
-        } ?: Log.w(tag, "Nessuna arma selezionata in finalizeSessionCreation.")
-
-        currentState.selectedSpecialItem?.let { item ->
-            initialInventory.add(item)
-            item.bonuses?.get("RESISTENZA")?.let { bonus ->
-                finalResistenza += bonus
-                Log.d(tag, "Bonus Resistenza applicato da ${item.name}: +$bonus. Nuova Resistenza: $finalResistenza")
-            }
-            Log.d(tag, "Aggiunto ${item.name} all'inventario finale.")
-        } ?: Log.w(tag, "Nessun oggetto speciale selezionato in finalizeSessionCreation.")
-
+        // --- 1. COSTRUISCI L'INVENTARIO FINALE ---
+        val finalInventory = mutableListOf<GameItem>()
+        heroState.selectedWeapon?.let { finalInventory.add(it) }
+        heroState.selectedSpecialItem?.let { finalInventory.add(it) }
 
         INITIAL_COMMON_ITEMS.forEach { commonItem ->
-            val itemToAdd = commonItem.copy() // Crea una copia per evitare modifiche alla lista originale
-            if (itemToAdd.type == ItemType.GOLD) {
-                // Randomizza la quantità di oro
-                itemToAdd.quantity = Random.nextInt(10, 20)
-            }
-            initialInventory.add(itemToAdd)
-            Log.d(tag, "Aggiunto oggetto comune: ${itemToAdd.name} (x${itemToAdd.quantity})")
+            val itemToAdd = commonItem.copy(
+                quantity = if (commonItem.type == ItemType.GOLD) Random.nextInt(10, 20) else commonItem.quantity
+            )
+            finalInventory.add(itemToAdd)
         }
-        Log.d(tag, "Inventario finale costruito in finalizeSessionCreation: ${initialInventory.map { it.name }}")
+        Log.d(tag, "Inventario finale costruito: ${finalInventory.map { it.name }}")
 
-
-        // --- SALVA IL TIPO DI ARMA PER SCHERMA NEI DETTAGLI DELL'EROE ---
-        val finalHeroDetails = hero.details?.copy(
-            specialAbilities = listOf("Immunità alle malattie"),
-            inventory = initialInventory, // Assicurati di passare la lista mutabile finale
-            weaponSkillType = if (selectedDisciplines.contains("Weaponskill")) currentState.chosenWeaponSkillType else null // Prende il valore dallo stato UI
+        // --- 2. CALCOLA LE STATS FINALI ---
+        var finalResistenza = heroState.resistenza
+        heroState.selectedSpecialItem?.bonuses?.get("RESISTENZA")?.let { bonus ->
+            finalResistenza += bonus
+        }
+        val finalStats = heroState.stats?.copy(
+            combattivita = heroState.combattivita,
+            resistenza = finalResistenza
         )
-        // --- FINE SALVATAGGIO TIPO ARMA ---
+        Log.d(tag, "Statistiche finali calcolate: CS=${finalStats?.combattivita}, RES=${finalStats?.resistenza}")
 
-        val updatedHero = hero.copy(
-            name = currentState.heroName,
-            stats = LoneWolfStats(
-                combattivita = currentState.combattivita,
-                resistenza = finalResistenza
-            ),
-            kaiDisciplines = selectedDisciplines.toList(),
-            details = finalHeroDetails
+        // --- 3. CREA I DETTAGLI FINALI DELL'EROE (Senza le discipline) ---
+        val finalDetails = heroState.details?.copy(
+            inventory = finalInventory,
+            weaponSkillType = heroState.chosenWeaponSkillType
         )
-        Log.d(tag, "Eroe aggiornato in finalizeSessionCreation. Final WeaponSkillType: ${updatedHero.details?.weaponSkillType}")
+        Log.d(tag, "Dettagli finali creati. WeaponSkillType: ${finalDetails?.weaponSkillType}")
 
+        // --- 4. CREA L'EROE FINALE CON I DETTAGLI, STATS E DISCIPLINE AGGIORNATE ---
+        val finalHero = heroState.copy(
+            stats = finalStats,
+            details = finalDetails,
+            // *** ECCO LA CORREZIONE: Assegno le discipline qui, all'oggetto GameCharacter ***
+            kaiDisciplines = selectedDisciplines.toList()
+        )
+
+        // --- 5. CREA LA SESSIONE FINALE CON L'EROE AGGIORNATO ---
         val finalSession = defaultSession.copy(
             sessionName = GameLogicManager.adventureName,
             lastUpdate = System.currentTimeMillis(),
-            hero = updatedHero,
-            isStarted = false, // Verrà impostato a true da MainViewModel.sendInitialDmPrompt
+            hero = finalHero, // Usa l'eroe appena creato!
+            isStarted = false,
             usedScenes = mutableListOf()
         )
-        Log.d(tag, "Sessione finalizzata e pronta per il salvataggio. Arma Skill Type: ${finalSession.hero.details?.weaponSkillType}\")")
+        Log.d(tag, "Sessione finalizzata. Eroe: ${finalSession.hero.name}, Discipline: ${finalSession.hero.kaiDisciplines}")
+
         return finalSession
     }
 }

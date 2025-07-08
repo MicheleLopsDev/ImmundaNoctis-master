@@ -45,6 +45,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import io.github.luposolitario.immundanoctis.data.CharacterID
+import io.github.luposolitario.immundanoctis.data.GameCharacter
 import io.github.luposolitario.immundanoctis.data.KaiDisciplineInfo
 import io.github.luposolitario.immundanoctis.data.KAI_DISCIPLINES
 import io.github.luposolitario.immundanoctis.data.SessionData
@@ -52,7 +53,6 @@ import io.github.luposolitario.immundanoctis.ui.adventure.getIconForDiscipline
 import io.github.luposolitario.immundanoctis.ui.theme.ImmundaNoctisTheme
 import io.github.luposolitario.immundanoctis.util.GameStateManager
 import io.github.luposolitario.immundanoctis.util.ThemePreferences
-import io.github.luposolitario.immundanoctis.view.SetupUiState
 import io.github.luposolitario.immundanoctis.view.SetupViewModel
 
 // Importazioni aggiunte e modificate per GameItem e le liste globali
@@ -237,7 +237,7 @@ fun RandomStatsCard(combatSkill: Int, endurance: Int, onRandomizeClick: () -> Un
 
 @Composable
 fun EquipmentChoiceCard(
-    uiState: SetupUiState,
+    uiState: GameCharacter,
     onWeaponSelected: (GameItem) -> Unit,
     onSpecialItemSelected: (GameItem) -> Unit
 ) {
@@ -463,64 +463,4 @@ fun ExistingSessionScreen(
             Text("Crea Nuova Avventura (sovrascrivi)")
         }
     }
-}
-
-
-// --- NUOVO COMPOSABLE: WeaponSkillSelectionDialog ---
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun WeaponSkillSelectionDialog(
-    weaponType: WeaponType,
-    onConfirm: () -> Unit
-) {
-    val context = LocalContext.current
-    val languageCode = context.resources.configuration.locales.get(0).language
-
-    val dialogTitle = "Scherma: Talento Focalizzato" // Puoi definire questa stringa in strings.xml: R.string.weaponskill_dialog_title
-    val weaponTypeName = WEAPON_TYPE_NAMES[weaponType] ?: weaponType.name // Nome localizzato dell'arma
-    val descriptionText = when (languageCode) {
-        "it" -> WEAPON_SKILL_DESCRIPTIONS[weaponType]?.italian
-        else -> WEAPON_SKILL_DESCRIPTIONS[weaponType]?.english // Fallback a inglese
-    }
-
-    AlertDialog(
-        onDismissRequest = { /* Non dismissabile senza conferma */ },
-        title = { Text(dialogTitle) },
-        text = {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = "La tua affinità per la Scherma si concentra su:",
-                    style = MaterialTheme.typography.bodyLarge,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-                Text(
-                    text = weaponTypeName,
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
-                    textAlign = TextAlign.Center
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                if (descriptionText != null) {
-                    Text(
-                        text = descriptionText,
-                        style = MaterialTheme.typography.bodyMedium,
-                        textAlign = TextAlign.Center
-                    )
-                } else {
-                    Text(
-                        text = "Un talento speciale per ${weaponTypeName}.", // Fallback generico
-                        style = MaterialTheme.typography.bodyMedium,
-                        textAlign = TextAlign.Center
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            Button(onClick = onConfirm) {
-                Text("Conferma")
-            }
-        }
-    )
 }

@@ -182,7 +182,7 @@ class GameStateManager private constructor(context: android.content.Context) {
             stats = LoneWolfStats(combattivita = 15, resistenza = 25),
             kaiDisciplines = listOf("Sixth Sense", "Healing", "Mindshield", "Weaponskill", "Hunting"),
             details = HeroDetails(
-                specialAbilities = listOf("Immunità alle malattie"),
+                specialAbilities = mutableListOf("Immunità alle malattie"),
                 inventory = mutableListOf(
                     GameItem(name = "Pasto", type = ItemType.BACKPACK_ITEM, quantity = 2)
                 )

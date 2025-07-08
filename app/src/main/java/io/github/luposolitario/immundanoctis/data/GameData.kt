@@ -153,15 +153,14 @@ data class StatModifier(
     val appliedTime: Long? = null
 )
 
-data class HeroDetails(
+data  class HeroDetails(
     val id: String = UUID.randomUUID().toString(),
-    val specialAbilities: List<String>,
+    val specialAbilities: MutableList<String> = mutableListOf(),
     val inventory: MutableList<GameItem> = mutableListOf(),
     val activeModifiers: MutableList<StatModifier> = mutableListOf(),
     val weaponSkillType: WeaponType? = null,
     val gameFlags: MutableMap<String, String> = mutableMapOf() // <-- NUOVA RIGA
 )
-
 /**
  * Contiene le statistiche calcolate del personaggio, pronte per essere usate
  * dalla UI e dal motore di gioco. Viene aggiornata ogni volta che lo stato del personaggio cambia.
@@ -173,10 +172,18 @@ data class ComputedStats(
     val activeModifiers: List<String> = emptyList() // Per ora vuota, ma pronta per il futuro
 )
 
+
 data class GameCharacter(
     val id: String,
     val name: String,
     val type: CharacterType,
+    val combattivita: Int = 0,
+    val resistenza: Int = 0,
+    val stdfPrompt: String = "",
+    val currentScenesJsonPath: String? = null,
+    val selectedWeapon: GameItem? = null,
+    val selectedSpecialItem: GameItem? = null,
+    val chosenWeaponSkillType: WeaponType? = null,
     @DrawableRes val portraitResId: Int,
     val gender: String,
     val language: String,
