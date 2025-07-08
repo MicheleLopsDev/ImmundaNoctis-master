@@ -74,6 +74,7 @@ class LlamaCppEngine(private val context: Context) : InferenceEngine {
                 topP = llamaPreferences.topP
             )
             Log.d(tag, "Modello LlamaCpp caricato: $modelPath")
+            logParameters()
 
         } catch (e: Exception) {
             Log.e(tag, "Errore durante il caricamento del modello LlamaCpp.", e)
@@ -106,7 +107,15 @@ class LlamaCppEngine(private val context: Context) : InferenceEngine {
         }
 
         // Il modello genererà la risposta e poi </s>
-        var messageToSend =  buildPromptWithHistory(text)//fullPromptBuilder.toString()
+        var messageToSend =  text
+
+        if (!llamaPreferences.stylePersonality.equals("Personalizzata"))
+        {
+            messageToSend =  buildPromptWithHistory(text)//fullPromptBuilder.toString()
+        }else{
+            messageToSend = llamaPreferences.chatbotPersonality + text
+        }
+
         Log.d(tag, "DEBUG_PROMPT: Prompt finale inviato a LLama (Llama 2): \n---\n${messageToSend}\n---")
 
         // Estima i token dell'intero messaggio che verrà inviato
@@ -120,11 +129,11 @@ class LlamaCppEngine(private val context: Context) : InferenceEngine {
             .onCompletion {
                 val outputTokens = estimateTokens(fullResponse.toString())
 
-
                 if (!llamaPreferences.isChatHistoryEnabled)
+                {
                 chatHistory.removeIf {  it -> it.role == "assistant" }
                 chatHistory.add(Message("assistant", fullResponse.toString()))
-
+                }
                 totalTokensUsed += (inputTokens + outputTokens)
                 updateTokenCount()
             Log.d(tag, "DEBUG_FLOW: Token utilizzati in questo messaggio: input=$inputTokens, output=$outputTokens, totale sessione=$totalTokensUsed")
@@ -233,19 +242,21 @@ class LlamaCppEngine(private val context: Context) : InferenceEngine {
         }
 
         // Itera attraverso i messaggi precedenti e li formatta
-        for (message in chatHistory) {
-            when (message.role) {
-                "user" -> {
-                    // Il template aggiunge "ASSISTANT:" alla fine del turno Utente
-                    promptBuilder.append("USER: ${message.content} ASSISTANT:")
-                }
-                "assistant" -> {
-                    // Il template aggiunge "</s>" alla fine del turno Assistant
-                    promptBuilder.append("${message.content}</s>")
+        if(llamaPreferences.isChatHistoryEnabled) {
+            for (message in chatHistory) {
+                when (message.role) {
+                    "user" -> {
+                        // Il template aggiunge "ASSISTANT:" alla fine del turno Utente
+                        promptBuilder.append("USER: ${message.content} ASSISTANT:")
+                    }
+
+                    "assistant" -> {
+                        // Il template aggiunge "</s>" alla fine del turno Assistant
+                        promptBuilder.append("${message.content}</s>")
+                    }
                 }
             }
         }
-
         // Aggiungi il nuovo input dell'utente e il segnale per l'assistente
         promptBuilder.append("USER: $newUserInput ASSISTANT:")
 

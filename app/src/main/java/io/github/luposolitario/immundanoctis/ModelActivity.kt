@@ -201,6 +201,7 @@ class ModelActivity : ComponentActivity() {
         val predefinedPersonalities = remember {
             mapOf(
                 "Nessuna" to "",
+                "Personalizzata" to "SYSTEM:",
                 // AGGIORNATO: Istruzioni più stringenti per il modello
                 "Assistente Non Censurato" to "Sei un assistente AI progettato per fornire risposte dirette e senza filtri. ",
                 "Assistente Virtuale" to "Sei un assistente virtuale utile ed efficiente",
@@ -600,7 +601,7 @@ class ModelActivity : ComponentActivity() {
                         ) {
                             OutlinedTextField(
                                 value = predefinedPersonalities.entries.firstOrNull { it.value == chatbotPersonality_llama }?.key
-                                    ?: "Personalizzata",
+                                    ?: "Nessuna",
                                 onValueChange = { /* Non modificabile direttamente qui */ },
                                 readOnly = true,
                                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = showPersonalityDropdown) },
@@ -618,6 +619,7 @@ class ModelActivity : ComponentActivity() {
                                         onClick = {
                                             chatbotPersonality_llama = prompt
                                             llamaPrefs.chatbotPersonality = prompt
+                                            llamaPrefs.stylePersonality = name
                                             showPersonalityDropdown = false
                                         }
                                     )

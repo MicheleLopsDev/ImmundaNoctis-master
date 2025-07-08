@@ -151,6 +151,19 @@
       "replace": true
     },
     {
+      "id": "end_guff_tag",
+      "type": "textSubstitution",
+      "regex": "\\<\\|eot_id\\|",
+      "replacement": {
+        "italian": "",
+        "english": ""
+      },
+      "parameters": [],
+      "actor": "ANY",
+      "command": null,
+      "replace": true
+    },
+    {
       "id": "stat_mod_tag",
       "type": "gameMechanic",
       "regex": "<statMod\\s+statName=\\\"([^\\\"]*)\\\"\\s+amount=\\\"([+-]?\\d+|-?FULL)\\\"\\s*/>",

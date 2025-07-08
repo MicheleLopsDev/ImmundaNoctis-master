@@ -1132,14 +1132,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     suspend fun sendInitialDmPrompt(sessionData: SessionData) {
-//        if (sessionData.isStarted) {
-//            log("DEBUG: La sessione è già iniziata, non invio prompt iniziale DM.")
-//            processCurrentSceneNarrative(shouldGenerateNarration = false)
-//            return
-//        }
-
-//        val updatedSession = sessionData.copy(isStarted = true)
-//        gameStateManager.saveSession(updatedSession)
         _gameCharacters.value = gameStateManager.loadSession()?.characters!!
         _gameHero.value =  gameStateManager.loadSession()?.hero!!
         log("DEBUG: Sessione marcata come avviata.")
