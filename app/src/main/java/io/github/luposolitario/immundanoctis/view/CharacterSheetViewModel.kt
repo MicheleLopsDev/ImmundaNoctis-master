@@ -62,8 +62,6 @@ class CharacterSheetViewModel(application: Application) : AndroidViewModel(appli
         loadCharacterData()
     }
 
-    // --- loadCharacterData() REFACTORIZZATA ---
-    // --- loadCharacterData() ORA È PUBBLICA ---
     fun loadCharacterData() { // Rimuovi 'private'
         viewModelScope.launch {
             Log.d(tag, "Inizio caricamento dati personaggio...") // Aggiunto log per chiarezza

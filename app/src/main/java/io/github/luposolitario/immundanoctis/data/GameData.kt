@@ -34,6 +34,7 @@ data class GameItem(
     val name: String,
     val type: ItemType,
     var quantity: Int = 1,
+
     @DrawableRes val iconResId: Int? = null,
     val description: String? = null,
     val bonuses: Map<String, Int>? = null,
@@ -41,6 +42,7 @@ data class GameItem(
     val enduranceBonus: Int = 0,
     val isConsumable: Boolean = false,
     val isDiscardable: Boolean = true,
+    val isSelected: Boolean = false,
     val weaponType: WeaponType? = null,
     val notes: String? = null // <-- NUOVO CAMPO
 )
