@@ -180,7 +180,7 @@ class GameStateManager private constructor(context: android.content.Context) {
             gender = "MALE",
             language = "it",
             stats = LoneWolfStats(combattivita = 15, resistenza = 25),
-            kaiDisciplines = listOf("SIXTH_SENSE", "HEALING", "MINDSHIELD", "WEAPONSKILL", "HUNTING"),
+            kaiDisciplines = listOf("Sixth Sense", "Healing", "Mindshield", "Weaponskill", "Hunting"),
             details = HeroDetails(
                 specialAbilities = listOf("Immunità alle malattie"),
                 inventory = mutableListOf(

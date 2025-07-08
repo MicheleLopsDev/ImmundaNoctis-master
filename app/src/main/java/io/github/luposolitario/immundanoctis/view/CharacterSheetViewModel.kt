@@ -126,7 +126,7 @@ class CharacterSheetViewModel(application: Application) : AndroidViewModel(appli
                 modifier.statName == "COMBATTIVITA" && (
                         modifier.sourceType == ModifierSourceType.ITEM ||
                                 modifier.sourceType == ModifierSourceType.RULE ||
-                                (modifier.sourceType == ModifierSourceType.DISCIPLINE && modifier.sourceId == "WEAPONSKILL")
+                                (modifier.sourceType == ModifierSourceType.DISCIPLINE && modifier.sourceId == "Weaponskill")
                         )
             }
 
@@ -146,7 +146,7 @@ class CharacterSheetViewModel(application: Application) : AndroidViewModel(appli
                     )
                 }
             } else { // FISTS_WEAPON
-                val hasWeaponSkill = hero.kaiDisciplines.contains("WEAPONSKILL")
+                val hasWeaponSkill = hero.kaiDisciplines.contains("Weaponskill")
                 val weaponSkillTypeChosen = hero.details?.weaponSkillType
                 if (hasWeaponSkill && weaponSkillTypeChosen == WeaponType.FISTS) {
                     initialWeaponNetCombatModifier += 0
@@ -229,7 +229,7 @@ class CharacterSheetViewModel(application: Application) : AndroidViewModel(appli
 
             // 2. Calcola il nuovo bonus TOTALE in un unico blocco
             var weaponNetCombatModifier = 0
-            val hasWeaponSkill = hero.kaiDisciplines.contains("WEAPONSKILL")
+            val hasWeaponSkill = hero.kaiDisciplines.contains("Weaponskill")
             val weaponSkillTypeChosen = hero.details?.weaponSkillType
 
             if (newSelectedWeapon.id == FISTS_WEAPON.id) {
@@ -273,7 +273,7 @@ class CharacterSheetViewModel(application: Application) : AndroidViewModel(appli
                             statName = "COMBATTIVITA",
                             amount = schermaBonus,
                             sourceType = ModifierSourceType.DISCIPLINE,
-                            sourceId = "WEAPONSKILL",
+                            sourceId = "Weaponskill",
                             duration = ModifierDuration.PERMANENT
                         )
                     )
@@ -425,7 +425,7 @@ class CharacterSheetViewModel(application: Application) : AndroidViewModel(appli
                 currentModifiers.removeAll { it.sourceId == item.id && it.sourceType == ModifierSourceType.ITEM }
                 // Rimuovi anche i modificatori specifici della disciplina se l'oggetto scartato è un'arma
                 if (item.type == ItemType.WEAPON) {
-                    currentModifiers.removeAll { it.id == "discipline_weaponskill_match_bonus" && it.sourceId == "WEAPONSKILL" }
+                    currentModifiers.removeAll { it.id == "discipline_weaponskill_match_bonus" && it.sourceId == "Weaponskill" }
                     currentModifiers.removeAll { it.id == "rule_no_weapon_penalty" && it.sourceId == "no_weapon" }
                 }
                 Log.d(tag, "Modificatori dopo la rimozione (discard): ${currentModifiers.map { it.id + ":" + it.amount }}")
@@ -501,7 +501,7 @@ class CharacterSheetViewModel(application: Application) : AndroidViewModel(appli
                 if (weaponToReplace != null) {
                     updatedInventory.remove(weaponToReplace)
                     currentModifiers.removeAll { it.sourceId == weaponToReplace.id && it.sourceType == ModifierSourceType.ITEM }
-                    currentModifiers.removeAll { it.id == "discipline_weaponskill_match_bonus" && it.sourceId == "WEAPONSKILL" }
+                    currentModifiers.removeAll { it.id == "discipline_weaponskill_match_bonus" && it.sourceId == "Weaponskill" }
                     Log.d(tag, "Inventario: Sostituisco ${weaponToReplace.name} con ${newWeapon.name}.")
                 } else {
                     Log.w(tag, "Inventario: Impossibile trovare un'arma da sostituire (già 2 armi reali). Aggiungo comunque la nuova arma.")

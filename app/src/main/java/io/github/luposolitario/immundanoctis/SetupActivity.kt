@@ -151,7 +151,7 @@ fun CharacterCreationScreen(
             uiState.selectedWeapon != null &&
             uiState.selectedSpecialItem != null &&
             // NUOVA CONDIZIONE: Se Scherma è selezionata, ChosenWeaponSkillType non deve essere null
-            (selectedDisciplines.contains("WEAPONSKILL") && uiState.chosenWeaponSkillType != null || !selectedDisciplines.contains("WEAPONSKILL"))
+            (selectedDisciplines.contains("Weaponskill") && uiState.chosenWeaponSkillType != null || !selectedDisciplines.contains("Weaponskill"))
 
 
     // Stati per il dialogo della WeaponSkill (ora dal ViewModel)

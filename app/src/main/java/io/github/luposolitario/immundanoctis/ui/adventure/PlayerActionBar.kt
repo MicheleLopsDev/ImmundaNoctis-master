@@ -106,7 +106,7 @@ fun PlayerActionsBar(
                                 tint = Color.White.copy(alpha = 0.7f)
                             )
                             // Mostra il testo solo se è la disciplina Scherma, con la specializzazione
-                            if (disciplineId == "WEAPONSKILL") {
+                            if (disciplineId == "Weaponskill") {
                                 val weaponSkillType = hero.details?.weaponSkillType
                                 val weaponTypeName = if (weaponSkillType != null) {
                                     WEAPON_TYPE_NAMES[weaponSkillType] ?: weaponSkillType.name

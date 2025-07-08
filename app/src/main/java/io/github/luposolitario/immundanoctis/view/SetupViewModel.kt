@@ -143,7 +143,7 @@ class SetupViewModel() : ViewModel() {
             selectedDisciplines.remove(disciplineId)
             Log.d(tag, "Disciplina rimossa: ${disciplineId}. Discipline attuali: ${selectedDisciplines.joinToString()}")
             // Se la disciplina rimossa è Scherma, resetta la scelta del tipo di arma nella UI State
-            if (disciplineId == "WEAPONSKILL") {
+            if (disciplineId == "Weaponskill") {
                 _uiState.update { it.copy(chosenWeaponSkillType = null) }
                 _dialogRolledWeaponSkillType.value = null
                 _showWeaponSkillDialog.value = false // Assicurati che il dialogo si chiuda
@@ -153,7 +153,7 @@ class SetupViewModel() : ViewModel() {
             selectedDisciplines.add(disciplineId)
             Log.d(tag, "Disciplina aggiunta: ${disciplineId}. Discipline attuali: ${selectedDisciplines.joinToString()}")
             // Se la disciplina aggiunta è Scherma, triggera il roll del tipo di arma
-            if (disciplineId == "WEAPONSKILL") {
+            if (disciplineId == "Weaponskill") {
                 rollWeaponSkillTypeForScherma()
             }
         } else {
@@ -229,7 +229,7 @@ class SetupViewModel() : ViewModel() {
         val finalHeroDetails = hero.details?.copy(
             specialAbilities = listOf("Immunità alle malattie"),
             inventory = initialInventory, // Assicurati di passare la lista mutabile finale
-            weaponSkillType = if (selectedDisciplines.contains("WEAPONSKILL")) currentState.chosenWeaponSkillType else null // Prende il valore dallo stato UI
+            weaponSkillType = if (selectedDisciplines.contains("Weaponskill")) currentState.chosenWeaponSkillType else null // Prende il valore dallo stato UI
         )
         // --- FINE SALVATAGGIO TIPO ARMA ---
 
