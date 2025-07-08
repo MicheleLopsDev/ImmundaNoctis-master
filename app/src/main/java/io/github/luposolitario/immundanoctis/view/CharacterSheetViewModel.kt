@@ -428,11 +428,6 @@ class CharacterSheetViewModel(application: Application) : AndroidViewModel(appli
                 }
                 Log.d(tag, "Modificatori dopo la rimozione (discard): ${currentModifiers.map { it.id + ":" + it.amount }}")
 
-
-                if (item.type == ItemType.WEAPON && _uiState.value.selectedWeapon.id == item.id) {
-                    Log.d(tag, "Arma scartata era quella selezionata. Seleziono i Pugni.")
-                    selectWeapon(FISTS_WEAPON)
-                } else {
                     val updatedHeroDetails = hero.details?.copy(activeModifiers = currentModifiers, inventory = updatedInventory)
                     val updatedHero = hero.copy(details = updatedHeroDetails)
 
@@ -444,7 +439,7 @@ class CharacterSheetViewModel(application: Application) : AndroidViewModel(appli
                     val baseEND = updatedHero.stats?.resistenza ?: 0
                     val effectiveCS = calculateEffectiveCombatSkill(baseCS, currentModifiers)
                     val effectiveEND = calculateEffectiveEndurance(baseEND, currentModifiers)
-
+                    selectWeapon(FISTS_WEAPON)
                     _uiState.update { currentState ->
                         currentState.copy(
                             heroCharacter = updatedHero,
@@ -461,7 +456,7 @@ class CharacterSheetViewModel(application: Application) : AndroidViewModel(appli
                     }
                     Log.d(tag, "UI State aggiornata in discardItem() (path non selectWeapon).")
                     Log.d(tag, "Fine discardItem(). Oggetto '${item.name}' scartato con successo. Inventario e modificatori aggiornati.")
-                }
+//                }
             } else {
                 Log.w(tag, "Oggetto '${item.name}' non trovato nell'inventario per lo scarto. Termino.")
             }

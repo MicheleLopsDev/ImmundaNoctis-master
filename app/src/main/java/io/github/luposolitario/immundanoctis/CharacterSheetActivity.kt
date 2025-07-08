@@ -495,10 +495,13 @@ fun KaiDisciplinesCard(kaiDisciplines: List<KaiDisciplineInfo>) {
         }
     }
 }
+// in file: io/github/luposolitario/immundanoctis/CharacterSheetActivity.kt
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun SpecialItemsTableCard(specialItems: List<GameItem>, onItemLongPress: (GameItem) -> Unit) { // Updated signature
+fun SpecialItemsTableCard(specialItems: List<GameItem>, onItemLongPress: (GameItem) -> Unit) {
     val paddedSpecialItems = specialItems.toMutableList()
+    // Popola la lista per avere sempre 10 righe, come prima
     while (paddedSpecialItems.size < 10) {
         paddedSpecialItems.add(GameItem(name = "", description = "", type = ItemType.SPECIAL_ITEM))
     }
@@ -509,6 +512,7 @@ fun SpecialItemsTableCard(specialItems: List<GameItem>, onItemLongPress: (GameIt
             Spacer(Modifier.height(16.dp))
 
             Column(modifier = Modifier.fillMaxWidth()) {
+                // Intestazione della tabella
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -519,22 +523,32 @@ fun SpecialItemsTableCard(specialItems: List<GameItem>, onItemLongPress: (GameIt
                     Text("Nome", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(0.4f), textAlign = TextAlign.Center)
                     Text("Descrizione", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(0.6f), textAlign = TextAlign.Center)
                 }
+
+                // Corpo della tabella
                 paddedSpecialItems.forEachIndexed { index, item ->
-                    val canBeLongPressed = !item.name.isEmpty() && item.isDiscardable // Non è vuoto e scartabile
+                    // --- INIZIO MODIFICA CHIAVE ---
+
+                    // Variabile per determinare se la riga è cliccabile
+                    val canBeLongPressed = !item.name.isEmpty() && item.isDiscardable
 
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(if (index % 2 == 0) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f))
                             .padding(vertical = 8.dp, horizontal = 4.dp)
-                            .combinedClickable( // Abilita click e long press
-                                onClick = { /* Nessuna azione al click normale per oggetti speciali in tabella, se non definita */ },
+                            // Aggiungiamo il modifier per il click combinato
+                            .combinedClickable(
+                                onClick = { /* Nessuna azione al click normale */ },
                                 onLongClick = {
-                                    if (canBeLongPressed) onItemLongPress(item)
+                                    // Esegui l'azione solo se l'oggetto non è vuoto ed è scartabile
+                                    if (canBeLongPressed) {
+                                        onItemLongPress(item)
+                                    }
                                 }
                             ),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        // --- FINE MODIFICA CHIAVE ---
                         Text(
                             item.name.ifEmpty { "---" },
                             style = MaterialTheme.typography.bodyMedium,
@@ -542,10 +556,10 @@ fun SpecialItemsTableCard(specialItems: List<GameItem>, onItemLongPress: (GameIt
                             textAlign = if (item.name.isEmpty()) TextAlign.Center else TextAlign.Start
                         )
                         Text(
-                            item.description!!.ifEmpty { "---" },
+                            item.description?.ifEmpty { "---" } ?: "---",
                             style = MaterialTheme.typography.bodySmall,
                             modifier = Modifier.weight(0.6f),
-                            textAlign = if (item.description.isEmpty()) TextAlign.Center else TextAlign.Start
+                            textAlign = if (item.description.isNullOrEmpty()) TextAlign.Center else TextAlign.Start
                         )
                     }
                 }
