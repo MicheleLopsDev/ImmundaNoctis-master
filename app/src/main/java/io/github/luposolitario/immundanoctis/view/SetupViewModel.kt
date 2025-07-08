@@ -17,7 +17,10 @@ import io.github.luposolitario.immundanoctis.data.HeroDetails
 import io.github.luposolitario.immundanoctis.data.INITIAL_COMMON_ITEMS
 import io.github.luposolitario.immundanoctis.data.ItemType
 import io.github.luposolitario.immundanoctis.data.LoneWolfStats
+import io.github.luposolitario.immundanoctis.data.ModifierDuration
+import io.github.luposolitario.immundanoctis.data.ModifierSourceType
 import io.github.luposolitario.immundanoctis.data.SessionData
+import io.github.luposolitario.immundanoctis.data.StatModifier
 import io.github.luposolitario.immundanoctis.data.WeaponType
 import io.github.luposolitario.immundanoctis.engine.GameLogicManager
 import io.github.luposolitario.immundanoctis.util.SavePreferences
@@ -136,7 +139,7 @@ class SetupViewModel() : ViewModel() {
     }
 
     fun onSpecialItemSelected(item: GameItem) {
-        _uiState.update { it.copy(selectedSpecialItem = item) }
+        _uiState.update { it.copy(selectedSpecialIntialItem = item) }
         Log.d(tag, "Oggetto speciale iniziale selezionato: ${item.name}")
     }
 
@@ -220,7 +223,7 @@ class SetupViewModel() : ViewModel() {
         // --- 1. COSTRUISCI L'INVENTARIO FINALE ---
         val finalInventory = mutableListOf<GameItem>()
         heroState.selectedWeapon?.let { finalInventory.add(it) }
-        heroState.selectedSpecialItem?.let { finalInventory.add(it) }
+        heroState.selectedSpecialIntialItem?.let { finalInventory.add(it) }
 
         INITIAL_COMMON_ITEMS.forEach { commonItem ->
             val itemToAdd = commonItem.copy(
@@ -231,20 +234,56 @@ class SetupViewModel() : ViewModel() {
         Log.d(tag, "Inventario finale costruito: ${finalInventory.map { it.name }}")
 
         // --- 2. CALCOLA LE STATS FINALI ---
+        var mod:StatModifier?  = null
+        val finalMod:MutableList<StatModifier> = mutableListOf<StatModifier>()
+
+
         var finalResistenza = heroState.resistenza
-        heroState.selectedSpecialItem?.bonuses?.get("RESISTENZA")?.let { bonus ->
+        heroState.selectedSpecialIntialItem?.bonuses?.get("RESISTENZA")?.let { bonus ->
+            mod = StatModifier(
+                id = "special_bonus_${heroState.selectedSpecialIntialItem.id}",
+                statName = "RESISTENZA",
+                amount = heroState.selectedSpecialIntialItem.bonuses["RESISTENZA"]!!,
+                sourceType = ModifierSourceType.ITEM,
+                sourceId = heroState.selectedSpecialIntialItem.id,
+                duration = ModifierDuration.UNTIL_UNEQUIPPED
+            )
+            finalMod.add(mod)
             finalResistenza += bonus
         }
+
+
+
         val finalStats = heroState.stats?.copy(
             combattivita = heroState.combattivita,
             resistenza = finalResistenza
         )
         Log.d(tag, "Statistiche finali calcolate: CS=${finalStats?.combattivita}, RES=${finalStats?.resistenza}")
 
+
+
+        if(heroState.chosenWeaponSkillType !=null )
+        {
+            if(heroState.chosenWeaponSkillType == heroState.selectedWeapon?.weaponType)
+            {
+                Log.d(tag, "WeaponSkillType selezionato Activate bonus: ${heroState.chosenWeaponSkillType.name}")
+                mod = StatModifier(
+                    id = "weapon_bonus_${heroState.selectedWeapon.id}",
+                    statName = "COMBATTIVITA",
+                    amount = heroState.selectedWeapon.combatSkillBonus,
+                    sourceType = ModifierSourceType.ITEM,
+                    sourceId = heroState.selectedWeapon.id,
+                    duration = ModifierDuration.UNTIL_UNEQUIPPED
+                )
+                finalMod.add(mod)
+            }
+        }
+
         // --- 3. CREA I DETTAGLI FINALI DELL'EROE (Senza le discipline) ---
         val finalDetails = heroState.details?.copy(
             inventory = finalInventory,
-            weaponSkillType = heroState.chosenWeaponSkillType
+            weaponSkillType = heroState.chosenWeaponSkillType,
+            activeModifiers = finalMod
         )
         Log.d(tag, "Dettagli finali creati. WeaponSkillType: ${finalDetails?.weaponSkillType}")
 

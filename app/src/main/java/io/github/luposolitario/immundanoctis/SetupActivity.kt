@@ -6,7 +6,6 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
-import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -17,14 +16,9 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BrokenImage
-import androidx.compose.material.icons.filled.Science
-import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -33,18 +27,13 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext // AGGIUNTO IMPORT
-import androidx.compose.ui.platform.LocalConfiguration // AGGIUNTO IMPORT
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
-import io.github.luposolitario.immundanoctis.data.CharacterID
 import io.github.luposolitario.immundanoctis.data.GameCharacter
 import io.github.luposolitario.immundanoctis.data.KaiDisciplineInfo
 import io.github.luposolitario.immundanoctis.data.KAI_DISCIPLINES
@@ -60,9 +49,6 @@ import io.github.luposolitario.immundanoctis.data.GameItem
 import io.github.luposolitario.immundanoctis.data.INITIAL_WEAPONS
 import io.github.luposolitario.immundanoctis.data.INITIAL_SPECIAL_ITEMS
 import io.github.luposolitario.immundanoctis.data.ItemType
-import io.github.luposolitario.immundanoctis.data.WeaponType
-import io.github.luposolitario.immundanoctis.data.WEAPON_TYPE_NAMES
-import io.github.luposolitario.immundanoctis.data.WEAPON_SKILL_DESCRIPTIONS
 import io.github.luposolitario.immundanoctis.ui.adventure.RobustImage
 import io.github.luposolitario.immundanoctis.ui.adventure.WeaponSkillSelectionDialog // <--- AGGIUNTO L'IMPORT PER WeaponSkillSelectionDialog
 
@@ -149,7 +135,7 @@ fun CharacterCreationScreen(
             uiState.resistenza > 0 &&
             selectedDisciplines.size == 5 &&
             uiState.selectedWeapon != null &&
-            uiState.selectedSpecialItem != null &&
+            uiState.selectedSpecialIntialItem != null &&
             // NUOVA CONDIZIONE: Se Scherma è selezionata, ChosenWeaponSkillType non deve essere null
             (selectedDisciplines.contains("Weaponskill") && uiState.chosenWeaponSkillType != null || !selectedDisciplines.contains("Weaponskill"))
 
@@ -275,7 +261,7 @@ fun EquipmentChoiceCard(
                 specialItems.forEach { item ->
                     EquipmentChoiceRow(
                         item = item,
-                        isSelected = (uiState.selectedSpecialItem?.name == item.name),
+                        isSelected = (uiState.selectedSpecialIntialItem?.name == item.name),
                         onClick = { onSpecialItemSelected(item) }
                     )
                 }
