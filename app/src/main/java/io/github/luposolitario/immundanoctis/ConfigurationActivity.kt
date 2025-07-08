@@ -40,7 +40,7 @@ class ConfigurationActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        gameStateManager = GameStateManager(applicationContext)
+        gameStateManager = GameStateManager.getInstance(applicationContext)
 
         setContent {
             val useDarkTheme = themePreferences.useDarkTheme(isSystemInDarkTheme())

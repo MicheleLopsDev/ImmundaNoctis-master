@@ -78,8 +78,9 @@ class SetupActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        gameStateManager = GameStateManager(this)
+        gameStateManager = GameStateManager.getInstance(this)
         viewModel.initialize(applicationContext)
+
 
         setContent {
             val useDarkTheme = themePreferences.useDarkTheme(isSystemInDarkTheme())
@@ -96,22 +97,23 @@ class SetupActivity : ComponentActivity() {
 
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     var sessionToLoad by remember { mutableStateOf(gameStateManager.loadSession()) }
-                    var showCreationScreen by remember { mutableStateOf(sessionToLoad == null) }
+                    var showCreationScreen = sessionToLoad.isStarted
 
-                    if (showCreationScreen) {
-                        val defaultSession = remember { gameStateManager.createDefaultSession() }
+                    if (!showCreationScreen) {
+                        val defaultSession = remember { gameStateManager.loadSession(forceCreate = true) }
                         CharacterCreationScreen(
                             viewModel = viewModel,
                             defaultSession = defaultSession,
                             onSessionCreate = { sessionData ->
                                 gameStateManager.saveSession(sessionData)
+                                gameStateManager.setStartedAdventure()
                                 val intent = Intent(this, AdventureActivity::class.java)
                                 startActivity(intent)
                                 finish()
                             }
                         )
                     } else {
-                        sessionToLoad?.let { session ->
+                        sessionToLoad.let { session ->
                             ExistingSessionScreen(
                                 session = session,
                                 onContinue = {
@@ -119,7 +121,10 @@ class SetupActivity : ComponentActivity() {
                                     startActivity(intent)
                                     finish()
                                 },
-                                onCreateNew = { showCreationScreen = true }
+                                onCreateNew = {
+                                    gameStateManager.restartAdventure()
+                                    this.startActivity(Intent(this, SetupActivity::class.java))
+                                }
                             )
                         }
                     }
@@ -437,18 +442,16 @@ fun ExistingSessionScreen(
                 Text(session.sessionName, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
                 Spacer(modifier = Modifier.height(8.dp))
                 Text("Ultimo salvataggio: $formattedDate", style = MaterialTheme.typography.bodySmall)
-                if (hero != null) {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    RobustImage(
-                        resId = hero.portraitResId,
-                        contentDescription = "Ritratto Eroe",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.size(128.dp).clip(CircleShape).border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(hero.name, style = MaterialTheme.typography.titleLarge)
-                    Text(hero.characterClass, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.secondary)
-                }
+                Spacer(modifier = Modifier.height(16.dp))
+                RobustImage(
+                    resId = hero.portraitResId,
+                    contentDescription = "Ritratto Eroe",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.size(128.dp).clip(CircleShape).border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(hero.name, style = MaterialTheme.typography.titleLarge)
+                Text(hero.characterClass, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.secondary)
             }
         }
         Spacer(modifier = Modifier.height(32.dp))

@@ -52,7 +52,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _sessionName = MutableStateFlow("Immunda Noctis")
     val sessionName: StateFlow<String> = _sessionName.asStateFlow()
 
-    private val gameStateManager = GameStateManager(application)
+    private val gameStateManager = GameStateManager.getInstance(application)
     private val enginePreferences = EnginePreferences(application)
     private val themePreferences = ThemePreferences(application)
     private val llamaPreferences = LlamaPreferences(application)
@@ -156,9 +156,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun loadGameSession(startFresh: Boolean = false) {
         val session = gameStateManager.loadSession()
-        val actualIsNewAdventure = (session == null || startFresh)
+        val actualIsNewAdventure = (startFresh)
 
-        val currentSession = session ?: gameStateManager.createDefaultSession()
+        val currentSession = session
         _gameHero.value = currentSession.hero
         _gameCharacters.value = currentSession.characters
         _sessionName.value = currentSession.sessionName
@@ -533,7 +533,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             log("Scena reimpostata a una scena START casuale di genere FANTASY.")
             GameLogicManager.resetUsedScenes()
             val currentSession =
-                gameStateManager.loadSession() ?: gameStateManager.createDefaultSession()
+                gameStateManager.loadSession()
             if (_currentScene.value?.id != null) {
                 sendInitialDmPrompt(currentSession)
             }
@@ -1132,14 +1132,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     suspend fun sendInitialDmPrompt(sessionData: SessionData) {
-        if (sessionData.isStarted) {
-            log("DEBUG: La sessione è già iniziata, non invio prompt iniziale DM.")
-            processCurrentSceneNarrative(shouldGenerateNarration = false)
-            return
-        }
+//        if (sessionData.isStarted) {
+//            log("DEBUG: La sessione è già iniziata, non invio prompt iniziale DM.")
+//            processCurrentSceneNarrative(shouldGenerateNarration = false)
+//            return
+//        }
 
-        val updatedSession = sessionData.copy(isStarted = true)
-        gameStateManager.saveSession(updatedSession)
+//        val updatedSession = sessionData.copy(isStarted = true)
+//        gameStateManager.saveSession(updatedSession)
         _gameCharacters.value = gameStateManager.loadSession()?.characters!!
         _gameHero.value =  gameStateManager.loadSession()?.hero!!
         log("DEBUG: Sessione marcata come avviata.")

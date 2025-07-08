@@ -49,7 +49,7 @@ data class CharacterSheetUiState(
 class CharacterSheetViewModel(application: Application) : AndroidViewModel(application) {
 
     private val tag = "CSViewModel" // Abbreviato per visibilità nei log
-    private val gameStateManager = GameStateManager(application)
+    private val gameStateManager = GameStateManager.getInstance(application)
     private val gameRules = LoneWolfRules()
 
     private val _uiState = MutableStateFlow(CharacterSheetUiState())

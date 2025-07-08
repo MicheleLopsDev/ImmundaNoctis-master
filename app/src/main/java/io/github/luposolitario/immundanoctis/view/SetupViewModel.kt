@@ -25,6 +25,7 @@ import java.io.FileOutputStream
 import kotlin.random.Random
 // NUOVO IMPORT
 import io.github.luposolitario.immundanoctis.engine.GameLogicManager
+import io.github.luposolitario.immundanoctis.util.GameStateManager
 
 
 // --- SetupUiState MODIFICATA per includere chosenWeaponSkillType ---
@@ -188,6 +189,7 @@ class SetupViewModel() : ViewModel() {
 
     fun finalizeSessionCreation(defaultSession: SessionData): SessionData {
         Log.d(tag, "Inizio finalizeSessionCreation().")
+
         val currentState = _uiState.value
         val hero = defaultSession.hero
         Log.d(tag, "Stato UI al finalizza: CS=${currentState.combattivita}, RES=${currentState.resistenza}, Arma=${currentState.selectedWeapon?.name}, Special=${currentState.selectedSpecialItem?.name}, SchermaType=${currentState.chosenWeaponSkillType?.name}")

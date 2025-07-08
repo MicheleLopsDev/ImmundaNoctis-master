@@ -27,7 +27,7 @@ class DeathActivity : ComponentActivity() {
                     DeathScreen(
                         onRestart = {
                             // Cancella la sessione di gioco e ricomincia
-                            GameStateManager(this).deleteSession()
+                            GameStateManager.getInstance(this).deleteSession()
                             val intent = Intent(this, SetupActivity::class.java)
                             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
                             startActivity(intent)
