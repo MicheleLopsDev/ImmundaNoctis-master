@@ -156,7 +156,6 @@ Ogni oggetto scena nell'array scenes deve conformarsi a questa struttura. I camp
       "progressive": "string",
       "choiceText": {
         "english": "string",
-        "italian": null
       },
       "nextSceneId": "string"
     }
@@ -167,7 +166,6 @@ Ogni oggetto scena nell'array scenes deve conformarsi a questa struttura. I camp
       "discipline": "string",
       "choiceText": {
         "english": "string",
-        "italian": null
       },
       "nextSceneId": "string"
     }
@@ -178,7 +176,6 @@ Ogni oggetto scena nell'array scenes deve conformarsi a questa struttura. I camp
       "item": "string",
       "choiceText": {
         "english": "string",
-        "italian": null
       },
       "nextSceneId": "string",
       "requires": "boolean"
@@ -211,7 +208,6 @@ Output JSON Atteso:
           "progressive": "2",
           "choiceText": {
             "english": "If you wish to take the right path into the wood, turn to 85.",
-            "italian": null
           },
           "nextSceneId": "85"
         },
@@ -220,7 +216,6 @@ Output JSON Atteso:
           "progressive": "3",
           "choiceText": {
             "english": "If you wish to follow the left track, turn to 275.",
-            "italian": null
           },
           "nextSceneId": "275"
         }
@@ -231,7 +226,6 @@ Output JSON Atteso:
           "discipline": "Sixth Sense",
           "choiceText": {
             "english": "If you wish to use your Kai Discipline of Sixth Sense, turn to 141.",
-            "italian": null
           },
           "nextSceneId": "141"
         }
