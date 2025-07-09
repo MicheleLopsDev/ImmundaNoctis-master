@@ -92,7 +92,13 @@
   "<heal statName=\"ENDURANCE\" amount=\"4\" />",
   "<ifStat statName=\"Gold Crowns\" operator=\"GREATER_THAN_OR_EQUAL\" value=\"10\" targetScene=\"262\" />",
   "<setFlag flagName=\"MET_MERCHANT\" value=\"true\" />",
-  "<randomQuantity item=\"GOLD\" baseValue=\"10\" />"
-
-
+  "<randomQuantity item=\"GOLD\" baseValue=\"10\" />",
+  "<randomChoiceTable outcomes=\"[{'range': '0-4', 'nextSceneId': '108'}, {'range': '5-9', 'nextSceneId': '25'}]\" />",
+  "<ifItem itemName=\"Rope\" quantity=\"1\" operator=\"GREATER_THAN_OR_EQUAL\" nextSceneId_TRUE=\"133\" nextSceneId_FALSE=\"297\" />",
+  "<ifItem itemName=\"Glowing Crystal\" quantity=\"1\" operator=\"EQUAL\" nextSceneId_TRUE=\"139\" nextSceneId_FALSE=\"189\" />",
+  "<skillCheck checkType=\"RANDOM_NUMBER_WITH_MODIFIER\" discipline=\"Hunting\" modifier=\"+2\" outcomes=\"[{'range': '0-5', 'nextSceneId': '333'}, {'range': '6-11', 'nextSceneId': '286'}]\" />",
+  "<skillCheck checkType=\"RANDOM_NUMBER\" outcomes=\"[{'range': '0-2', 'nextSceneId': '108'}, {'range': '3-9', 'nextSceneId': '25'}]\" />",
+  "<conditionalAction condition=\"HAS_ITEM\" itemName=\"Chainmail Waistcoat\" action=\"<removeItem itemName='Chainmail Waistcoat' quantity='1' />\" />",
+  "<setGlobalVar varName=\"questTimer\" value=\"40\" operation=\"SET\" />",
+  "<updateGlobalVar varName=\"questTimer\" value=\"-1\" operation=\"ADD\" />"
 ]

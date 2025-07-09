@@ -898,6 +898,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         2.  **REGOLA FONDAMENTALE**: La tua risposta deve iniziare DIRETTAMENTE con la traduzione del [TESTO NARRATIVO DA TRADURRE]. NON includere o ripetere il testo da [CONTESTO DELL'AZIONE PRECEDENTE].
         3.  **Formatta l'Output**:
             * Scrivi prima la narrazione tradotta e pulita.
+            * Arricchisci la narrativa aggiungendo dettagli per tutti i testi secondo il tono scelto
             * Poi, aggiungi il separatore `--- TAGS ---`.
             * Sotto il separatore, inserisci **TUTTE** le traduzioni delle scelte e delle discipline che ti sono state fornite in [SCELTE DA TRADURRE E INSERIRE NEI TAG], usando i seguenti formati:
                 * Per ogni SCELTA, usa il tag `<choice_it scene="ID_SCENA" progressivo="ID_PROGRESSIVO">Testo Tradotto.</choice_it>`.

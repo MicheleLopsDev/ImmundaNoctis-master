@@ -1,4 +1,4 @@
-# **Prompt 13.1: Estrazione Flessibile con Chiusura Automatica**
+# **Prompt 16.0: Estrazione Flessibile con Chiusura Forzata**
 
 ### **1\. Ruolo**
 
@@ -6,7 +6,7 @@ Sei un assistente ETL (Extract, Transform, Load) specializzato nell'analisi di l
 
 ### **2\. Obiettivo**
 
-Converti il contenuto dei paragrafi del libro-gioco fornito in un frammento di scenes.json. Il JSON deve contenere solo testo in inglese. Tutte le meccaniche di gioco devono essere estratte dal testo narrativo e rappresentate come **stringhe XML** nell'array gameMechanics.
+Converti il contenuto del libro-gioco fornito in un frammento JSON. Il JSON deve contenere solo testo in inglese. Tutte le meccaniche di gioco devono essere estratte dal testo narrativo e rappresentate come **stringhe XML** nell'array gameMechanics. Se stai analizzando l'inizio del libro, devi estrarre anche l'elenco delle Discipline Kai.
 
 ### **3\. Parametri di Esecuzione**
 
@@ -21,7 +21,7 @@ Esegui i seguenti passaggi in ordine rigoroso.
 1. Pre-processing: Applicazione Errata
    Prima di qualsiasi analisi, individua la sezione 'Errata' (\<a id="errata"\>) nel file HTML. Applica mentalmente le correzioni elencate al testo del libro. L'analisi successiva deve basarsi sul testo corretto.
 2. Focalizzazione sul Contenuto
-   Ignora tutto il contenuto del file HTML ad eccezione di ciò che si trova all'interno del div con la classe numbered. La tua analisi deve concentrarsi esclusivamente sui paragrafi numerati (\<h3\>\<a id="sectX"\>X\</a\>\</h3\>) e sul loro testo.
+   La tua analisi principale deve concentrarsi sui paragrafi all'interno del div con la classe numbered. Tuttavia, se START\_SECTION è 1, devi analizzare anche la sezione delle regole di gioco per estrarre l'elenco delle Discipline Kai, come descritto nella Sezione 8\.
 3. Analisi e Generazione JSON
    Analizza i paragrafi del libro-gioco a partire da START\_SECTION.
    * **Se END\_SECTION è specificato**, fermati a quel paragrafo. Considera il valore di IS\_FINAL\_CHUNK per la formattazione finale.
@@ -81,75 +81,79 @@ Presta particolare attenzione a questi esempi per comprendere come interpretare 
 * **Testo Esempio (02fotw.htm, sez. 5):** "Wounded Helghast: COMBAT SKILL 22 ENDURANCE 20\. It is an undead creature. Double all ENDURANCE points that it loses... It is immune to Mindblast."
 * **Tag XML Risultante:** "\<combat enemyName=\\"Wounded Helghast\\" combatSkill=\\"22\\" endurance=\\"20\\" immunity=\\"Mindblast\\" notes=\\"It is an undead creature. Double all ENDURANCE points that it loses, due to the power of the Sommerswerd.\\" /\>"
 
-#### **\<evadeCombat\>**
-
-* **Logica:** Usato quando viene offerta esplicitamente una via di fuga dal combattimento.
-* **Testo Esempio (03tcok.htm, sez. 106):** "You may evade at any time by crawling back into the chamber and escaping by the north passage. Turn to 145."
-* **Tag XML Risultante:** "\<evadeCombat targetScene=\\"145\\" /\>"
-
-#### **\<consumeOrSuffer\>**
-
-* **Logica:** Usato per la meccanica "mangia o subisci una penalità".
-* **Testo Esempio (01fftd.htm, sez. 147):** "You are hungry and must now eat a Meal here or lose 3 ENDURANCE points."
-* **Tag XML Risultante:** "\<consumeOrSuffer type=\\"Meal\\" quantity=\\"1\\" penaltyStat=\\"ENDURANCE\\" penaltyValue=\\"-3\\" /\>"
-
-#### **\<statMod\>**
-
-* **Logica:** Usato per modifiche permanenti o semi-permanenti alle statistiche del giocatore.
-* **Testo Esempio (03tcok.htm, sez. 55):** "The frostbite is serious and you lose 5 ENDURANCE points. In addition to this, you also lose 2 points from your initial COMBAT SKILL. This COMBAT SKILL loss is permanent..."
-* **Tag XML Risultanti:**
-  * "\<statMod statName=\\"ENDURANCE\\" amount=\\"-5\\" /\>"
-  * "\<statMod statName=\\"INITIAL\_COMBAT\_SKILL\\" amount=\\"-2\\" notes=\\"Permanent loss.\\" /\>"
-
 #### **\<ifCondition\>**
 
 * **Logica:** Usato per scelte binarie basate sul possesso di oggetti, discipline o flag.
 * **Testo Esempio (04tcod.htm, sez. 23):** "If you possess a Brass Key, turn to 282\. If you do not, turn to 105."
 * **Tag XML Risultante:** "\<ifCondition type=\\"item\\" value=\\"Brass Key\\" targetScene=\\"282\\" elseTargetScene=\\"105\\" /\>"
 
-#### **\<randomCheck\>**
+### **7\. Istruzioni Dettagliate per la Generazione JSON (Scene)**
 
-* **Logica:** Usato quando il risultato di un'azione dipende da un tiro di dado (o da un numero casuale).
-* **Testo Esempio (04tcod.htm, sez. 11):** "Pick a number from the Random Number Table. If the number you have picked is 0–4, turn to 97\. If the number is 5–9, turn to 190."
-* **Tag XML Risultante:** "\<randomCheck outcomes=\\"0-4:97,5-9:190\\" /\>"
+1. **id**: Stringa corrispondente al numero del paragrafo.
+2. **sceneType**: ENDING se contiene "Your life and your mission end here.". VICTORY se conclude l'avventura. START per il primo paragrafo del libro. Altrimenti, TRANSITION.
+3. **genre**: Sempre FANTASY.
+4. **challengeLevel**: HARD se gameMechanics contiene una stringa \<combat.... Altrimenti, BASE.
+5. **narrativeText.english**: Estrai solo il testo narrativo, rimuovendo le frasi relative alle meccaniche di gioco.
+6. **gameMechanics**: Array di **stringhe XML**. Inserisci qui i tag XML identificati, seguendo la struttura definita nelle sezioni 5 e 6\. Assicurati di effettuare l'escape dei doppi apici (es. \\"). **Interpreta la logica del testo**: non limitarti a una semplice estrazione.
+7. **images**: Estrai src e didascalia se presenti, altrimenti \[\].
+8. **choices**: **NON MODIFICARE**. Lascia la struttura delle scelte come nell'esempio.
+9. **location**: Identifica il luogo e popola areaName e isMajorLocation.
+10. **visualDescriptors**: Estrai dettagli visivi per scenes, characters e items.
 
-#### **\<conditionalModifier\>**
+### **8\. Estrazione Discipline Kai (disciplineChoices)**
 
-* **Logica:** Usato quando un bonus/malus si applica a un'azione solo se una condizione è soddisfatta.
-* **Testo Esempio (04tcod.htm, sez. 35):** "Pick a number from the Random Number Table. If you have the Kai Discipline of Hunting... add 3 to the number you have picked."
-* **Tag XML Risultante:** "\<conditionalModifier conditionType=\\"discipline\\" conditionValue=\\"Hunting\\" target=\\"randomCheck\\" amount=\\"3\\" /\>"
+1. **Trigger**: Questa estrazione deve essere eseguita **solo** quando START\_SECTION è 1\. L'array disciplineChoices risultante deve essere posizionato al livello principale (root) del JSON, insieme a adventureName e scenes.
+2. **Localizzazione**: Individua la sezione delle Regole di Gioco che descrive le Discipline Kai. Di solito si trova sotto un'intestazione come \<a id="discplnz"\>Kai Disciplines\</a\>.
+3. **Estrazione**: Per ogni disciplina elencata (tipicamente in un tag \<h4\> con un \<a\> con id):
+   * **id**: Usa il valore dell'attributo id del tag \<a\> (es. "camflage") e mappalo sull'ID corretto in formato PascalCase usando la seguente tabella. **Questo passaggio è obbligatorio.**
 
-#### **\<setFlag\>**
+| HTML id (\<a\> tag) | JSON id (output) |
+| :---- | :---- |
+| camflage | Camouflage |
+| hunting | Hunting |
+| sixthsns | Sixth Sense |
+| tracking | Tracking |
+| healing | Healing |
+| wepnskll | Weaponskill |
+| mindshld | Mindshield |
+| mndblst | Mindblast |
+| anmlknsp | Animal Kinship |
+| mindomtr | Mind Over Matter |
 
-* **Logica:** Usato quando un'azione o una scelta del giocatore crea uno stato persistente che influenzerà eventi futuri.
-* **Testo Esempio (02fotw.htm, sez. 15):** "He tells you that he is sworn to the defence of the border... he offers you any of his possessions if they may aid you on your quest."
-* **Logica di Estrazione:** Questa interazione positiva con la guardia del confine può essere registrata come un flag.
-* **Tag XML Risultante:** "\<setFlag flagName=\\"helped\_by\_border\_knight\\" flagValue=\\"true\\" /\>"
+\* \*\*name\*\*: Estrai il nome della disciplina dal testo del tag \`\<h4\>\` (es. "Camouflage").
+\* \*\*description.english\*\*: Estrai il testo descrittivo dai paragrafi \`\<p\>\` che seguono. \*\*Pulisci il testo\*\*: Rimuovi le frasi di istruzioni di gioco come "If you choose this skill, write...", "This is the weapon in which you have skill.", e simili. Includi solo la pura descrizione dell'abilità.
+\* \*\*notes.english\*\*: (Opzionale) Se la descrizione contiene dettagli meccanici specifici (come il bonus di \+2 alla \`COMBAT SKILL\` per Weaponskill), estrai questa informazione e inseriscila qui.
 
-### **7\. Istruzioni Dettagliate per la Generazione JSON**
+4. **Struttura JSON di Esempio**:
+   "disciplineChoices": \[
+     {
+       "id": "Camouflage",
+       "name": "Camouflage",
+       "description": {
+         "english": "This Discipline enables a Kai Lord to blend in with his surroundings. In the countryside, he can hide undetected among trees and rocks and pass close to an enemy without being seen. In a town or city, it enables him to look and sound like a native of that area, and can help him to find shelter or a safe hiding place."
+       },
+       "notes": {}
+     },
+     {
+       "id": "Hunting",
+       "name": "Hunting",
+       "description": {
+         "english": "This skill ensures that a Kai Lord will never starve in the wild. He will always be able to hunt for food for himself except in areas of wasteland and desert. The skill also enables a Kai Lord to be able to move stealthily when stalking his prey."
+       },
+       "notes": {
+         "english": "No need for a Meal when instructed to eat."
+       }
+     }
+   \]
 
-1. **Identificazione Titolo Avventura**: **Solo se START\_SECTION è 1**, estrai il titolo del libro dal tag \<title\> del file HTML di origine. Questo titolo verrà usato per il campo adventureName.
-2. **id**: Stringa corrispondente al numero del paragrafo.
-3. **sceneType**: ENDING se contiene "Your life and your mission end here.". VICTORY se conclude l'avventura. START per il primo paragrafo del libro. Altrimenti, TRANSITION.
-4. **genre**: Sempre FANTASY.
-5. **challengeLevel**: HARD se gameMechanics contiene una stringa \<combat.... Altrimenti, BASE.
-6. **narrativeText.english**: Estrai solo il testo narrativo, rimuovendo le frasi relative alle meccaniche di gioco.
-7. **gameMechanics**: Array di **stringhe XML**. Inserisci qui i tag XML identificati, seguendo la struttura definita nelle sezioni 5 e 6\. Assicurati di effettuare l'escape dei doppi apici (es. \\"). **Interpreta la logica del testo**: non limitarti a una semplice estrazione. Identifica controlli su numeri casuali, modificatori condizionali, consumo obbligatorio e effetti di stato temporanei.
-8. **images**: Estrai src e didascalia se presenti, altrimenti \[\].
-9. **choices**: **NON MODIFICARE**. Lascia la struttura delle scelte come nell'esempio.
-10. **disciplineChoices**: **IGNORA**. Non popolare questo campo.
-11. **location**: Identifica il luogo e popola areaName e isMajorLocation.
-12. **visualDescriptors**: Estrai dettagli visivi per scenes, characters e items.
-
-### **8\. Esempio Completo (Few-Shot Learning) con Nuova Struttura XML**
+### **9\. Esempio Completo (Few-Shot Learning)**
 
 **Testo Originale (da Flight from the Dark, sezione 17):**
 
 You raise your weapon to strike at the beast... Deduct 1 point from your COMBAT SKILL and fight the Kraan.
 Kraan: COMBAT SKILL 16 ENDURANCE 24
 If you kill the creature... Pick a number...
-**Output JSON Atteso:**
-
+Output JSON Atteso (per la singola scena):
 {
   "id": "17",
   "sceneType": "TRANSITION",
@@ -185,10 +189,15 @@ If you kill the creature... Pick a number...
   \]
 }
 
-### **9\. Formattazione Finale dell'Output (Logica Condizionale)**
+### **10\. Formattazione Finale dell'Output (Logica Condizionale)**
 
-1. **SE START\_SECTION è 1:** Inizia con: { "adventureName": "\[Titolo Estratto dal tag \<title\>\]", "scenes": \[
-2. **GENERAZIONE OGGETTI:** Aggiungi una virgola (,) dopo ogni oggetto JSON, **TRANNE** se è l'ultimo del blocco.
+1. **APERTURA FILE:**
+   * **SE START\_SECTION è 1:** Inizia l'output con: { "adventureName": "\[Titolo Estratto\]", "disciplineChoices": \[ ...elenco discipline... \], "scenes": \[
+2. **GENERAZIONE OGGETTI SCENA:**
+   * Aggiungi una virgola (,) dopo ogni oggetto JSON della scena, **TRANNE** se è l'ultimo del blocco che stai generando.
 3. **CHIUSURA FILE:**
-   * **Se IS\_FINAL\_CHUNK è true OPPURE se END\_SECTION non è stato fornito:** Chiudi la struttura con: \] }
-   * **Se IS\_FINAL\_CHUNK è false (e END\_SECTION è stato fornito):** Termina con la virgola (,) dopo l'ultimo oggetto JSON del blocco.
+   * **Regola di Chiusura Finale:** Chiudi la struttura con \] } se si verifica **una qualsiasi** delle seguenti condizioni:
+     * IS\_FINAL\_CHUNK è true.
+     * END\_SECTION non è stato fornito.
+     * Il numero dell'ultimo paragrafo che stai elaborando è 350\.
+   * **Se nessuna delle condizioni sopra è soddisfatta:** Termina con la virgola (,) dopo l'ultimo oggetto JSON del blocco.

@@ -151,19 +151,6 @@
       "replace": true
     },
     {
-      "id": "end_guff_tag",
-      "type": "textSubstitution",
-      "regex": "\\<\\|eot_id\\|",
-      "replacement": {
-        "italian": "",
-        "english": ""
-      },
-      "parameters": [],
-      "actor": "ANY",
-      "command": null,
-      "replace": true
-    },
-    {
       "id": "stat_mod_tag",
       "type": "gameMechanic",
       "regex": "<statMod\\s+statName=\\\"([^\\\"]*)\\\"\\s+amount=\\\"([+-]?\\d+|-?FULL)\\\"\\s*/>",
@@ -187,6 +174,98 @@
       ],
       "actor": "DM",
       "command": "checkStatAndJump",
+      "replace": true
+    },
+    {
+      "id": "random_choice_table_tag",
+      "type": "gameMechanic",
+      "regex": "<randomChoiceTable\\s+outcomes=\\\"(\\[.*?\\])\\\"\\s*/>",
+      "parameters": [
+        { "name": "outcomes", "value": "{captured_value_from_regex_1}" }
+      ],
+      "actor": "DM",
+      "command": "handleRandomChoice",
+      "replace": true
+    },
+    {
+      "id": "if_item_choice_tag",
+      "type": "gameMechanic",
+      "regex": "<ifItem\\s+itemName=\\\"([^\\\"]*)\\\"(?:\\s+quantity=\\\"(\\d+)\\\")?\\s+operator=\\\"([^\\\"]*)\\\"\\s+nextSceneId_TRUE=\\\"([^\\\"]*)\\\"(?:\\s+nextSceneId_FALSE=\\\"([^\\\"]*)\\\")?\\s*/>",
+      "parameters": [
+        { "name": "itemName", "value": "{captured_value_from_regex_1}" },
+        { "name": "quantity", "value": "{captured_value_from_regex_2}" },
+        { "name": "operator", "value": "{captured_value_from_regex_3}" },
+        { "name": "nextSceneId_TRUE", "value": "{captured_value_from_regex_4}" },
+        { "name": "nextSceneId_FALSE", "value": "{captured_value_from_regex_5}" }
+      ],
+      "actor": "DM",
+      "command": "checkItemAndJump",
+      "replace": true
+    },
+    {
+      "id": "skill_check_tag",
+      "type": "gameMechanic",
+      "regex": "<skillCheck\\s+checkType=\\\"([^\\\"]*)\\\"(?:\\s+discipline=\\\"([^\\\"]*)\\\")?(?:\\s+modifier=\\\"([+-]?\\d+)\\\")?\\s+outcomes=\\\"(\\[.*?\\])\\\"\\s*/>",
+      "parameters": [
+        { "name": "checkType", "value": "{captured_value_from_regex_1}" },
+        { "name": "discipline", "value": "{captured_value_from_regex_2}" },
+        { "name": "modifier", "value": "{captured_value_from_regex_3}" },
+        { "name": "outcomes", "value": "{captured_value_from_regex_4}" }
+      ],
+      "actor": "DM",
+      "command": "handleSkillCheck",
+      "replace": true
+    },
+    {
+      "id": "conditional_action_tag",
+      "type": "gameMechanic",
+      "regex": "<conditionalAction\\s+condition=\\\"([^\\\"]*)\\\"(?:\\s+itemName=\\\"([^\\\"]*)\\\")?\\s+action=\\\"(.*)\\\"\\s*/>",
+      "parameters": [
+        { "name": "condition", "value": "{captured_value_from_regex_1}" },
+        { "name": "itemName", "value": "{captured_value_from_regex_2}" },
+        { "name": "action", "value": "{captured_value_from_regex_3}" }
+      ],
+      "actor": "DM",
+      "command": "handleConditionalAction",
+      "replace": true
+    },
+    {
+      "id": "set_global_var_tag",
+      "type": "gameMechanic",
+      "regex": "<setGlobalVar\\s+varName=\\\"([^\\\"]*)\\\"\\s+value=\\\"([^\\\"]*)\\\"\\s+operation=\\\"([^\\\"]*)\\\"\\s*/>",
+      "parameters": [
+        { "name": "varName", "value": "{captured_value_from_regex_1}" },
+        { "name": "value", "value": "{captured_value_from_regex_2}" },
+        { "name": "operation", "value": "{captured_value_from_regex_3}" }
+      ],
+      "actor": "DM",
+      "command": "setGlobalVar",
+      "replace": true
+    },
+    {
+      "id": "update_global_var_tag",
+      "type": "gameMechanic",
+      "regex": "<updateGlobalVar\\s+varName=\\\"([^\\\"]*)\\\"\\s+value=\\\"([+-]?\\d+)\\\"\\s+operation=\\\"([^\\\"]*)\\\"\\s*/>",
+      "parameters": [
+        { "name": "varName", "value": "{captured_value_from_regex_1}" },
+        { "name": "value", "value": "{captured_value_from_regex_2}" },
+        { "name": "operation", "value": "{captured_value_from_regex_3}" }
+      ],
+      "actor": "DM",
+      "command": "updateGlobalVar",
+      "replace": true
+    },
+    {
+      "id": "end_guff_tag",
+      "type": "textSubstitution",
+      "regex": "\\<\\|eot_id\\|",
+      "replacement": {
+        "italian": "",
+        "english": ""
+      },
+      "parameters": [],
+      "actor": "ANY",
+      "command": null,
       "replace": true
     }
   ]
