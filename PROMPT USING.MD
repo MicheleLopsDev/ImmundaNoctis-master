@@ -45,6 +45,12 @@ Questo è il **secondo passo**. Utilizza il libro per generare la sequenza delle
    * Se END\_SECTION non viene specificato, l'output è un file JSON completo e chiuso (IS\_FINAL\_CHUNK è considerato true).  
    * Se END\_SECTION viene specificato, l'output è un frammento che può essere concatenato con altri.
 
+
+* START_SECTION: 1
+* END_SECTION: 120
+* IS_FINAL_CHUNK: false
+
+
 ### **Flusso di Lavoro Consigliato**
 
 1. **Esegui il Prompt degli Oggetti:** Passagli il file HTML del libro per generare il file items.json completo.  

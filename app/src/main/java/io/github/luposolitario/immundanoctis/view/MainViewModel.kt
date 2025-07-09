@@ -930,104 +930,118 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
 
     private suspend fun processCurrentSceneNarrative(shouldGenerateNarration: Boolean = true) {
-        val scene = _currentScene.value ?: run {
-            log("ERRORE: Tentativo di processare una scena nulla.")
-            return
-        }
+        if(!savePreferences.isChatEnabled) {
 
-        // --- FASE 1: ESECUZIONE IMMEDIATA DELLE MECCANICHE DI GIOCO DAL JSON ---
-        val gameMechanics = scene.gameMechanics
-        if (!gameMechanics.isNullOrEmpty()) {
-            log("Trovate ${gameMechanics.size} meccaniche di gioco predefinite nella scena: $gameMechanics")
-            val commandsToExecute = mutableListOf<EngineCommand>()
-
-            gameMechanics.forEach { mechanicString ->
-                // Usiamo il parser sulla singola stringa di meccanica
-                val (_, commands) = stringTagParser.parseAndReplaceWithCommands(mechanicString, CharacterType.DM)
-                commandsToExecute.addAll(commands)
+            val scene = _currentScene.value ?: run {
+                log("ERRORE: Tentativo di processare una scena nulla.")
+                return
             }
 
-            if (commandsToExecute.isNotEmpty()) {
-                // -->> MODIFICA CRUCIALE: ESEGUIAMO SUBITO I COMANDI <<--
-                processCommands(commandsToExecute)
-                log("LOG SPECIALIZZATO: Eseguiti ${commandsToExecute.size} comandi da gameMechanics.")
+            // --- FASE 1: ESECUZIONE IMMEDIATA DELLE MECCANICHE DI GIOCO DAL JSON ---
+            val gameMechanics = scene.gameMechanics
+            if (!gameMechanics.isNullOrEmpty()) {
+                log("Trovate ${gameMechanics.size} meccaniche di gioco predefinite nella scena: $gameMechanics")
+                val commandsToExecute = mutableListOf<EngineCommand>()
+
+                gameMechanics.forEach { mechanicString ->
+                    // Usiamo il parser sulla singola stringa di meccanica
+                    val (_, commands) = stringTagParser.parseAndReplaceWithCommands(
+                        mechanicString,
+                        CharacterType.DM
+                    )
+                    commandsToExecute.addAll(commands)
+                }
+
+                if (commandsToExecute.isNotEmpty()) {
+                    // -->> MODIFICA CRUCIALE: ESEGUIAMO SUBITO I COMANDI <<--
+                    processCommands(commandsToExecute)
+                    log("LOG SPECIALIZZATO: Eseguiti ${commandsToExecute.size} comandi da gameMechanics.")
+                }
             }
-        }
-        // --- FINE FASE 1 ---
+            // --- FINE FASE 1 ---
 
-        if (_isHeroDead.value) {
-            log("Eroe morto dopo l'esecuzione delle meccaniche. Interrompo l'elaborazione della scena.")
-            return
-        }
+            if (_isHeroDead.value) {
+                log("Eroe morto dopo l'esecuzione delle meccaniche. Interrompo l'elaborazione della scena.")
+                return
+            }
 
-        prepareChoicesForScene(scene)
+            prepareChoicesForScene(scene)
 
-        if (!shouldGenerateNarration) {
-            log("Sessione caricata. La narrazione non viene rigenerata.")
-            return
-        }
+            if (!shouldGenerateNarration) {
+                log("Sessione caricata. La narrazione non viene rigenerata.")
+                return
+            }
 
-        // --- FASE 2: GENERAZIONE NARRATIVA CON GEMMA ---
-        if (_isGenerating.value) return
-        _isGenerating.value = true
-        _streamingText.value = ""
-        _respondingCharacterId.value = CharacterID.DM
-        var stringRaw = ""
+            // --- FASE 2: GENERAZIONE NARRATIVA CON GEMMA ---
+            if (_isGenerating.value) return
+            _isGenerating.value = true
+            _streamingText.value = ""
+            _respondingCharacterId.value = CharacterID.DM
+            var stringRaw = ""
 
-        try {
-            _engineLoadingState.first { it is EngineLoadingState.Success }
+            try {
+                _engineLoadingState.first { it is EngineLoadingState.Success }
 
-            val lastMessageText = _chatMessages.value.lastOrNull()?.text ?: "L'avventura ha inizio."
-            val promptForGemma = buildGemmaPromptForScene(scene, lastMessageText)
-            Log.d(tag, "DEBUG_GEMMA_PROMPT_SENT (Refactored): \n---\n$promptForGemma\n---")
+                val lastMessageText =
+                    _chatMessages.value.lastOrNull()?.text ?: "L'avventura ha inizio."
+                val promptForGemma = buildGemmaPromptForScene(scene, lastMessageText)
+                Log.d(tag, "DEBUG_GEMMA_PROMPT_SENT (Refactored): \n---\n$promptForGemma\n---")
 
-            var stopStreamingToText = false
+                var stopStreamingToText = false
 
-            dmEngine.sendMessage(promptForGemma)
-                .collect { token ->
-                    stringRaw += token
-                    if (!stopStreamingToText) {
-                        if (token.contains("---")) {
-                            val partBeforeTag = token.substringBefore("---")
-                            _streamingText.update { it + partBeforeTag }
-                            stopStreamingToText = true
-                        } else {
-                            _streamingText.update { it + token }
+                dmEngine.sendMessage(promptForGemma)
+                    .collect { token ->
+                        stringRaw += token
+                        if (!stopStreamingToText) {
+                            if (token.contains("---")) {
+                                val partBeforeTag = token.substringBefore("---")
+                                _streamingText.update { it + partBeforeTag }
+                                stopStreamingToText = true
+                            } else {
+                                _streamingText.update { it + token }
+                            }
                         }
+                    }
+
+            } catch (e: Exception) {
+                Log.e(
+                    tag,
+                    "Errore durante la generazione della narrazione della scena: ${e.message}",
+                    e
+                )
+                log("ERRORE: Impossibile generare la narrazione del DM. ${e.message}")
+            } finally {
+                log("Generazione completata. Inizio parsing della risposta.")
+                log("RAW: $stringRaw")
+
+                val parts = stringRaw.split("--- TAGS ---", limit = 2)
+                val narrativePart = _streamingText.value.trim()
+                val tagsPart = parts.getOrNull(1)?.trim() ?: ""
+
+                if (narrativePart.isNotBlank()) {
+                    val finalMessage = ChatMessage(
+                        authorId = _respondingCharacterId.value ?: CharacterID.DM,
+                        position = messageCounter.getAndIncrement(),
+                        text = narrativePart
+                    )
+                    _chatMessages.update { it + finalMessage }
+                    autoSaveChatIfEnabled()
+                }
+
+                if (tagsPart.isNotBlank()) {
+                    val (_, choiceCommands) = stringTagParser.parseAndReplaceWithCommands(
+                        tagsPart,
+                        CharacterType.DM
+                    )
+                    if (choiceCommands.isNotEmpty()) {
+                        processCommands(choiceCommands)
                     }
                 }
 
-        } catch (e: Exception) {
-            Log.e(tag, "Errore durante la generazione della narrazione della scena: ${e.message}", e)
-            log("ERRORE: Impossibile generare la narrazione del DM. ${e.message}")
-        } finally {
-            log("Generazione completata. Inizio parsing della risposta.")
-            log("RAW: $stringRaw")
-
-            val parts = stringRaw.split("--- TAGS ---", limit = 2)
-            val narrativePart = _streamingText.value.trim()
-            val tagsPart = parts.getOrNull(1)?.trim() ?: ""
-
-            if (narrativePart.isNotBlank()) {
-                val finalMessage = ChatMessage(
-                    authorId = _respondingCharacterId.value ?: CharacterID.DM,
-                    position = messageCounter.getAndIncrement(),
-                    text = narrativePart
-                )
-                _chatMessages.update { it + finalMessage }
-                autoSaveChatIfEnabled()
+                _isGenerating.value = false
+                _streamingText.value = ""
+                _respondingCharacterId.value = null
             }
-
-            if (tagsPart.isNotBlank()) {
-                val (_, choiceCommands) = stringTagParser.parseAndReplaceWithCommands(tagsPart, CharacterType.DM)
-                if (choiceCommands.isNotEmpty()) {
-                    processCommands(choiceCommands)
-                }
-            }
-
-            _isGenerating.value = false
-            _streamingText.value = ""
-            _respondingCharacterId.value = null
         }
     }
 

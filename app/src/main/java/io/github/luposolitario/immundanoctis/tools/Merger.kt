@@ -34,15 +34,16 @@ data class SceneImage(
 )
 
 // Classe per deserializzare il file di struttura (structured.json)
+// Le liste sono rese nullable (?) per gestire in modo sicuro i campi mancanti nel JSON
 data class StructuralScene(
     val id: String,
     val sceneType: String,
     val genre: String,
     val challengeLevel: String,
-    val gameMechanics: List<String> = emptyList(),
-    val images: List<SceneImage> = emptyList(),
-    val choices: List<NarrativeChoice> = emptyList(),
-    val disciplineChoices: List<DisciplineChoice> = emptyList()
+    val gameMechanics: List<String>?,
+    val images: List<SceneImage>?,
+    val choices: List<NarrativeChoice>?,
+    val disciplineChoices: List<DisciplineChoice>?
 )
 
 // Classe per il JSON narrativo (narrative.json)
@@ -52,6 +53,7 @@ data class NarrativeOnlyScene(
 )
 
 // Classe finale per la scena unita (corrisponde alla tua classe Scene)
+// Qui le liste sono non-nullable, come nella tua app, perché garantiamo un valore di default.
 data class Scene(
     val id: String,
     val sceneType: String,
@@ -78,34 +80,46 @@ data class ScenesWrapper( // Corrisponde al tuo wrapper per Gson
 
 fun main() {
     // Configurazione del parser JSON con Gson
-    val gson = GsonBuilder().setPrettyPrinting().create()
+    val gson = GsonBuilder()
+        .setPrettyPrinting()
+        .disableHtmlEscaping() // Impedisce a Gson di convertire <, >, & ecc. in sequenze \uXXXX
+        .create()
 
-    // --- NOMI DEI FILE AGGIORNATI ---
+    // --- PERCORSO CONFIGURABILE ---
+    // Modifica questa stringa per puntare alla directory che contiene i tuoi file JSON.
+    val assetsDirectoryPath = "C:\\DEV\\ImmundaNoctis-master\\app\\src\\main\\assets\\"
+
+    // --- NOMI DEI FILE ---
     val structureFileName = "structured.json"
     val narrativeFileName = "narrative.json"
-    val outputFileName = "scenes.json"
+    val outputMergedFileName = "scenes.json"
+    val outputMechanicsFileName = "test-xml.json" // Nuovo file per i tag XML
 
     println("--- INIZIO PROCESSO DI MERGE CON GSON ---")
+    println("--- Directory di lavoro: ${File(assetsDirectoryPath).absolutePath} ---")
+
 
     try {
-        // 1. Leggi il contenuto dei file JSON di input
-        val structureJsonContent = File(structureFileName).readText()
-        val narrativeJsonContent = File(narrativeFileName).readText()
-        println("✅ File '$structureFileName' e '$narrativeFileName' letti correttamente.")
+        // 1. Costruisci il percorso completo e leggi il contenuto dei file
+        val structureFile = File(assetsDirectoryPath, structureFileName)
+        val narrativeFile = File(assetsDirectoryPath, narrativeFileName)
 
-        // 2. Deserializza (converte da testo a oggetti Kotlin) i due JSON usando Gson
+        val structureJsonContent = structureFile.readText()
+        val narrativeJsonContent = narrativeFile.readText()
+        println("✅ File '${structureFile.path}' e '${narrativeFile.path}' letti correttamente.")
+
+        // 2. Deserializza i due JSON
         val structuralData = gson.fromJson(structureJsonContent, StructuralWrapper::class.java)
-
-        // Per deserializzare una lista, Gson ha bisogno di un TypeToken
         val narrativeListType = object : TypeToken<List<NarrativeOnlyScene>>() {}.type
         val narrativeDataList: List<NarrativeOnlyScene> = gson.fromJson(narrativeJsonContent, narrativeListType)
         println("✅ Dati di struttura e narrativi parsati correttamente con Gson.")
 
-        // 3. Converte la lista di narrazioni in una mappa per un accesso istantaneo.
+        // 3. Crea una mappa delle narrazioni per un accesso efficiente
         val narrativeMap = narrativeDataList.associateBy({ it.id }, { it.narrativeText })
-        println("✅ Mappa delle narrazioni creata per un merge efficiente.")
+        println("✅ Mappa delle narrazioni creata.")
 
-        // 4. Esegue il merge
+        // 4. Esegue il merge e raccoglie i tag di gameMechanics
+        val allGameMechanicsTags = mutableListOf<String>()
         val mergedScenes = structuralData.scenes.mapNotNull { structuralScene ->
             val narrativeText = narrativeMap[structuralScene.id]
 
@@ -113,38 +127,48 @@ fun main() {
                 println("⚠️ ATTENZIONE: Nessun testo narrativo trovato per la scena ID: ${structuralScene.id}. La scena verrà saltata.")
                 null
             } else {
+                // Aggiunge i tag di questa scena alla lista complessiva
+                structuralScene.gameMechanics?.let { allGameMechanicsTags.addAll(it) }
+
                 Scene(
                     id = structuralScene.id,
                     sceneType = structuralScene.sceneType,
                     genre = structuralScene.genre,
                     challengeLevel = structuralScene.challengeLevel,
                     narrativeText = narrativeText,
-                    gameMechanics = structuralScene.gameMechanics,
-                    images = structuralScene.images,
-                    choices = structuralScene.choices,
-                    disciplineChoices = structuralScene.disciplineChoices
+                    gameMechanics = structuralScene.gameMechanics ?: emptyList(),
+                    images = structuralScene.images ?: emptyList(),
+                    choices = structuralScene.choices ?: emptyList(),
+                    disciplineChoices = structuralScene.disciplineChoices ?: emptyList()
                 )
             }
         }
-        println("✅ Merge completato: ${mergedScenes.size} scene processate e unite.")
+        println("✅ Merge completato: ${mergedScenes.size} scene processate.")
+        println("✅ Raccolti ${allGameMechanicsTags.size} tag da 'gameMechanics'.")
 
-        // 5. Crea l'oggetto finale che conterrà i dati uniti
+
+        // 5. Crea l'oggetto finale per le scene unite
         val finalMergedData = ScenesWrapper(
             adventureName = structuralData.adventureName,
             scenes = mergedScenes
         )
 
-        // 6. Serializza (converte da oggetto Kotlin a testo) l'oggetto finale in una stringa JSON
+        // 6. Serializza e salva il file delle scene unite
         val finalJsonString = gson.toJson(finalMergedData)
-
-        // 7. Salva il risultato su un nuovo file
-        val outputFile = File(outputFileName)
-        outputFile.writeText(finalJsonString)
+        val outputMergedFile = File(assetsDirectoryPath, outputMergedFileName)
+        outputMergedFile.writeText(finalJsonString)
         println("\n--- RISULTATO ---")
-        println("✅ JSON finale salvato correttamente nel file: ${outputFile.absolutePath}")
+        println("✅ JSON delle scene unite salvato correttamente nel file: ${outputMergedFile.absolutePath}")
+
+        // 7. Serializza e salva il file con i soli tag di gameMechanics
+        val mechanicsJsonString = gson.toJson(allGameMechanicsTags)
+        val outputMechanicsFile = File(assetsDirectoryPath, outputMechanicsFileName)
+        outputMechanicsFile.writeText(mechanicsJsonString)
+        println("✅ JSON con i tag XML di validazione salvato correttamente nel file: ${outputMechanicsFile.absolutePath}")
+
 
     } catch (e: FileNotFoundException) {
-        println("\n❌ ERRORE: Uno dei file di input non è stato trovato. Assicurati che '$structureFileName' e '$narrativeFileName' siano nella stessa directory dello script.")
+        println("\n❌ ERRORE: Uno dei file di input non è stato trovato. Assicurati che i file esistano nel percorso specificato: '${File(assetsDirectoryPath).absolutePath}'")
     } catch (e: Exception) {
         // Cattura eccezioni più generiche, incluse quelle di parsing di Gson
         println("\n❌ ERRORE IMPREVISTO: ${e.message}")

@@ -29,7 +29,7 @@ data class ParameterConfig(
 fun main() {
     // --- Percorsi Configurabili ---
     val configFilePath = "C:\\DEV\\ImmundaNoctis-master\\app\\src\\main\\assets\\config.json"
-    val testFilePath = "C:\\DEV\\ImmundaNoctis-master\\app\\src\\main\\assets\\test.json"
+    val testFilePath = "C:\\DEV\\ImmundaNoctis-master\\app\\src\\main\\assets\\test-xml.json"
     // ----------------------------
 
     // Inizializza ObjectMapper per leggere i file JSON

@@ -203,6 +203,14 @@ data class DisciplineChoice(
     val nextSceneId: String
 )
 
+data class ItemChoices(
+    val scene: String,
+    val item: String,
+    val requires : Boolean,
+    val choiceText: LocalizedText?,
+    val nextSceneId: String
+)
+
 data class Scene(
     val id: String,
     val sceneType: SceneType,
@@ -211,6 +219,7 @@ data class Scene(
     val images: List<SceneImage>? = null,
     val choices: List<NarrativeChoice>? = null,
     val disciplineChoices: List<DisciplineChoice>? = null,
+    val itemChoices: List<ItemChoices>? = null,
     val location: LocationInfo? = null,
     val challengeLevel: ChallengeLevel,
     val commands: List<String>? = null, // <-- AGGIUNGI QUESTA RIGA

@@ -238,7 +238,7 @@ class LlamaCppEngine(private val context: Context) : InferenceEngine {
         val systemMessage = chatHistory.firstOrNull { it.role == "system" }
         if (systemMessage != null) {
             // Aggiungi il system prompt formattato
-            promptBuilder.append("SYSTEM: ${systemMessage.content}\n")
+            promptBuilder.append("<|im_start|>system ${systemMessage.content}\n")
         }
 
         // Itera attraverso i messaggi precedenti e li formatta
@@ -247,18 +247,18 @@ class LlamaCppEngine(private val context: Context) : InferenceEngine {
                 when (message.role) {
                     "user" -> {
                         // Il template aggiunge "ASSISTANT:" alla fine del turno Utente
-                        promptBuilder.append("USER: ${message.content} ASSISTANT:")
+                        promptBuilder.append(" <|im_start|>user ${message.content} <|im_end|>")
                     }
 
                     "assistant" -> {
                         // Il template aggiunge "</s>" alla fine del turno Assistant
-                        promptBuilder.append("${message.content}</s>")
+                        promptBuilder.append(" <|im_start|>assistant ${message.content}")
                     }
                 }
             }
         }
         // Aggiungi il nuovo input dell'utente e il segnale per l'assistente
-        promptBuilder.append("USER: $newUserInput ASSISTANT:")
+        promptBuilder.append(" <|im_start|>user  $newUserInput  <|im_end|><|im_start|>assistant ")
 
         return promptBuilder.toString()
     }
