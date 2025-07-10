@@ -61,9 +61,7 @@ val FISTS_WEAPON = GameItem(
 
 enum class ChallengeLevel {
     BASE,
-    MEDIUM,
-    ADVANCED,
-    MASTER;
+    HARD;
 
     companion object {
         fun fromString(level: String): ChallengeLevel? {
@@ -92,7 +90,7 @@ enum class Genre {
 }
 
 data class LocalizedText(
-    val english: String?,
+    val english: String,
     val italian: String?
 )
 
@@ -199,7 +197,7 @@ data class GameCharacter(
 data class DisciplineChoice(
     val scene: String,
     val discipline: String,
-    val choiceText: LocalizedText?,
+    val choiceText: LocalizedText,
     val nextSceneId: String
 )
 
@@ -207,7 +205,7 @@ data class ItemChoices(
     val scene: String,
     val item: String,
     val requires : Boolean,
-    val choiceText: LocalizedText?,
+    val choiceText: LocalizedText,
     val nextSceneId: String
 )
 
@@ -224,9 +222,7 @@ data class Scene(
     val challengeLevel: ChallengeLevel,
     val commands: List<String>? = null, // <-- AGGIUNGI QUESTA RIGA
     val gameMechanics:  List<String>? = null
-) {
-
-}
+)
 
 data class TagParameter(
     val id: String = UUID.randomUUID().toString(),
