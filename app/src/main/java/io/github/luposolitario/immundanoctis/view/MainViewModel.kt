@@ -861,7 +861,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _activeDisciplineChoices.update { currentChoices ->
             currentChoices.map { choice ->
                 if (choice.discipline == disciplineId) {
-                    choice.copy(choiceText = choice.choiceText?.copy(italian = italianText))
+                    choice.copy(choiceText = choice.choiceText.copy(italian = italianText))
                 } else {
                     choice
                 }

@@ -1,45 +1,22 @@
+package io.github.luposolitario.immundanoctis.tools
+
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
 import java.io.File
 import java.io.FileNotFoundException
+import io.github.luposolitario.immundanoctis.data.*
 
 // --- DATA CLASSES (da GameData.kt) ---
 // Definiscono la struttura dei tuoi file JSON per una corretta (de)serializzazione con Gson.
-// Le annotazioni @Serializable non sono più necessarie.
-
-data class LocalizedText(
-    val english: String?,
-    val italian: String? = null
-)
-
-data class NarrativeChoice(
-    val scene: String,
-    val progressive: String,
-    val choiceText: LocalizedText,
-    val nextSceneId: String,
-    val requiredItem: String? = null
-)
-
-data class DisciplineChoice(
-    val scene: String,
-    val discipline: String,
-    val choiceText: LocalizedText,
-    val nextSceneId: String
-)
-
-data class SceneImage(
-    val imageUrl: String,
-    val caption: String
-)
 
 // Classe per deserializzare il file di struttura (structured.json)
 // Le liste sono rese nullable (?) per gestire in modo sicuro i campi mancanti nel JSON
 data class StructuralScene(
     val id: String,
-    val sceneType: String,
-    val genre: String,
-    val challengeLevel: String,
+    val sceneType: SceneType,
+    val genre: Genre,
+    val challengeLevel: ChallengeLevel,
     val gameMechanics: List<String>?,
     val images: List<SceneImage>?,
     val choices: List<NarrativeChoice>?,
@@ -52,32 +29,11 @@ data class NarrativeOnlyScene(
     val narrativeText: LocalizedText
 )
 
-// Classe finale per la scena unita (corrisponde alla tua classe Scene)
-// Qui le liste sono non-nullable, come nella tua app, perché garantiamo un valore di default.
-data class Scene(
-    val id: String,
-    val sceneType: String,
-    val genre: String,
-    val challengeLevel: String,
-    val narrativeText: LocalizedText, // Campo obbligatorio
-    val gameMechanics: List<String> = emptyList(),
-    val images: List<SceneImage> = emptyList(),
-    val choices: List<NarrativeChoice> = emptyList(),
-    val disciplineChoices: List<DisciplineChoice> = emptyList()
-)
-
 // Wrapper per i file JSON di input e output
 data class StructuralWrapper(
     val adventureName: String,
     val scenes: List<StructuralScene>
 )
-
-data class ScenesWrapper( // Corrisponde al tuo wrapper per Gson
-    val adventureName: String,
-    val scenes: List<Scene>
-)
-
-
 fun main() {
     // Configurazione del parser JSON con Gson
     val gson = GsonBuilder()
