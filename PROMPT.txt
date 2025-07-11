@@ -172,43 +172,634 @@ Esegui i seguenti passaggi in ordine rigoroso.
    "id": "1",
    "sceneType": "START",
    "genre": "FANTASY",
-   "challengeLevel": "BASE",
-   "narrativeText": {"english": "You must make haste for you sense it is not safe to linger by the smoking remains of the ruined monastery. The black-winged beasts could return at any moment. You must set out for the Sommlending capital of Holmgard and tell the King the terrible news of the massacre: that the whole élite of Kai warriors, save yourself, have been slaughtered. Without the Kai Lords to lead her armies, Sommerlund will be at the mercy of their ancient enemy, the Darklords. Fighting back tears, you bid farewell to your dead kinsmen. Silently, you promise that their deaths will be avenged. You turn away from the ruins and carefully descend the steep track. At the foot of the hill, the path splits into two directions, both leading into a large wood."
+   "narrativeText": {
+   "english": "You must make haste for you sense it is not safe to linger by the smoking remains of the ruined monastery. The black-winged beasts could return at any moment. You must set out for the Sommlending capital of Holmgard and tell the King the terrible news of the massacre: that the whole élite of Kai warriors, save yourself, have been slaughtered. Without the Kai Lords to lead her armies, Sommerlund will be at the mercy of their ancient enemy, the Darklords. Fighting back tears, you bid farewell to your dead kinsmen. Silently, you promise that their deaths will be avenged. You turn away from the ruins and carefully descend the steep track. At the foot of the hill, the path splits into two directions, both leading into a large wood."
    },
-   "gameMechanics": [],
    "images": [],
    "choices": [{
    "scene": "1",
    "progressive": "2",
-   "choiceText":{"english":  "If you wish to take the right path into the wood, turn to 85."},
+   "choiceText": {
+   "english": "If you wish to take the right path into the wood, turn to 85."
+   },
    "nextSceneId": "85"
    }, {
    "scene": "1",
    "progressive": "3",
-   "choiceText":{"english":  "If you wish to follow the left track, turn to 275."}
-   ,
+   "choiceText": {
+   "english": "If you wish to follow the left track, turn to 275."
+   },
    "nextSceneId": "275"
    }
    ],
    "disciplineChoices": [{
    "scene": "1",
    "discipline": "Sixth Sense",
-   "choiceText": {"english":"If you wish to use your Kai Discipline of Sixth Sense, turn to 141."},
+   "choiceText": {
+   "english": "If you wish to use your Kai Discipline of Sixth Sense, turn to 141."
+   },
    "nextSceneId": "141"
    }
    ],
+   "itemChoices": [],
+   "location": {
+   "areaName": "Kai Monastery Foothills",
+   "isMajorLocation": false
+   },
+   "challengeLevel": "BASE",
+   "gameMechanics": []
+   }, {
+   "id": "2",
+   "sceneType": "TRANSITION",
+   "genre": "FANTASY",
+   "narrativeText": {
+   "english": "As you dash through the thickening trees, the shouts of the Giaks begin to fade behind you. You have nearly outdistanced them completely, when you crash headlong into a tangle of low branches."
+   },
+   "images": [],
+   "choices": [],
+   "disciplineChoices": [],
+   "itemChoices": [],
+   "location": {
+   "areaName": "Forest",
+   "isMajorLocation": false
+   },
+   "challengeLevel": "BASE",
+   "gameMechanics": [
+   "<randomChoiceTable outcomes=\"[{'range': '0-4', 'nextSceneId': '343'}, {'range': '5-9', 'nextSceneId': '276'}]\" />"
+   ]
+   }, {
+   "id": "3",
+   "sceneType": "TRANSITION",
+   "genre": "FANTASY",
+   "narrativeText": {
+   "english": "Staying close to the officer, you follow him through an arched portal and up a short flight of stairs to a long hall. Soldiers run back and forth bearing orders on ornate scrolls to officers stationed around the city wall. A haggard and scar-faced man dressed in the white and purple robes of the King’s court approaches you and bids you follow him to the citadel."
+   },
+   "images": [],
+   "choices": [{
+   "scene": "3",
+   "progressive": "1",
+   "choiceText": {
+   "english": "If you wish to follow this man, turn to 196."
+   },
+   "nextSceneId": "196"
+   }, {
+   "scene": "3",
+   "progressive": "2",
+   "choiceText": {
+   "english": "If you wish to decline his offer and return to the crowded streets, turn to 144."
+   },
+   "nextSceneId": "144"
+   }
+   ],
+   "disciplineChoices": [],
+   "itemChoices": [],
+   "location": {
+   "areaName": "Holmgard Watchtower",
+   "isMajorLocation": true
+   },
+   "challengeLevel": "BASE",
+   "gameMechanics": []
+   }, {
+   "id": "4",
+   "sceneType": "TRANSITION",
+   "genre": "FANTASY",
+   "narrativeText": {
+   "english": "It is a small one-man canoe in very poor condition. The wood has split and warped, and the craft appears to be leaking in several places. You quickly patch up the worst of the holes with some clay and bail out the water. This seems to stop the leaking for the moment. Stowing your equipment at the bow, you set off downstream, using a piece of driftwood as a paddle. After a short while, you hear the sound of horses galloping towards you along the left bank."
+   },
+   "images": [],
+   "choices": [{
+   "scene": "4",
+   "progressive": "2",
+   "choiceText": {
+   "english": "If you wish to hide in the bottom of the canoe, turn to 75."
+   },
+   "nextSceneId": "75"
+   }, {
+   "scene": "4",
+   "progressive": "3",
+   "choiceText": {
+   "english": "If you wish to try to attract their attention, turn to 175."
+   },
+   "nextSceneId": "175"
+   }
+   ],
+   "disciplineChoices": [{
+   "scene": "4",
+   "discipline": "Sixth Sense",
+   "choiceText": {
+   "english": "If you wish to use the Kai Discipline of Sixth Sense, turn to 218."
+   },
+   "nextSceneId": "218"
+   }
+   ],
+   "itemChoices": [],
+   "location": {
+   "areaName": "River",
+   "isMajorLocation": false
+   },
+   "challengeLevel": "BASE",
+   "gameMechanics": []
+   }, {
+   "id": "5",
+   "sceneType": "TRANSITION",
+   "genre": "FANTASY",
+   "narrativeText": {
+   "english": "After about an hour of walking, the track slowly bears round to the east. You reach a shallow ford where a fast-flowing brook runs on a steep rocky course towards the south. Just beyond the ford is a junction where the track meets a wider path running north to south. Realizing that the north path will take you away from the capital, you turn right at the junction and head south."
+   },
+   "images": [],
+   "choices": [{
+   "scene": "5",
+   "progressive": "1",
+   "choiceText": {
+   "english": "Turn to 111."
+   },
+   "nextSceneId": "111"
+   }
+   ],
+   "disciplineChoices": [],
+   "itemChoices": [],
+   "location": {
+   "areaName": "Forest Path",
+   "isMajorLocation": false
+   },
+   "challengeLevel": "BASE",
+   "gameMechanics": []
+   }, {
+   "id": "6",
+   "sceneType": "TRANSITION",
+   "genre": "FANTASY",
+   "narrativeText": {
+   "english": "In the distance you can hear the sound of horses galloping nearer. You crouch behind a tree and wait as the riders come closer. They are the cavalry of the King’s Guard wearing the white uniforms of His Majesty’s army."
+   },
+   "images": [],
+   "choices": [{
+   "scene": "6",
+   "progressive": "1",
+   "choiceText": {
+   "english": "If you wish to call them, turn to 183."
+   },
+   "nextSceneId": "183"
+   }, {
+   "scene": "6",
+   "progressive": "2",
+   "choiceText": {
+   "english": "If you wish to let them pass and then continue on your way through the forest, turn to 200."
+   },
+   "nextSceneId": "200"
+   }
+   ],
+   "disciplineChoices": [],
+   "itemChoices": [],
+   "location": {
+   "areaName": "Forest",
+   "isMajorLocation": false
+   },
+   "challengeLevel": "BASE",
+   "gameMechanics": []
+   }, {
+   "id": "7",
+   "sceneType": "TRANSITION",
+   "genre": "FANTASY",
+   "narrativeText": {
+   "english": "For what seems an eternity, the rush of the crowd carries you along like a leaf on a fast-flowing stream. You desperately fight to stay on your feet, but you feel weak and dizzy from your ordeal, and your legs are as heavy as lead. Suddenly, you catch a glimpse of a long, narrow stone stairway that leads up to the roof of an inn. Gathering the last reserves of your strength, you dive for the stairs and climb slowly up to the top. From here you can see the magnificent view of the rooftops and spires of Holmgard, with the high stone walls of the citadel gleaming in the sun. The houses and buildings of the capital are built very close to each other, and it is possible to jump from one roof to the next. In fact many of the citizens of Holmgard used to use the ‘Roofways’ (as they are known) when the heavy autumn rains made the unpaved parts of the streets too muddy for walking. But after many accidents, a royal decree forbade their use. After careful thought, you decide to use the ‘Roofways’, as they are your only chance of reaching the King. You have hopped, skipped, and jumped across several streets and you are only one street away from the citadel when you come to the end of a row of rooftops. The jump to the next row is much further than anything you have tried before, and your stomach begins to feel as if it were full of butterflies. Determined to reach the citadel, you turn and take a long run-up to the jump. With blood pounding in your ears, you sprint to the edge of the roof and leap into space, your eyes fixed on the opposite rooftop."
+   },
+   "images": [{
+   "imageUrl": "Illustration I",
+   "caption": ""
+   }
+   ],
+   "choices": [],
+   "disciplineChoices": [],
+   "itemChoices": [],
+   "location": {
+   "areaName": "Holmgard Rooftops",
+   "isMajorLocation": true
+   },
+   "challengeLevel": "BASE",
+   "gameMechanics": [
+   "<randomChoiceTable outcomes=\"[{'range': '0-2', 'nextSceneId': '108'}, {'range': '3-9', 'nextSceneId': '25'}]\" />"
+   ]
+   }, {
+   "id": "8",
+   "sceneType": "TRANSITION",
+   "genre": "FANTASY",
+   "narrativeText": {
+   "english": "Your Kai Sixth Sense warns there is a fierce battle raging in the south. Your common sense tells you that the south is also the quickest route to the capital."
+   },
+   "images": [],
+   "choices": [{
+   "scene": "8",
+   "progressive": "1",
+   "choiceText": {
+   "english": "Turn to 70 and choose your route."
+   },
+   "nextSceneId": "70"
+   }
+   ],
+   "disciplineChoices": [],
+   "itemChoices": [],
+   "location": {
+   "areaName": "Bridge",
+   "isMajorLocation": false
+   },
+   "challengeLevel": "BASE",
+   "gameMechanics": []
+   }, {
+   "id": "9",
+   "sceneType": "TRANSITION",
+   "genre": "FANTASY",
+   "narrativeText": {
+   "english": "You cannot move: you are being held rigid by some powerful force. Your eyes are drawn towards the mouth of the skeleton. From deep in the earth you hear a low humming, like the sound of millions of angry bees. A dull red glow appears in the empty eye sockets of the dead King and the humming increases until your ears are filled with the deafening roar. You are in the presence of an ancient evil, far older and stronger than the Darklords themselves."
+   },
+   "images": [],
+   "choices": [],
+   "disciplineChoices": [],
    "itemChoices": [{
-   "scene": 22,
-   "item": "Good Santa axe",
+   "scene": "9",
+   "item": "Vordak Gem",
    "requires": true,
-   "choiceText": {"english":"If you have Good Santa axe you can pass"},
-   "nextSceneId": "222"
+   "choiceText": {
+   "english": "If you possess a Vordak Gem, turn to 236."
+   },
+   "nextSceneId": "236"
+   }, {
+   "scene": "9",
+   "item": "Vordak Gem",
+   "requires": false,
+   "choiceText": {
+   "english": "If you do not, turn to 292."
+   },
+   "nextSceneId": "292"
+   }
+   ],
+   "location": {
+   "areaName": "Sarcophagus Chamber",
+   "isMajorLocation": false
+   },
+   "challengeLevel": "BASE",
+   "gameMechanics": []
+   }, {
+   "id": "10",
+   "sceneType": "TRANSITION",
+   "genre": "FANTASY",
+   "narrativeText": {
+   "english": "You are sweating and your legs ache. In the middle distance you can see a group of cottages."
+   },
+   "images": [],
+   "choices": [{
+   "scene": "10",
+   "progressive": "1",
+   "choiceText": {
+   "english": "If you wish to enter a cottage and rest for a while, turn to 115."
+   },
+   "nextSceneId": "115"
+   }, {
+   "scene": "10",
+   "progressive": "2",
+   "choiceText": {
+   "english": "If you wish to press on, turn to 83."
+   },
+   "nextSceneId": "83"
+   }
+   ],
+   "disciplineChoices": [],
+   "itemChoices": [],
+   "location": {
+   "areaName": "Highway",
+   "isMajorLocation": false
+   },
+   "challengeLevel": "BASE",
+   "gameMechanics": []
+   }, {
+   "id": "11",
+   "sceneType": "TRANSITION",
+   "genre": "FANTASY",
+   "narrativeText": {
+   "english": "You quickly dodge into the doorway of a stable and hide your surgeon’s cloak in the straw, for it would be better to be seen as a Kai Lord than as a charlatan. Without wasting a second, you set off towards the Great Hall on the other side of the courtyard."
+   },
+   "images": [],
+   "choices": [{
+   "scene": "11",
+   "progressive": "1",
+   "choiceText": {
+   "english": "Turn to 139."
+   },
+   "nextSceneId": "139"
+   }
+   ],
+   "disciplineChoices": [],
+   "itemChoices": [],
+   "location": {
+   "areaName": "Citadel Courtyard",
+   "isMajorLocation": true
+   },
+   "challengeLevel": "BASE",
+   "gameMechanics": [
+   "<conditionalAction condition=\"HAS_ITEM\" itemName=\"Surgeon's Cloak\" action=\"<removeItem itemName='Surgeon\\'s Cloak' quantity='1' />\" />"
+   ]
+   }, {
+   "id": "12",
+   "sceneType": "TRANSITION",
+   "genre": "FANTASY",
+   "narrativeText": {
+   "english": "The bodyguard looks at you with great suspicion and then slams the door shut. You can hear the sound of voices inside the caravan. Suddenly the door swings open and the face of a wealthy merchant appears. He demands 10 Gold Crowns as payment for the ride."
+   },
+   "images": [],
+   "choices": [{
+   "scene": "12",
+   "progressive": "1",
+   "choiceText": {
+   "english": "If you have 10 Gold Crowns and wish to pay him, turn to 262."
+   },
+   "nextSceneId": "262",
+   "choiceCondition": {
+   "stat": "GOLD",
+   "operator": "GREATER_THAN_OR_EQUAL",
+   "value": 10
+   },
+   "gameMechanics": [
+   "<statMod statName=\"GOLD\" amount=\"-10\" />"
+   ]
+   }, {
+   "scene": "12",
+   "progressive": "2",
+   "choiceText": {
+   "english": "If you do not have enough Gold Crowns or do not wish to pay him, turn to 247."
+   },
+   "nextSceneId": "247"
+   }
+   ],
+   "disciplineChoices": [],
+   "itemChoices": [],
+   "location": {
+   "areaName": "Highway",
+   "isMajorLocation": false
+   },
+   "challengeLevel": "BASE",
+   "gameMechanics": []
+   }, {
+   "id": "13",
+   "sceneType": "TRANSITION",
+   "genre": "FANTASY",
+   "narrativeText": {
+   "english": "The path soon ends at a large clearing. In the centre of the clearing is a tree much taller and wider than any others you have seen in the forest. Looking up through the massive branches you can see a large treehouse some twenty-five to thirty feet above the ground. There is no ladder, but the gnarled bark of the tree offers many footholds."
+   },
+   "images": [],
+   "choices": [{
+   "scene": "13",
+   "progressive": "1",
+   "choiceText": {
+   "english": "If you wish to climb the tree and search the treehouse, turn to 307."
+   },
+   "nextSceneId": "307"
+   }, {
+   "scene": "13",
+   "progressive": "2",
+   "choiceText": {
+   "english": "If you would rather press on, turn to 213."
+   },
+   "nextSceneId": "213"
+   }
+   ],
+   "disciplineChoices": [],
+   "itemChoices": [],
+   "location": {
+   "areaName": "Forest Clearing",
+   "isMajorLocation": false
+   },
+   "challengeLevel": "BASE",
+   "gameMechanics": []
+   }, {
+   "id": "14",
+   "sceneType": "TRANSITION",
+   "genre": "FANTASY",
+   "narrativeText": {
+   "english": "You reach the top of a small wooded hill on which several large boulders form a rough circle. Suddenly you hear a loud growl from behind a rock to your left."
+   },
+   "images": [],
+   "choices": [{
+   "scene": "14",
+   "progressive": "1",
+   "choiceText": {
+   "english": "If you wish to draw your weapon and prepare to fight, turn to 43."
+   },
+   "nextSceneId": "43"
+   }, {
+   "scene": "14",
+   "progressive": "2",
+   "choiceText": {
+   "english": "If you would rather take evasive action by running as fast as you can over the hill, turn to 106."
+   },
+   "nextSceneId": "106"
+   }
+   ],
+   "disciplineChoices": [],
+   "itemChoices": [],
+   "location": {
+   "areaName": "Wooded Hill",
+   "isMajorLocation": false
+   },
+   "challengeLevel": "BASE",
+   "gameMechanics": []
+   }, {
+   "id": "15",
+   "sceneType": "TRANSITION",
+   "genre": "FANTASY",
+   "narrativeText": {
+   "english": "You pass through a long, dark tunnel of overhanging branches that eventually opens out into a large clearing. On a stone plinth in the centre of the clearing is a Sword, sheathed in a black leather scabbard. A handwritten note has been tied to the hilt, but it is in a language which is foreign to you. There are three exits from the clearing."
+   },
+   "images": [],
+   "choices": [{
+   "scene": "15",
+   "progressive": "1",
+   "choiceText": {
+   "english": "If you decide to go east, turn to 207."
+   },
+   "nextSceneId": "207"
+   }, {
+   "scene": "15",
+   "progressive": "2",
+   "choiceText": {
+   "english": "If you decide to go west, turn to 201."
+   },
+   "nextSceneId": "201"
+   }, {
+   "scene": "15",
+   "progressive": "3",
+   "choiceText": {
+   "english": "If you decide to go south, turn to 35."
+   },
+   "nextSceneId": "35"
+   }
+   ],
+   "disciplineChoices": [],
+   "itemChoices": [],
+   "location": {
+   "areaName": "Forest Clearing",
+   "isMajorLocation": false
+   },
+   "challengeLevel": "BASE",
+   "gameMechanics": [
+   "<addItem itemType=\"WEAPON\" itemName=\"Sword\" quantity=\"1\" />"
+   ]
+   }, {
+   "id": "16",
+   "sceneType": "TRANSITION",
+   "genre": "FANTASY",
+   "narrativeText": {
+   "english": "You manage to free a horse from the straps securing it to the caravan. It is frightened by the scent of the approaching Doomwolves, and the cries of their evil riders—the Giaks. Preparing your weapon, you spur your skittish horse towards the oncoming beasts. They are less than fifty yards away and they are lowering their lances at you as they get nearer and nearer."
+   },
+   "images": [],
+   "choices": [{
+   "scene": "16",
+   "progressive": "1",
+   "choiceText": {
+   "english": "You are charging head-on towards each other. Turn to 192."
+   },
+   "nextSceneId": "192"
+   }
+   ],
+   "disciplineChoices": [],
+   "itemChoices": [],
+   "location": {
+   "areaName": "Highway",
+   "isMajorLocation": false
+   },
+   "challengeLevel": "BASE",
+   "gameMechanics": []
+   }, {
+   "id": "17",
+   "sceneType": "TRANSITION",
+   "genre": "FANTASY",
+   "narrativeText": {
+   "english": "You raise your weapon to strike at the beast as its razor-fanged mouth snaps shut just inches from your head. Buffeted by the beating of its wings you find it difficult to stand. If you kill the creature, you quickly descend the far side of the hill to avoid the Giaks."
+   },
+   "images": [],
+   "choices": [],
+   "disciplineChoices": [],
+   "itemChoices": [],
+   "location": {
+   "areaName": "Hilltop",
+   "isMajorLocation": false
+   },
+   "challengeLevel": "HARD",
+   "gameMechanics": [
+   "<statMod statName=\"COMBAT_SKILL\" amount=\"-1\" />",
+   "<combat enemyName=\"Kraan\" combatSkill=\"16\" endurance=\"24\" />",
+   "<randomChoiceTable outcomes=\"[{'range': '0', 'nextSceneId': '53'}, {'range': '1-2', 'nextSceneId': '274'}, {'range': '3-9', 'nextSceneId': '316'}]\" />"
+   ]
+   }, {
+   "id": "18",
+   "sceneType": "TRANSITION",
+   "genre": "FANTASY",
+   "narrativeText": {
+   "english": "You are awoken by the sound of troops in the distance. Across the lake you see the black-cloaked figures of Drakkarim and a pack of Doomwolves and their riders. A Kraan appears from above the trees and lands on the roof of the small wooden shack. It is ridden by a creature dressed in red. The Kraan takes off and begins to fly across the lake to where you are hidden."
+   },
+   "images": [],
+   "choices": [{
+   "scene": "18",
+   "progressive": "2",
+   "choiceText": {
+   "english": "If you wish to ride deeper in the forest, turn to 239."
+   },
+   "nextSceneId": "239"
+   }, {
+   "scene": "18",
+   "progressive": "3",
+   "choiceText": {
+   "english": "If you wish to fight the creature, turn to 29."
+   },
+   "nextSceneId": "29"
+   }
+   ],
+   "disciplineChoices": [{
+   "scene": "18",
+   "discipline": "Camouflage",
+   "choiceText": {
+   "english": "If you wish to use the Kai Discipline of Camouflage, turn to 114."
+   },
+   "nextSceneId": "114"
+   }
+   ],
+   "itemChoices": [],
+   "location": {
+   "areaName": "Lakeside",
+   "isMajorLocation": false
+   },
+   "challengeLevel": "BASE",
+   "gameMechanics": []
+   }, {
+   "id": "19",
+   "sceneType": "TRANSITION",
+   "genre": "FANTASY",
+   "narrativeText": {
+   "english": "Just ahead through the tall trees you can see clumps of dark-red gallowbrush, a thorny briar with sharp crimson barbs. The common name for this forest weed is ‘Sleeptooth’, for the thorns are very sharp and can make you feel weak and sleepy if they scratch your skin."
+   },
+   "images": [],
+   "choices": [{
+   "scene": "19",
+   "progressive": "2",
+   "choiceText": {
+   "english": "You can avoid the Sleeptooth by returning to the track. Turn to 272."
+   },
+   "nextSceneId": "272"
+   }, {
+   "scene": "19",
+   "progressive": "3",
+   "choiceText": {
+   "english": "Or you can push on through the briars, deeper into the forest, by turning to 119."
+   },
+   "nextSceneId": "119"
+   }
+   ],
+   "disciplineChoices": [{
+   "scene": "19",
+   "discipline": "Tracking",
+   "choiceText": {
+   "english": "If you have the Kai Discipline of Tracking, turn to 69."
+   },
+   "nextSceneId": "69"
+   }
+   ],
+   "itemChoices": [],
+   "location": {
+   "areaName": "Forest",
+   "isMajorLocation": false
+   },
+   "challengeLevel": "BASE",
+   "gameMechanics": []
+   }, {
+   "id": "20",
+   "sceneType": "TRANSITION",
+   "genre": "FANTASY",
+   "narrativeText": {
+   "english": "It seems that whoever lived here left in a great hurry—and they must have left quite recently. A half-eaten meal still remains on the table, and a mug of dark jala is still warm to the touch. Searching a chest and small wardrobe, you find a Backpack, food (enough for two Meals), and a Dagger. You continue your mission."
+   },
+   "images": [],
+   "choices": [{
+   "scene": "20",
+   "progressive": "1",
+   "choiceText": {
+   "english": "Turn to 273."
+   },
+   "nextSceneId": "273"
+   }
+   ],
+   "disciplineChoices": [],
+   "itemChoices": [],
+   "location": {
+   "areaName": "Wrecked River Barge",
+   "isMajorLocation": false
+   },
+   "challengeLevel": "BASE",
+   "gameMechanics": [
+   "<addItem itemType=\"BACKPACK_ITEM\" itemName=\"Backpack\" quantity=\"1\" />",
+   "<addItem itemType=\"BACKPACK_ITEM\" itemName=\"Meal\" quantity=\"2\" />",
+   "<addItem itemType=\"WEAPON\" itemName=\"Dagger\" quantity=\"1\" />"
+   ]
    }
    ]
-
-               }
-           ]
-       }
+   }
 
 
 ### **9\. Esempio Completo (Few-Shot Learning)**

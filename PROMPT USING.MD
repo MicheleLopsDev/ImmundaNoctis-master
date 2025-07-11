@@ -47,7 +47,7 @@ Questo è il **secondo passo**. Utilizza il libro per generare la sequenza delle
 
 
 * START_SECTION: 1
-* END_SECTION: 120
+* END_SECTION: 20
 * IS_FINAL_CHUNK: false
 
 
