@@ -77,7 +77,7 @@ Esegui i seguenti passaggi in ordine rigoroso.
     * **Esempio 2 (Quantità Specifica):** "Usi 2 Fiaccole." \-\> \<removeItem itemName="Torch" quantity="2" /\>
 * **\<combat\>**
     * **Esempio 1 (Base):** "Un Giak ti attacca\! (Combattività: 13, Resistenza: 10)." \-\> \<combat enemyName="Giak" combatSkill="13" endurance="10" /\>
-    * **Esempio 2 (con Evasione):** "Puoi evitare il combattimento dopo 3 round. Vai al 106." \-\> \<combat enemyName="Black Bear" combatSkill="16" endurance="10" evadeRounds="3" evadeScene="106" /\>
+    * **Esempio 2 (con Evasione):** "Puoi evitare il combattimento dopo 3 round. Vai al 106." \-\> \<combat enemyName="Black Bear" combatSkill="16" endurance="10" evadeRounds="3" evadeSceneId="106" /\>
     * **Esempio 3 (con Immunità):** "Il Vordak è immune allo Psicolaser." \-\> \<combat enemyName="Vordak" combatSkill="17" endurance="25" immunity="Mindblast" /\>
 * **\<evadeCombat\>**
     * **Esempio 1:** "Puoi evitare il combattimento in qualsiasi momento." \-\> \<evadeCombat /\>
