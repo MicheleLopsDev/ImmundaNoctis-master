@@ -11,6 +11,16 @@ object CharacterID {
     const val DM = "dm"
 }
 
+data class CombatState(
+    val enemy: GameCharacter,
+    val canEvade: Boolean,
+    val evadeSceneId: String?
+)
+
+data class VictoryState(
+    val victoryText: String
+)
+
 enum class CharacterType {
     DM,
     PLAYER,
@@ -368,5 +378,6 @@ data class SessionData(
     val hero: GameCharacter,
     val characters: List<GameCharacter>,
     val usedScenes: MutableList<String> = mutableListOf(),
-    val isStarted: Boolean = false
+    val isStarted: Boolean = false,
+    val globalVariables: MutableMap<String, Any> = mutableMapOf()
 )

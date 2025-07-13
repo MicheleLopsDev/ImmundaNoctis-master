@@ -2,6 +2,8 @@
 
 package io.github.luposolitario.immundanoctis.view
 
+import io.github.luposolitario.immundanoctis.R
+import com.google.gson.Gson
 import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
@@ -123,6 +125,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _isHeroDead = MutableStateFlow(false)
     val isHeroDead: StateFlow<Boolean> = _isHeroDead.asStateFlow()
+
+    private val _combatState = MutableStateFlow<CombatState?>(null)
+    val combatState: StateFlow<CombatState?> = _combatState.asStateFlow()
+
+    private val _victoryState = MutableStateFlow<VictoryState?>(null)
+    val victoryState: StateFlow<VictoryState?> = _victoryState.asStateFlow()
 
 
     init {
@@ -640,38 +648,52 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     val baseValueStr = command.parameters["baseValue"] as? String
                     if (itemName != null && baseValueStr != null) {
                         val baseValue = baseValueStr.toIntOrNull() ?: 0
-                        val roll = rollDice(1, 10) -1 // Tira un dado da 10 facce (0-9)
+                        val roll = Random.nextInt(0, 10)
                         val finalQuantity = baseValue + roll
 
                         log("🎲 Comando rollForQuantity: Base=$baseValue, Tiro=$roll, Quantità Finale=$finalQuantity")
 
-                        // Creiamo un nuovo comando addItem e lo aggiungiamo alla lista da processare
-                        val addItemCommand = EngineCommand(
-                            commandName = "addItem",
-                            parameters = mapOf(
-                                "itemName" to itemName,
-                                "itemType" to "GOLD", // Assumiamo sia sempre oro per ora
-                                "quantity" to finalQuantity.toString()
+                        if (finalQuantity > 0) {
+                            val addItemCommand = EngineCommand(
+                                commandName = "addItem",
+                                parameters = mapOf(
+                                    "itemType" to ItemType.GOLD.name,
+                                    "itemName" to itemName,
+                                    "quantity" to finalQuantity.toString()
+                                )
                             )
-                        )
-                        newCommandsToProcess.add(addItemCommand)
+                            newCommandsToProcess.add(addItemCommand)
+                            log("-> Generato comando 'addItem' per $finalQuantity $itemName.")
+                        }
+                    } else {
+                        log("❌ ERRORE: Parametri mancanti per rollForQuantity.")
                     }
                 }
 
                 "checkStatAndJump" -> {
-                    val statName = command.parameters["statName"] as? String
+                    val statNameParam = command.parameters["statName"] as? String
                     val operator = command.parameters["operator"] as? String
                     val valueStr = command.parameters["value"] as? String
                     val targetScene = command.parameters["targetScene"] as? String
 
-                    if (statName != null && operator != null && valueStr != null && targetScene != null) {
+                    if (statNameParam != null && operator != null && valueStr != null && targetScene != null) {
                         val value = valueStr.toIntOrNull()
-                        val heroStats = hero.stats
-                        if (value != null && heroStats != null) {
-                            val statToCompare = when (statName.uppercase()) {
-                                "ENDURANCE", "RESISTENZA" -> heroStats.resistenza
-                                "COMBATSKILL", "COMBATTIVITA" -> heroStats.combattivita
-                                else -> null
+                        if (value != null) {
+                            val baseCombatSkill = hero.stats?.combattivita ?: 0
+                            val baseEndurance = hero.stats?.resistenza ?: 0
+                            val activeModifiers = hero.details?.activeModifiers ?: emptyList()
+
+                            val effectiveCombatSkill = baseCombatSkill + activeModifiers.filter { it.statName == "COMBATTIVITA" }.sumOf { it.amount }
+                            val effectiveEndurance = baseEndurance + activeModifiers.filter { it.statName == "RESISTENZA" }.sumOf { it.amount }
+
+                            val statToCompare = when (statNameParam.uppercase()) {
+                                "ENDURANCE", "RESISTENZA" -> effectiveEndurance
+                                "COMBATSKILL", "COMBATTIVITA" -> effectiveCombatSkill
+                                else -> if (hero.details?.gameFlags?.containsKey(statNameParam) == true) {
+                                    (hero.details?.gameFlags?.get(statNameParam) as? String)?.toIntOrNull() ?: 0
+                                } else {
+                                    null
+                                }
                             }
 
                             if (statToCompare != null) {
@@ -679,26 +701,32 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                     "LESS_THAN_OR_EQUAL" -> statToCompare <= value
                                     "GREATER_THAN_OR_EQUAL" -> statToCompare >= value
                                     "EQUALS" -> statToCompare == value
+                                    "LESS_THAN" -> statToCompare < value
+                                    "GREATER_THAN" -> statToCompare > value
                                     else -> false
                                 }
 
                                 if (conditionMet) {
-                                    log("✅ Condizione IF_STAT verificata ($statName $operator $value). Navigazione a '$targetScene'.")
-                                    if (targetScene.equals("DEATH", ignoreCase = true)) {
+                                    log("✅ Condizione IF_STAT verificata ($statNameParam $operator $value). Navigazione a '$targetScene'.")
+                                    if (targetScene.equals("DEATH", ignoreCase = true) || targetScene.equals("END", ignoreCase = true)) {
                                         _isHeroDead.value = true
+                                        log("☠️ MORTE: La condizione ha portato a una scena di morte.")
                                     } else {
                                         navigateToScene(targetScene)
                                     }
                                 } else {
-                                    log("ℹ️ Condizione IF_STAT non verificata ($statName $operator $value). Nessuna azione.")
+                                    log("ℹ️ Condizione IF_STAT non verificata ($statNameParam $operator $value). Nessuna azione.")
                                 }
+                            } else {
+                                log("❌ ERRORE: Statistica o flag '$statNameParam' non trovata per il controllo ifStat.")
                             }
                         }
+                    } else {
+                        log("❌ ERRORE: Parametri mancanti per il comando checkStatAndJump.")
                     }
                 }
 
                 "updateChoiceText" -> {
-
                     val sceneId = command.parameters["sceneId"] as? String
                     val progressiveId = command.parameters["progressiveId"] as? String
                     val italianText = command.parameters["italianText"] as? String
@@ -706,6 +734,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         updateNarrativeChoiceText(sceneId , progressiveId, italianText)
                     }
                 }
+
                 "updateDisciplineChoiceText" -> {
                     val disciplineId = command.parameters["id"] as? String
                     val italianText = command.parameters["italianText"] as? String
@@ -715,28 +744,48 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
 
                 "requireAction" -> {
-                    val inventory = hero.details?.inventory ?: mutableListOf()
-                    val meal = inventory.find { it.name == "Pasto" }
+                    val action = command.parameters["action"] as? String
+                    val penaltyStat = command.parameters["penaltyStat"] as? String
+                    val penaltyValueStr = command.parameters["penaltyValue"] as? String
 
-                    if (meal != null && meal.quantity > 0) {
-                        meal.quantity--
-                        if (meal.quantity == 0) {
-                            inventory.remove(meal)
+                    if (action == "EAT_MEAL") {
+                        val inventory = hero.details?.inventory ?: mutableListOf()
+                        val mealItem = inventory.find { it.name == "Pasto" }
+
+                        if (mealItem != null && mealItem.quantity > 0) {
+                            mealItem.quantity--
+                            if (mealItem.quantity == 0) {
+                                inventory.remove(mealItem)
+                            }
+                            log("✅ Pasto consumato. Il giocatore ha mangiato.")
+                            viewModelScope.launch { _uiFeedbackEvent.emit("Hai consumato un Pasto.") }
+                            sessionModified = true
+                        } else {
+                            log("❌ Nessun pasto disponibile. Applico penalità.")
+                            val penaltyValue = penaltyValueStr?.toIntOrNull()
+                            if (penaltyStat != null && penaltyValue != null) {
+                                val penaltyModifier = StatModifier(
+                                    statName = penaltyStat.uppercase(),
+                                    amount = penaltyValue,
+                                    sourceType = ModifierSourceType.EVENT,
+                                    sourceId = "require_action_penalty",
+                                    duration = ModifierDuration.PERMANENT
+                                )
+                                hero.details?.activeModifiers?.add(penaltyModifier)
+                                viewModelScope.launch { _uiFeedbackEvent.emit("Non hai cibo! Perdi ${-penaltyValue} punti ${penaltyStat.capitalize()}.") }
+
+                                val totalEndurance = hero.stats?.resistenza ?: 0
+                                val enduranceModifiers = hero.details?.activeModifiers?.filter { it.statName == "RESISTENZA" }?.sumOf { it.amount } ?: 0
+                                if ((totalEndurance + enduranceModifiers) <= 0) {
+                                    _isHeroDead.value = true
+                                }
+
+                                sessionModified = true
+                            }
                         }
-                        log("✅ Pasto consumato. Il giocatore ha mangiato.")
-                        viewModelScope.launch { _uiFeedbackEvent.emit("Hai consumato un Pasto.") }
                     } else {
-                        val currentEndurance = hero.stats?.resistenza ?: 0
-                        val newEndurance = (currentEndurance - 3).coerceAtLeast(0)
-                        val updatedStats = hero.stats?.copy(resistenza = newEndurance)
-                        hero = hero.copy(stats = updatedStats)
-                        if (newEndurance <= 0) {
-                            _isHeroDead.value = true
-                        }
-                        log("❌ Nessun pasto disponibile. Il giocatore perde 3 punti Resistenza.")
-                        viewModelScope.launch { _uiFeedbackEvent.emit("Non hai cibo! Perdi 3 punti Resistenza.") }
+                        log("⚠️ Azione '$action' non ancora gestita in requireAction.")
                     }
-                    sessionModified = true
                 }
 
                 "removeAllItems" -> {
@@ -745,6 +794,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         try {
                             val itemTypeToRemove = ItemType.valueOf(itemTypeToRemoveStr.uppercase())
                             val inventory = hero.details?.inventory ?: mutableListOf()
+
                             val itemsRemoved = inventory.removeAll { item ->
                                 item.type == itemTypeToRemove && item.isDiscardable
                             }
@@ -753,70 +803,318 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                 log("‼️ Rimosso/i ${itemTypeToRemove.name} dall'inventario.")
                                 viewModelScope.launch { _uiFeedbackEvent.emit("Hai perso i tuoi oggetti di tipo ${itemTypeToRemove.name}!") }
                                 sessionModified = true
+                            } else {
+                                log("ℹ️ Nessun oggetto di tipo ${itemTypeToRemove.name} trovato da rimuovere.")
                             }
                         } catch (e: IllegalArgumentException) {
                             log("❌ ERRORE: Tipo di oggetto non valido '$itemTypeToRemoveStr' per il comando removeAllItems.")
                         }
+                    } else {
+                        log("❌ ERRORE: Parametro 'type' mancante per il comando removeAllItems.")
                     }
                 }
 
                 "applyStatModifier" -> {
-                    val statName = command.parameters["statName"] as? String
+                    val statNameParam = command.parameters["statName"] as? String
                     val amountStr = command.parameters["amount"] as? String
 
-                    if (statName != null && amountStr != null) {
-                        val heroStats = hero.stats ?: return@forEach
-                        var newCombatSkill = heroStats.combattivita
-                        var newEndurance = heroStats.resistenza
+                    if (statNameParam != null && amountStr != null) {
                         val amount = amountStr.toIntOrNull()
-
                         if (amount != null) {
-                            when (statName.uppercase()) {
-                                "COMBATSKILL", "COMBATTIVITA" -> {
-                                    newCombatSkill = (newCombatSkill + amount).coerceAtLeast(0)
-                                    log("STAT MOD: Combattività modificata di $amount. Nuovo valore: $newCombatSkill")
-                                }
-                                "ENDURANCE", "RESISTENZA" -> {
-                                    newEndurance = (newEndurance + amount).coerceAtLeast(0)
-                                    log("STAT MOD: Resistenza modificata di $amount. Nuovo valore: $newEndurance")
+                            val statName = when (statNameParam.uppercase()) {
+                                "ENDURANCE", "RESISTENZA" -> "RESISTENZA"
+                                "COMBATSKILL", "COMBATTIVITA" -> "COMBATTIVITA"
+                                else -> {
+                                    log("❌ ERRORE: Nome statistica non valido in statMod: '$statNameParam'")
+                                    null
                                 }
                             }
-                            if (newEndurance <= 0) {
-                                _isHeroDead.value = true
-                            }
-                            // --- 👇 MODIFICA CHIAVE QUI 👇 ---
-                            // 1. Crea una NUOVA istanza di LoneWolfStats
-                            val updatedStats = heroStats.copy(combattivita = newCombatSkill, resistenza = newEndurance)
-                            // 2. Crea una NUOVA istanza di GameCharacter con le statistiche aggiornate
-                            hero = hero.copy(stats = updatedStats)
 
-                            viewModelScope.launch { _uiFeedbackEvent.emit("La tua $statName è cambiata di $amount!") }
-                            sessionModified = true
-                        } else if (amountStr.equals("MAX_RESISTANCE_RESTORE", ignoreCase = true)) {
-                        // Logica speciale per ripristinare la resistenza al massimo (se mai servirà)
-                        // Questa è una previsione basata sui libri game, dove a volte si riposa completamente.
-                        // Per ora, questa logica non è usata, ma è pronta.
+                            if (statName != null) {
+                                val newModifier = StatModifier(
+                                    statName = statName,
+                                    amount = amount,
+                                    sourceType = ModifierSourceType.EVENT,
+                                    sourceId = "scene_${currentScene.value?.id}",
+                                    duration = ModifierDuration.PERMANENT
+                                )
+
+                                hero.details?.activeModifiers?.add(newModifier)
+                                log("STAT MODIFIER: Aggiunto modificatore a '$statName' di '$amount'")
+                                viewModelScope.launch { _uiFeedbackEvent.emit("La tua $statName è cambiata di $amount!") }
+
+                                val totalEndurance = hero.stats?.resistenza ?: 0
+                                val enduranceModifiers = hero.details?.activeModifiers
+                                    ?.filter { it.statName == "RESISTENZA" }
+                                    ?.sumOf { it.amount } ?: 0
+
+                                if ((totalEndurance + enduranceModifiers) <= 0) {
+                                    _isHeroDead.value = true
+                                    log("☠️ MORTE: La Resistenza è scesa a 0 o meno.")
+                                }
+
+                                sessionModified = true
+                            }
+                        } else {
+                            log("❌ ERRORE: L'ammontare '$amountStr' per statMod non è un numero valido.")
                         }
+                    } else {
+                        log("❌ ERRORE: Parametri mancanti per applyStatModifier.")
                     }
                 }
+
+                "handleRandomChoice" -> {
+                    val outcomesJson = command.parameters["outcomes"] as? String
+                    if (outcomesJson != null) {
+                        val roll = Random.nextInt(0, 10)
+                        log("🎲 Tabella Numero Casuale: Tiro = $roll")
+
+                        try {
+                            val type = object : TypeToken<List<Map<String, String>>>() {}.type
+                            val gson = Gson()
+                            val outcomesList: List<Map<String, String>> = gson.fromJson(outcomesJson, type)
+
+                            val targetSceneId = outcomesList.find { outcome ->
+                                val rangeParts = outcome["range"]?.split('-')
+                                if (rangeParts?.size == 2) {
+                                    val min = rangeParts[0].toIntOrNull()
+                                    val max = rangeParts[1].toIntOrNull()
+                                    if (min != null && max != null) {
+                                        roll in min..max
+                                    } else false
+                                } else false
+                            }?.get("nextSceneId")
+
+                            if (targetSceneId != null) {
+                                log("-> Risultato: Navigazione alla scena '$targetSceneId'")
+                                navigateToScene(targetSceneId)
+                            } else {
+                                log("❌ ERRORE: Nessun outcome trovato per il tiro $roll in $outcomesJson")
+                            }
+                        } catch (e: Exception) {
+                            log("❌ ERRORE di Deserializzazione JSON in handleRandomChoice: ${e.message}")
+                        }
+                    } else {
+                        log("❌ ERRORE: Parametro 'outcomes' mancante per handleRandomChoice.")
+                    }
+                }
+
+                "handleSkillCheck" -> {
+                    val discipline = command.parameters["discipline"] as? String
+                    val modifier = (command.parameters["modifier"] as? String)?.toIntOrNull() ?: 0
+                    val outcomesJson = command.parameters["outcomes"] as? String
+
+                    if (outcomesJson != null) {
+                        var roll = Random.nextInt(0, 10)
+                        log("🎲 Prova di Abilità: Tiro base = $roll")
+
+                        if (discipline != null && hero.kaiDisciplines.contains(discipline)) {
+                            roll += modifier
+                            log("✨ Bonus disciplina '$discipline' applicato: ($modifier). Tiro finale = $roll")
+                        }
+
+                        try {
+                            val type = object : TypeToken<List<Map<String, String>>>() {}.type
+                            val gson = Gson()
+                            val outcomesList: List<Map<String, String>> = gson.fromJson(outcomesJson, type)
+
+                            val targetSceneId = outcomesList.find { outcome ->
+                                val rangeParts = outcome["range"]?.split('-')
+                                if (rangeParts?.size == 2) {
+                                    val min = rangeParts[0].toIntOrNull()
+                                    val max = rangeParts[1].toIntOrNull()
+                                    if (min != null && max != null) {
+                                        roll in min..max
+                                    } else false
+                                } else false
+                            }?.get("nextSceneId")
+
+                            if (targetSceneId != null) {
+                                log("-> Risultato Prova Abilità: Navigazione alla scena '$targetSceneId'")
+                                navigateToScene(targetSceneId)
+                            } else {
+                                log("❌ ERRORE: Nessun outcome trovato per il tiro finale $roll in $outcomesJson")
+                            }
+                        } catch (e: Exception) {
+                            log("❌ ERRORE di Deserializzazione JSON in handleSkillCheck: ${e.message}")
+                        }
+                    } else {
+                        log("❌ ERRORE: Parametro 'outcomes' mancante per handleSkillCheck.")
+                    }
+                }
+
+                "handleConditionalAction" -> {
+                    val condition = command.parameters["condition"] as? String
+                    val itemName = command.parameters["itemName"] as? String
+                    val disciplineName = command.parameters["disciplineName"] as? String
+                    val actionString = command.parameters["action"] as? String
+
+                    if (condition != null && actionString != null) {
+                        var conditionMet = false
+                        when (condition) {
+                            "HAS_ITEM" -> {
+                                if (itemName != null) {
+                                    val inventory = hero.details?.inventory ?: emptyList()
+                                    val specialItems = hero.details?.inventory?.filter {  it -> it.type == ItemType.SPECIAL_ITEM }?: emptyList()
+                                    conditionMet = inventory.any { it.name.equals(itemName, ignoreCase = true) } ||
+                                            specialItems.any { it.name.equals(itemName, ignoreCase = true) }
+                                }
+                            }
+                            "NOT_HAS_DISCIPLINE" -> {
+                                if (disciplineName != null) {
+                                    conditionMet = !hero.kaiDisciplines.contains(disciplineName)
+                                }
+                            }
+                        }
+
+                        if (conditionMet) {
+                            log("✅ Condizione '$condition' per '${itemName ?: disciplineName ?: ""}' verificata. Esecuzione azione: $actionString")
+                            val (_, nestedCommands) = stringTagParser.parseAndReplaceWithCommands(actionString, CharacterType.DM)
+                            newCommandsToProcess.addAll(nestedCommands)
+                        } else {
+                            log("ℹ️ Condizione '$condition' per '${itemName ?: disciplineName ?: ""}' non verificata. Nessuna azione.")
+                        }
+                    } else {
+                        log("❌ ERRORE: Parametri mancanti per handleConditionalAction.")
+                    }
+                }
+
+                "setGlobalVar" -> {
+                    val varName = command.parameters["varName"] as? String
+                    val value = command.parameters["value"]
+                    val operation = command.parameters["operation"] as? String
+
+                    if (varName != null && value != null && operation == "SET") {
+                        currentSession.globalVariables[varName] = value
+                        log("GLOBAL VAR: Impostata '$varName' a '$value'")
+                        sessionModified = true
+                    } else {
+                        log("❌ ERRORE: Parametri mancanti o operazione non valida per setGlobalVar.")
+                    }
+                }
+
+                "updateGlobalVar" -> {
+                    val varName = command.parameters["varName"] as? String
+                    val valueChangeStr = command.parameters["value"] as? String
+                    val operation = command.parameters["operation"] as? String
+
+                    if (varName != null && valueChangeStr != null && operation == "ADD") {
+                        val valueChange = valueChangeStr.toIntOrNull()
+                        if (valueChange != null) {
+                            val currentValue = (currentSession.globalVariables[varName] as? Number)?.toInt() ?: 0
+                            currentSession.globalVariables[varName] = currentValue + valueChange
+                            log("GLOBAL VAR: Aggiornata '$varName'. Nuovo valore: ${currentValue + valueChange}")
+                            sessionModified = true
+                        } else {
+                            log("❌ ERRORE: Il valore per updateGlobalVar non è un numero valido: '$valueChangeStr'")
+                        }
+                    } else {
+                        log("❌ ERRORE: Parametri mancanti o operazione non valida per updateGlobalVar.")
+                    }
+                }
+
+                "healStat" -> {
+                    val statNameParam = command.parameters["statName"] as? String
+                    val amountStr = command.parameters["amount"] as? String
+
+                    if (statNameParam != null && amountStr != null) {
+                        val statName = when (statNameParam.uppercase()) {
+                            "ENDURANCE", "RESISTENZA" -> "RESISTENZA"
+                            "COMBATSKILL", "COMBATTIVITA" -> "COMBATTIVITA"
+                            else -> null
+                        }
+
+                        if (statName != null) {
+                            val baseStat = if (statName == "RESISTENZA") hero.stats?.resistenza else hero.stats?.combattivita
+                            if (baseStat != null) {
+                                var amountToHeal = amountStr.toIntOrNull()
+
+                                if (amountToHeal == 999) {
+                                    val activeModifiers = hero.details?.activeModifiers ?: emptyList()
+                                    val currentStatValue = baseStat + activeModifiers.filter { it.statName == statName }.sumOf { it.amount }
+                                    amountToHeal = baseStat - currentStatValue
+                                    log("HEAL: Guarigione completa. Punti da ripristinare: $amountToHeal")
+                                }
+
+                                if (amountToHeal != null && amountToHeal > 0) {
+                                    val healModifier = StatModifier(
+                                        statName = statName,
+                                        amount = amountToHeal,
+                                        sourceType = ModifierSourceType.EVENT,
+                                        sourceId = "heal_event_${currentScene.value?.id}",
+                                        duration = ModifierDuration.PERMANENT
+                                    )
+                                    hero.details?.activeModifiers?.add(healModifier)
+                                    log("HEAL: Aggiunto modificatore di guarigione a '$statName' di '$amountToHeal'")
+                                    viewModelScope.launch { _uiFeedbackEvent.emit("Hai recuperato $amountToHeal punti ${statName.capitalize()}!") }
+                                    sessionModified = true
+                                }
+                            }
+                        } else {
+                            log("❌ ERRORE: Nome statistica non valido in healStat: '$statNameParam'")
+                        }
+                    } else {
+                        log("❌ ERRORE: Parametri mancanti per healStat.")
+                    }
+                }
+
+                "startCombat" -> {
+                    val enemyName = command.parameters["enemyName"] as? String
+                    val combatSkillStr = command.parameters["combatSkill"] as? String
+                    val enduranceStr = command.parameters["endurance"] as? String
+                    val immunity = command.parameters["immunity"] as? String
+                    val evadeSceneId = command.parameters["evadeScene"] as? String
+
+                    if (enemyName != null && combatSkillStr != null && enduranceStr != null) {
+                        val combatSkill = combatSkillStr.toInt()
+                        val endurance = enduranceStr.toInt()
+
+                        val enemy = GameCharacter(
+                            id = "enemy_${UUID.randomUUID()}",
+                            name = enemyName,
+                            type = CharacterType.NPC,
+                            stats = LoneWolfStats(combattivita = combatSkill, resistenza = endurance),
+                            portraitResId = R.drawable.ic_enemy_placeholder,
+                            gender = "NEUTRAL",
+                            language = "it",
+                            details = HeroDetails()
+                        )
+
+                        (command.parameters["bonusCS"] as? String)?.toIntOrNull()?.let { bonus ->
+                            val modifier = StatModifier(
+                                statName = "COMBATTIVITA",
+                                amount = bonus,
+                                sourceType = ModifierSourceType.EVENT,
+                                sourceId = "combat_start_bonus",
+                                duration = ModifierDuration.UNTIL_COMBAT_END
+                            )
+                            hero.details?.activeModifiers?.add(modifier)
+                            log("Applico bonus/malus di combattimento temporaneo: $bonus CS")
+                        }
+
+                        _combatState.value = CombatState(enemy, canEvade = evadeSceneId != null, evadeSceneId = evadeSceneId)
+                        log("⚔️ Combattimento iniziato contro ${enemy.name} (CS: $combatSkill, RES: $endurance)")
+                    } else {
+                        log("❌ ERRORE: Parametri mancanti per il comando startCombat.")
+                    }
+                }
+
                 else -> {
                     log("⚠️ Comando sconosciuto o non ancora implementato: ${command.commandName}")
                 }
             }
         }
-
-        // Se sono stati generati nuovi comandi (es. da rollForQuantity), li processiamo
         if (newCommandsToProcess.isNotEmpty()) {
             processCommands(newCommandsToProcess)
         }
-
         if (sessionModified) {
             gameStateManager.saveSession(currentSession.copy(hero = hero))
             _gameCharacters.value = gameStateManager.loadSession()?.characters!!
-            _gameHero.value =  gameStateManager.loadSession()?.hero!!
+            _gameHero.value = gameStateManager.loadSession()?.hero!!
             log("Salvataggio sessione dopo l'aggiornamento.")
         }
     }
+
 
     fun resolveInventoryExchange(itemToDiscard: GameItem, newItem: GameItem) {
         viewModelScope.launch {
@@ -1037,6 +1335,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         processCommands(choiceCommands)
                     }
                 }
+
+
+
 
                 _isGenerating.value = false
                 _streamingText.value = ""
