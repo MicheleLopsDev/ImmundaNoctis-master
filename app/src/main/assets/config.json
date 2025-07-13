@@ -26,6 +26,27 @@
       "actor": "DM",
       "command": "updateDisciplineChoiceText",
       "replace": true
+    },{
+      "id": "victory_text_translation",
+      "type": "dynamicText",
+      "regex": "<victory_text_it>([^<]*)<\\/victory_text_it>",
+      "parameters": [
+        { "name": "text", "value": "{captured_value_from_regex_1}" }
+      ],
+      "actor": "DM",
+      "command": "setVictoryText",
+      "replace": true
+    },
+    {
+      "id": "defeat_text_translation",
+      "type": "dynamicText",
+      "regex": "<defeat_text_it>([^<]*)<\\/defeat_text_it>",
+      "parameters": [
+        { "name": "text", "value": "{captured_value_from_regex_1}" }
+      ],
+      "actor": "DM",
+      "command": "setDefeatText",
+      "replace": true
     },
     {
       "id": "add_item_tag",
@@ -52,6 +73,27 @@
       ],
       "actor": "DM",
       "command": "removeItem",
+      "replace": true
+    },{
+      "id": "victory_text_translation",
+      "type": "dynamicText",
+      "regex": "<victory_text_it>([^<]*)<\\/victory_text_it>",
+      "parameters": [
+        { "name": "text", "value": "{captured_value_from_regex_1}" }
+      ],
+      "actor": "DM",
+      "command": "setVictoryText",
+      "replace": true
+    },
+    {
+      "id": "defeat_text_translation",
+      "type": "dynamicText",
+      "regex": "<defeat_text_it>([^<]*)<\\/defeat_text_it>",
+      "parameters": [
+        { "name": "text", "value": "{captured_value_from_regex_1}" }
+      ],
+      "actor": "DM",
+      "command": "setDefeatText",
       "replace": true
     },
     {

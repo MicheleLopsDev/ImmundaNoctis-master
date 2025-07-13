@@ -132,6 +132,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _victoryState = MutableStateFlow<VictoryState?>(null)
     val victoryState: StateFlow<VictoryState?> = _victoryState.asStateFlow()
 
+    private val _combatOutcomeTextsReadyEvent = MutableSharedFlow<Pair<String, String>>()
+    val combatOutcomeTextsReadyEvent: SharedFlow<Pair<String, String>> = _combatOutcomeTextsReadyEvent.asSharedFlow()
+
+    private val _showCombatChoiceEvent = MutableSharedFlow<Unit>()
+    val showCombatChoiceEvent: SharedFlow<Unit> = _showCombatChoiceEvent.asSharedFlow()
 
     init {
         if (useGemmaForAll) {
@@ -161,6 +166,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = dmEngine.tokenInfo.value
     )
+
+    // ---> INSERISCI QUESTO BLOCCO <---
+// L'evento conterrà una coppia: <ÈVittoria (Boolean), MessaggioDiTesto (String)>
+    private val _combatResultEvent = MutableSharedFlow<Pair<Boolean, String>>()
+    val combatResultEvent: SharedFlow<Pair<Boolean, String>> = _combatResultEvent.asSharedFlow()
+// ---> FINE BLOCCO DA INSERIRE <---
 
     fun loadGameSession(startFresh: Boolean = false) {
         val session = gameStateManager.loadSession()
@@ -556,6 +567,106 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         return totalRoll
     }
 
+    fun resolveAutomaticCombat() {
+        viewModelScope.launch {
+            val combatState = _combatState.value ?: return@launch
+            var hero = _gameHero.value ?: return@launch
+            val enemy = combatState.enemy
+
+            var playerCurrentEndurance = hero.stats?.resistenza ?: 0
+            var enemyCurrentEndurance = enemy.stats?.resistenza ?: 0
+
+            val combatLog = mutableListOf<String>()
+
+            while (playerCurrentEndurance > 0 && enemyCurrentEndurance > 0) {
+                val roundResult = gameRules.resolveCombatRound(hero, enemy)
+
+                playerCurrentEndurance -= roundResult.playerDamage
+                enemyCurrentEndurance -= roundResult.enemyDamage
+
+                // Per brevità, non aggiungiamo il log dettagliato al popup finale,
+                // ma lo teniamo nel log di debug del ViewModel.
+                log(roundResult.logMessage.italian ?: roundResult.logMessage.english)
+            }
+
+            // --- BLOCCO MODIFICATO ---
+            if (playerCurrentEndurance > 0) {
+                // Vittoria
+                val victoryText = combatState.victoryText ?: "Hai vinto il combattimento!"
+                _combatResultEvent.emit(true to victoryText) // Emittiamo l'evento di vittoria
+
+                // Aggiorna la resistenza dell'eroe
+                val enduranceChange = playerCurrentEndurance - (hero.stats?.resistenza ?: 0)
+                if (enduranceChange != 0) {
+                    val enduranceModifier = StatModifier(
+                        statName = "RESISTENZA",
+                        amount = enduranceChange,
+                        sourceType = ModifierSourceType.EVENT,
+                        sourceId = "combat_result_${combatState.enemy.id}",
+                        duration = ModifierDuration.PERMANENT
+                    )
+                    hero.details?.activeModifiers?.add(enduranceModifier)
+                    gameStateManager.saveSession(gameStateManager.loadSession().copy(hero = hero))
+                    _gameHero.value = hero
+                }
+
+            } else {
+                // Sconfitta
+                val defeatText = combatState.defeatText ?: "Sei stato sconfitto."
+                _combatResultEvent.emit(false to defeatText) // Emittiamo l'evento di sconfitta
+                _isHeroDead.value = true // Prepariamo lo stato di morte
+            }
+            // --- FINE BLOCCO MODIFICATO ---
+
+            // Resetta lo stato del combattimento
+            _combatState.value = null
+        }
+    }
+    private suspend fun generateCombatOutcomeTexts() {
+        val combatState = _combatState.value ?: return
+        val enemyName = combatState.enemy.name
+
+        log("Avvio seconda chiamata LLM per testi vittoria/sconfitta contro: $enemyName")
+
+        val outcomePrompt = """
+    Un combattimento è iniziato contro: "$enemyName".
+    Genera ESCLUSIVAMENTE due testi in italiano per descrivere l'esito dello scontro, usando i seguenti tag XML:
+    <victory_text_it>Testo per quando il giocatore vince.</victory_text_it>
+    <defeat_text_it>Testo per quando il giocatore perde.</defeat_text_it>
+    NON AGGIUNGERE ALTRO TESTO.
+    """.trimIndent()
+
+        try {
+            var rawResponse = ""
+            dmEngine.sendMessage(outcomePrompt).collect { token ->
+                rawResponse += token
+            }
+
+            val (_, outcomeCommands) = stringTagParser.parseAndReplaceWithCommands(rawResponse, CharacterType.DM)
+
+            // ---> BLOCCO MODIFICATO <---
+            if (outcomeCommands.isNotEmpty()) {
+                // Estraiamo i testi prima di processare i comandi
+                val victoryText = outcomeCommands.find { it.commandName == "setVictoryText" }
+                    ?.parameters?.get("text") as? String
+                val defeatText = outcomeCommands.find { it.commandName == "setDefeatText" }
+                    ?.parameters?.get("text") as? String
+
+                // Processiamo i comandi per salvare i testi nello stato
+                processCommands(outcomeCommands)
+                log("Testi di vittoria/sconfitta processati e aggiunti allo stato del combattimento.")
+
+                // Se abbiamo entrambi i testi, emettiamo l'evento per la UI
+                if (victoryText != null && defeatText != null) {
+                    _showCombatChoiceEvent.emit(Unit)
+                }
+            }
+            // ---> FINE BLOCCO MODIFICATO <---
+
+        } catch (e: Exception) {
+            log("Errore durante la generazione dei testi di esito combattimento: ${e.message}")
+        }
+    }
 
     private suspend fun processCommands(commands: List<EngineCommand>) {
         if (commands.isEmpty()) {
@@ -1058,6 +1169,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
 
+                "setVictoryText" -> {
+                    val text = command.parameters["text"] as? String
+                    _combatState.update { currentState ->
+                        currentState?.copy(victoryText = text)
+                    }
+                }
+                "setDefeatText" -> {
+                    val text = command.parameters["text"] as? String
+                    _combatState.update { currentState ->
+                        currentState?.copy(defeatText = text)
+                    }
+                }
+
                 "startCombat" -> {
                     val enemyName = command.parameters["enemyName"] as? String
                     val combatSkillStr = command.parameters["combatSkill"] as? String
@@ -1336,7 +1460,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
 
+                if (tagsPart.isNotBlank()) {
+                    val (_, choiceCommands) = stringTagParser.parseAndReplaceWithCommands(
+                        tagsPart,
+                        CharacterType.DM
+                    )
+                    if (choiceCommands.isNotEmpty()) {
+                        processCommands(choiceCommands)
+                    }
+                }
 
+                // ---> INSERISCI QUESTO BLOCCO <---
+                if (_combatState.value != null && _combatState.value?.victoryText == null) {
+                    generateCombatOutcomeTexts()
+                }
+                // ---> FINE BLOCCO DA INSERIRE <---
 
 
                 _isGenerating.value = false

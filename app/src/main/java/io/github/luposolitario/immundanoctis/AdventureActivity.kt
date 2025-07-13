@@ -459,6 +459,77 @@ fun AdventureChatScreen(
     val hero = characters.find { it.type == CharacterType.PLAYER }
     val inventoryFullState by viewModel.inventoryFullState.collectAsState()
 
+    // ---> INIZIO BLOCCO COMPLETO PER I DIALOGHI <---
+
+    // --- Stati per il Dialogo di SCELTA ---
+    var showCombatChoiceDialog by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        viewModel.showCombatChoiceEvent.collect {
+            showCombatChoiceDialog = true
+        }
+    }
+
+    // --- Stati per il Dialogo di RISULTATO ---
+    var showCombatResultDialog by remember { mutableStateOf(false) }
+    var combatResultForDialog by remember { mutableStateOf<Pair<Boolean, String>?>(null) }
+    LaunchedEffect(Unit) {
+        viewModel.combatResultEvent.collect { result ->
+            combatResultForDialog = result
+            showCombatResultDialog = true
+        }
+    }
+
+    // --- UI del Dialogo di SCELTA ---
+    if (showCombatChoiceDialog) {
+        AlertDialog(
+            onDismissRequest = { /* Impedisce la chiusura accidentale */ },
+            title = { Text("Combattimento Imminente!") },
+            text = { Text("Un nemico ti sbarra la strada. Come vuoi procedere?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.resolveAutomaticCombat()
+                        showCombatChoiceDialog = false
+                    }
+                ) {
+                    Text("Combattimento Automatico")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        // Per ora, chiude semplicemente il dialogo.
+                        // In futuro, avvierà la CombatActivity.
+                        showCombatChoiceDialog = false
+                    }
+                ) {
+                    Text("Combattimento Manuale")
+                }
+            }
+        )
+    }
+
+    // --- UI del Dialogo di RISULTATO (MODALE) ---
+    if (showCombatResultDialog && combatResultForDialog != null) {
+        val (isVictory, message) = combatResultForDialog!!
+
+        AlertDialog(
+            onDismissRequest = { /* Non fare nulla al click esterno, rendendolo MODALE */ },
+            title = { Text(if (isVictory) "Vittoria!" else "Sconfitta...") },
+            text = { Text(message) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showCombatResultDialog = false
+                    }
+                ) {
+                    Text("OK")
+                }
+            }
+        )
+    }
+    // ---> FINE BLOCCO COMPLETO PER I DIALOGHI <---
+
     // Questo codice va all'interno del corpo della Composable,
 // al di fuori dello Scaffold.
     inventoryFullState?.let { state ->

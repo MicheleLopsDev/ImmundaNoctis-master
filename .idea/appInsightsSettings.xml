@@ -8,10 +8,10 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="PLACEHOLDER" />
-                  <option name="mobileSdkAppId" value="" />
-                  <option name="projectId" value="" />
-                  <option name="projectNumber" value="" />
+                  <option name="appId" value="io.github.luposolitario.immundanoctis" />
+                  <option name="mobileSdkAppId" value="1:795293641426:android:3192a8e09b1194448e1b0b" />
+                  <option name="projectId" value="immundanoctis-project" />
+                  <option name="projectNumber" value="795293641426" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />
