@@ -15,7 +15,6 @@
       ],
       "choices": [
         {
-          "id": "choice_1_1",
           "scene": "1",
           "progressive": "1",
           "choiceText": {
@@ -31,30 +30,20 @@
       "genre": "FANTASY",
       "challengeLevel": "HARD",
       "narrativeText": {
-        "english": "A vicious Cave Troll blocks your path. It roars and raises its massive club. You must fight it."
+        "english": "A vicious Cave Troll blocks your path. It roars and raises its massive club. You must fight it to the death."
       },
       "gameMechanics": [
         "<combat enemyName=\"Cave Troll\" combatSkill=\"18\" endurance=\"28\" />"
       ],
       "choices": [
         {
-          "id": "choice_2_1",
           "scene": "2",
           "progressive": "1",
           "choiceText": {
             "english": "If you win the combat, continue to the city gate."
           },
-          "nextSceneId": "3"
-        },
-        {
-          "id": "choice_2_2",
-          "scene": "2",
-          "progressive": "2",
-          "choiceText": {
-            "english": "You can attempt to evade combat by diving into the bushes."
-          },
           "nextSceneId": "3",
-          "gameMechanics": ["<evadeCombat />"]
+          "condition": "POST_COMBAT_VICTORY"
         }
       ]
     },
@@ -69,7 +58,6 @@
       "gameMechanics": [],
       "choices": [
         {
-          "id": "choice_3_1",
           "scene": "3",
           "progressive": "1",
           "choiceText": {
@@ -82,7 +70,6 @@
           }
         },
         {
-          "id": "choice_3_2",
           "scene": "3",
           "progressive": "2",
           "choiceText": {

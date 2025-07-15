@@ -5088,7 +5088,7 @@
     },
     "challengeLevel": "HARD",
     "gameMechanics": [
-      "<combat enemyName=\"Crypt Spawn\" combatSkill=\"16\" endurance=\"16\" evadeRounds=\"1\" evadeScene=\"23\" />"
+      "<combat enemyName=\"Crypt Spawn\" combatSkill=\"16\" endurance=\"16\" evadeRounds=\"1\" evadeSceneId=\"23\" />"
     ]
   }, {
     "id": "170",
@@ -5442,9 +5442,9 @@
     },
     "challengeLevel": "HARD",
     "gameMechanics": [
-      "<combat enemyName=\"Leader\" combatSkill=\"15\" endurance=\"22\" evadeScene=\"22\" />",
-      "<combat enemyName=\"Soldier 1\" combatSkill=\"13\" endurance=\"20\" evadeScene=\"22\" />",
-      "<combat enemyName=\"Soldier 2\" combatSkill=\"12\" endurance=\"20\" evadeScene=\"22\" />"
+      "<combat enemyName=\"Leader\" combatSkill=\"15\" endurance=\"22\" evadeSceneId=\"22\" />",
+      "<combat enemyName=\"Soldier 1\" combatSkill=\"13\" endurance=\"20\" evadeSceneId=\"22\" />",
+      "<combat enemyName=\"Soldier 2\" combatSkill=\"12\" endurance=\"20\" evadeSceneId=\"22\" />"
     ]
   }, {
     "id": "181",
@@ -5740,7 +5740,7 @@
     },
     "challengeLevel": "HARD",
     "gameMechanics": [
-      "<combat enemyName=\"Bodyguard\" combatSkill=\"11\" endurance=\"21\" evadeScene=\"234\" />"
+      "<combat enemyName=\"Bodyguard\" combatSkill=\"11\" endurance=\"21\" evadeSceneId=\"234\" />"
     ]
   }, {
     "id": "192",
@@ -6584,7 +6584,7 @@
     },
     "challengeLevel": "HARD",
     "gameMechanics": [
-      "<combat enemyName=\"Bodyguard\" combatSkill=\"11\" endurance=\"20\" evadeScene=\"234\" />"
+      "<combat enemyName=\"Bodyguard\" combatSkill=\"11\" endurance=\"20\" evadeSceneId=\"234\" />"
     ]
   }, {
     "id": "221",
@@ -6902,7 +6902,7 @@
     },
     "challengeLevel": "HARD",
     "gameMechanics": [
-      "<combat enemyName=\"Robber\" combatSkill=\"13\" endurance=\"20\" evadeRounds=\"2\" evadeScene=\"7\" />"
+      "<combat enemyName=\"Robber\" combatSkill=\"13\" endurance=\"20\" evadeRounds=\"2\" evadeSceneId=\"7\" />"
     ]
   }, {
     "id": "232",
@@ -9878,7 +9878,7 @@
     },
     "challengeLevel": "HARD",
     "gameMechanics": [
-      "<combat enemyName=\"Robber\" combatSkill=\"13\" endurance=\"20\" evadeScene=\"7\" />"
+      "<combat enemyName=\"Robber\" combatSkill=\"13\" endurance=\"20\" evadeSceneId=\"7\" />"
     ]
   }, {
     "id": "340",

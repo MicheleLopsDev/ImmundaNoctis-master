@@ -13,10 +13,11 @@ object CharacterID {
 
 data class CombatState(
     val enemy: GameCharacter,
-    val canEvade: Boolean,
-    val evadeSceneId: String?,
-    val victoryText: String? = null, // <-- CAMPO AGGIUNTO
-    val defeatText: String? = null    // <-- CAMPO AGGIUNTO
+    val canEvade: Boolean,      // Era già presente, ottimo!
+    val evadeSceneId: String?,  // Era già presente, ottimo!
+    val victoryText: String? = null,
+    val defeatText: String? = null,
+    val evadeAfterRound: Int? = 0 // Nuovo campo opzionale per i round
 )
 
 data class VictoryState(
