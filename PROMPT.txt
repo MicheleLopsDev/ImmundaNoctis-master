@@ -6,7 +6,7 @@ Sei un assistente ETL (Extract, Transform, Load) specializzato nell'analisi di l
 
 ### **2\. Obiettivo**
 
-Converti il contenuto del libro-gioco fornito in un frammento JSON. Il JSON deve contenere solo testo in inglese. Tutte le meccaniche di gioco devono essere estratte dal testo narrativo e rappresentate come **stringhe XML** nell'array gameMechanics. Se stai analizzando l'inizio del libro, devi estrarre anche l'elenco delle Discipline Kai.
+Converti il contenuto del libro-gioco fornito in un frammento JSON. Il JSON deve contenere solo testo in inglese. La maggior parte delle meccaniche di gioco deve essere estratta e rappresentata come **stringhe XML** nell'array `gameMechanics`. **Tuttavia, gli scontri di combattimento devono essere gestiti in modo specifico e inseriti in un nuovo array chiamato `combatChoices`**, come descritto nella Sezione 7. Se stai analizzando l'inizio del libro, devi estrarre anche l'elenco delle Discipline Kai.
 
 ### **3\. Parametri di Esecuzione**
 
@@ -50,8 +50,6 @@ Esegui i seguenti passaggi in ordine rigoroso.
 | :---- | :---- |
 | **Aggiungi Oggetto** | \<addItem itemType="..." itemName="..." quantity="..." modifier="..." notes="..." /\> |
 | **Rimuovi Oggetto** | \<removeItem itemName="..." quantity="..." /\> |
-| **Combattimento** | \<combat enemyName="..." combatSkill="..." endurance="..." immunity="..." bonusCS="..." bonusRounds="..." evadeRounds="..." evadeScene="..." /\> |
-| **Evasione Comb.** | \<evadeCombat /\> |
 | **Richiedi Azione** | \<requireAction action="..." penaltyStat="..." penaltyValue="..." /\> |
 | **Rimuovi Tutto** | \<removeAll type="..." /\> |
 | **Cura** | \<heal statName="..." amount="..." /\> |
@@ -75,12 +73,6 @@ Esegui i seguenti passaggi in ordine rigoroso.
 * **\<removeItem\>**
     * **Esempio 1 (Singolo Oggetto):** "Devi scartare il tuo Scudo." \-\> \<removeItem itemName="Shield" quantity="1" /\>
     * **Esempio 2 (Quantità Specifica):** "Usi 2 Fiaccole." \-\> \<removeItem itemName="Torch" quantity="2" /\>
-* **\<combat\>**
-    * **Esempio 1 (Base):** "Un Giak ti attacca\! (Combattività: 13, Resistenza: 10)." \-\> \<combat enemyName="Giak" combatSkill="13" endurance="10" /\>
-    * **Esempio 2 (con Evasione):** "Puoi evitare il combattimento dopo 3 round. Vai al 106." \-\> \<combat enemyName="Black Bear" combatSkill="16" endurance="10" evadeRounds="3" evadeScene="106" /\>
-    * **Esempio 3 (con Immunità):** "Il Vordak è immune allo Psicolaser." \-\> \<combat enemyName="Vordak" combatSkill="17" endurance="25" immunity="Mindblast" /\>
-* **\<evadeCombat\>**
-    * **Esempio 1:** "Puoi evitare il combattimento in qualsiasi momento." \-\> \<evadeCombat /\>
 * **\<requireAction\>**
     * **Esempio 1 (con Penalità):** "Devi mangiare un Pasto o perdi 3 punti Resistenza." \-\> \<requireAction action="EAT\_MEAL" penaltyStat="ENDURANCE" penaltyValue="-3" /\>
     * **Esempio 2 (senza Penalità):** "Devi mangiare un Pasto." \-\> \<requireAction action="EAT\_MEAL" penaltyStat="NONE" penaltyValue="0" /\>
@@ -119,29 +111,85 @@ Esegui i seguenti passaggi in ordine rigoroso.
 
 1. **Campi Generali della Scena**(per la struttura completa fare riferimanto alla sez ***10 ):
     * **id**: Stringa corrispondente al numero del paragrafo.
-    * **sceneType**: ENDING se contiene "Your life and your mission end here.". VICTORY se conclude l'avventura. START per il primo paragrafo del libro. Altrimenti, TRANSITION.
+    * **sceneType**: `ENDING` se contiene "Your life and your mission end here.". `VICTORY` se conclude l'avventura. `START` per il primo paragrafo del libro. Altrimenti, `TRANSITION`.
     * **genre**: Sempre FANTASY.
-    * **challengeLevel**: HARD se gameMechanics contiene una stringa \<combat.... Altrimenti, BASE.
+    * **challengeLevel**: `HARD` se l'array `combatChoices` non è vuoto. Altrimenti, `BASE`.
     * **narrativeText**: Estrai solo il testo narrativo in inglese, rimuovendo le frasi relative a meccaniche di gioco e scelte.
-    * **gameMechanics**: Array di **stringhe XML**. Inserisci qui tutti i tag che rappresentano azioni o eventi automatici (combattimenti, modifiche statistiche, ecc.).
+    * **gameMechanics**: Array di **stringhe XML**. Inserisci qui tutti i tag che rappresentano azioni o eventi automatici (modifiche statistiche, controlli, ecc.), **escluso il combattimento**.
     * **images**: Estrai src e didascalia se presenti, altrimenti \[\].
     * **location**: Identifica il luogo e popola areaName e isMajorLocation.
 2. **Gestione delle Scelte del Giocatore**:
-    * Le scelte del giocatore devono essere separate in tre array distinti: choices, disciplineChoices, e itemChoices.
-3. **Array choices (Tipo: List\<NarrativeChoice\>)**:
+    * Le scelte del giocatore devono essere separate in quattro array distinti: `choices`, `disciplineChoices`, `itemChoices`, e il nuovo `combatChoices`.
+3. **Array choices (Tipo: 'List<NarrativeChoice\>)''**:
     * Usa questo array per tutte le scelte narrative standard **non condizionali**.
-    * **Esempio Testo**: "Se vuoi andare a destra, vai al 10\. Se vuoi andare a sinistra, vai al 12."
+    * **Esempio Testo**: "If you want to go right, turn to 10. If you want to go left, turn to 12."
     * **Struttura Oggetto**: Popola scene, progressive, choiceText, e nextSceneId.
-4. **Array disciplineChoices (Tipo: List\<DisciplineChoice\>)**:
+4. **Array disciplineChoices (Tipo: 'List<DisciplineChoice\>')**:
     * Usa questo array **solo ed esclusivamente** per le scelte che dipendono dal possesso di una specifica disciplina Kai.
     * **Esempio Testo**: "Se hai la disciplina del Sesto Senso, vai al 141."
     * **Struttura Oggetto**: Popola scene, discipline (con l'ID esatto della disciplina), choiceText, e nextSceneId.
-5. **Array itemChoices (Tipo: List\<ItemChoices\>)**:
+5. **Array itemChoices (Tipo: 'List<ItemChoices\>')**:
     * Usa questo array **solo ed esclusivamente** per le scelte condizionate dal possesso (o non possesso) di un oggetto.
-    * **Esempio Testo**: "Se hai una Chiave d'Ottone, vai al 282\. Altrimenti, vai al 105."
+    * **Esempio Testo**: "Se hai una Chiave d'Ottone, vai al 282. Altrimenti, vai al 105."
     * Crea **due** oggetti ItemChoices.
     * Per la scelta "true": popola item con "Brass Key", requires con true, e nextSceneId con "282".
     * Per la scelta "false": popola item con "Brass Key", requires con false, e nextSceneId con "105".
+**Array `combatChoices` (Tipo: `List<CombatChoice>`)**:
+    * Usa questo array **esclusivamente** per rappresentare gli scontri. Se una scena contiene un combattimento, questo array non sarà vuoto.
+    * **Struttura Oggetto `CombatChoice`**:
+        * **scene**: L'ID della scena corrente.
+        * **enemyName**: Il nome del nemico.
+        * **combatSkill**: La Combattività del nemico.
+        * **endurance**: La Resistenza del nemico.
+        * **immunity**: (Opzionale) Eventuali immunità del nemico (es. "Mindblast").
+        * **notes**: (Opzionale) Eventuali regole speciali del combattimento (es. "Double all ENDURANCE points...").
+        * **condition**: La condizione per cui questa scelta si applica. Valori validi sono: `WIN`, `LOSE`, `EVADE`.
+        * **choiceText**: Il testo narrativo associato a questa specifica condizione (es. "If you win the combat, continue.").
+        * **nextSceneId**: L'ID della scena a cui si viene indirizzati se la condizione è soddisfatta.
+        * **evadeRounds**: (Opzionale) Usato solo con `condition: "EVADE"`. Indica il numero di round dopo i quali è possibile evadere.
+
+    * **Esempio di Estrazione (da Fire on the Water, sez. 7)**:
+        * **Testo**: "Dorier jumps away from the table and draws his sword. In an instant, his brother Ganon is by his side. You must fight them both as one enemy. (Dorier + Ganon: COMBAT SKILL 28, ENDURANCE 30). Due to the surprise of your attack, add 2 points to your COMBAT SKILL for the first round of this combat only. Because of their combined strength of will, a skill developed during their training as knights, they are immune to Mindblast. If you win this fight, turn to 33."
+        * **Output JSON Atteso (`combatChoices` array)**:
+            ```json
+            "combatChoices": [
+              {
+                "scene": "7",
+                "enemyName": "Dorier + Ganon",
+                "combatSkill": 28,
+                "endurance": 30,
+                "immunity": "Mindblast",
+                "notes": "Due to the surprise of your attack, add 2 points to your COMBAT SKILL for the first round of this combat only.",
+                "condition": "WIN",
+                "choiceText": {
+                  "english": "If you win this fight, continue."
+                },
+                "nextSceneId": "33"
+              }
+            ]
+            ```
+    * **Esempio con Evasione**:
+        * **Testo Ipotetico**: "You can evade combat after 2 rounds by turning to 106."
+        * Questo creerebbe un **secondo** oggetto `CombatChoice` nello stesso array:
+            ```json
+            "combatChoices": [
+              {
+                "scene": "X",
+                "enemyName": "...",
+                "combatSkill": ...,
+                "endurance": ...,
+                "condition": "WIN",
+                "nextSceneId": "Y"
+                ...
+              },
+              {
+                "scene": "X",
+                "enemyName": "...",
+                "combatSkill": ...,
+                "endurance": ...,
+                "condition": "EVADE",
+                "evadeRounds": 2,
+                "choiceText": {
 
 ### **8\. Estrazione Discipline Kai (disciplineChoices)**
 
@@ -166,640 +214,695 @@ Esegui i seguenti passaggi in ordine rigoroso.
     * **Pulisci il testo**: Rimuovi le frasi di istruzioni di gioco come "If you choose this skill, write...", "This is the weapon in which you have skill.", e simili. Includi solo la pura descrizione dell'abilità.
     * **notes**: (Opzionale) Se la descrizione contiene dettagli meccanici specifici (come il bonus di \+2 alla COMBAT SKILL per Weaponskill), estrai questa informazione e inseriscila qui.
 4. **Struttura JSON di Esempio**:
-   {
-   "adventureName": "Flight from the Dark",
-   "scenes": [{
-   "id": "1",
-   "sceneType": "START",
-   "genre": "FANTASY",
-   "narrativeText": {
-   "english": "You must make haste for you sense it is not safe to linger by the smoking remains of the ruined monastery. The black-winged beasts could return at any moment. You must set out for the Sommlending capital of Holmgard and tell the King the terrible news of the massacre: that the whole élite of Kai warriors, save yourself, have been slaughtered. Without the Kai Lords to lead her armies, Sommerlund will be at the mercy of their ancient enemy, the Darklords. Fighting back tears, you bid farewell to your dead kinsmen. Silently, you promise that their deaths will be avenged. You turn away from the ruins and carefully descend the steep track. At the foot of the hill, the path splits into two directions, both leading into a large wood."
-   },
-   "images": [],
-   "choices": [{
-   "scene": "1",
-   "progressive": "2",
-   "choiceText": {
-   "english": "If you wish to take the right path into the wood, turn to 85."
-   },
-   "nextSceneId": "85"
-   }, {
-   "scene": "1",
-   "progressive": "3",
-   "choiceText": {
-   "english": "If you wish to follow the left track, turn to 275."
-   },
-   "nextSceneId": "275"
-   }
-   ],
-   "disciplineChoices": [{
-   "scene": "1",
-   "discipline": "Sixth Sense",
-   "choiceText": {
-   "english": "If you wish to use your Kai Discipline of Sixth Sense, turn to 141."
-   },
-   "nextSceneId": "141"
-   }
-   ],
-   "itemChoices": [],
-   "location": {
-   "areaName": "Kai Monastery Foothills",
-   "isMajorLocation": false
-   },
-   "challengeLevel": "BASE",
-   "gameMechanics": []
-   }, {
-   "id": "2",
-   "sceneType": "TRANSITION",
-   "genre": "FANTASY",
-   "narrativeText": {
-   "english": "As you dash through the thickening trees, the shouts of the Giaks begin to fade behind you. You have nearly outdistanced them completely, when you crash headlong into a tangle of low branches."
-   },
-   "images": [],
-   "choices": [],
-   "disciplineChoices": [],
-   "itemChoices": [],
-   "location": {
-   "areaName": "Forest",
-   "isMajorLocation": false
-   },
-   "challengeLevel": "BASE",
-   "gameMechanics": [
-   "<randomChoiceTable outcomes=\"[{'range': '0-4', 'nextSceneId': '343'}, {'range': '5-9', 'nextSceneId': '276'}]\" />"
-   ]
-   }, {
-   "id": "3",
-   "sceneType": "TRANSITION",
-   "genre": "FANTASY",
-   "narrativeText": {
-   "english": "Staying close to the officer, you follow him through an arched portal and up a short flight of stairs to a long hall. Soldiers run back and forth bearing orders on ornate scrolls to officers stationed around the city wall. A haggard and scar-faced man dressed in the white and purple robes of the King’s court approaches you and bids you follow him to the citadel."
-   },
-   "images": [],
-   "choices": [{
-   "scene": "3",
-   "progressive": "1",
-   "choiceText": {
-   "english": "If you wish to follow this man, turn to 196."
-   },
-   "nextSceneId": "196"
-   }, {
-   "scene": "3",
-   "progressive": "2",
-   "choiceText": {
-   "english": "If you wish to decline his offer and return to the crowded streets, turn to 144."
-   },
-   "nextSceneId": "144"
-   }
-   ],
-   "disciplineChoices": [],
-   "itemChoices": [],
-   "location": {
-   "areaName": "Holmgard Watchtower",
-   "isMajorLocation": true
-   },
-   "challengeLevel": "BASE",
-   "gameMechanics": []
-   }, {
-   "id": "4",
-   "sceneType": "TRANSITION",
-   "genre": "FANTASY",
-   "narrativeText": {
-   "english": "It is a small one-man canoe in very poor condition. The wood has split and warped, and the craft appears to be leaking in several places. You quickly patch up the worst of the holes with some clay and bail out the water. This seems to stop the leaking for the moment. Stowing your equipment at the bow, you set off downstream, using a piece of driftwood as a paddle. After a short while, you hear the sound of horses galloping towards you along the left bank."
-   },
-   "images": [],
-   "choices": [{
-   "scene": "4",
-   "progressive": "2",
-   "choiceText": {
-   "english": "If you wish to hide in the bottom of the canoe, turn to 75."
-   },
-   "nextSceneId": "75"
-   }, {
-   "scene": "4",
-   "progressive": "3",
-   "choiceText": {
-   "english": "If you wish to try to attract their attention, turn to 175."
-   },
-   "nextSceneId": "175"
-   }
-   ],
-   "disciplineChoices": [{
-   "scene": "4",
-   "discipline": "Sixth Sense",
-   "choiceText": {
-   "english": "If you wish to use the Kai Discipline of Sixth Sense, turn to 218."
-   },
-   "nextSceneId": "218"
-   }
-   ],
-   "itemChoices": [],
-   "location": {
-   "areaName": "River",
-   "isMajorLocation": false
-   },
-   "challengeLevel": "BASE",
-   "gameMechanics": []
-   }, {
-   "id": "5",
-   "sceneType": "TRANSITION",
-   "genre": "FANTASY",
-   "narrativeText": {
-   "english": "After about an hour of walking, the track slowly bears round to the east. You reach a shallow ford where a fast-flowing brook runs on a steep rocky course towards the south. Just beyond the ford is a junction where the track meets a wider path running north to south. Realizing that the north path will take you away from the capital, you turn right at the junction and head south."
-   },
-   "images": [],
-   "choices": [{
-   "scene": "5",
-   "progressive": "1",
-   "choiceText": {
-   "english": "Turn to 111."
-   },
-   "nextSceneId": "111"
-   }
-   ],
-   "disciplineChoices": [],
-   "itemChoices": [],
-   "location": {
-   "areaName": "Forest Path",
-   "isMajorLocation": false
-   },
-   "challengeLevel": "BASE",
-   "gameMechanics": []
-   }, {
-   "id": "6",
-   "sceneType": "TRANSITION",
-   "genre": "FANTASY",
-   "narrativeText": {
-   "english": "In the distance you can hear the sound of horses galloping nearer. You crouch behind a tree and wait as the riders come closer. They are the cavalry of the King’s Guard wearing the white uniforms of His Majesty’s army."
-   },
-   "images": [],
-   "choices": [{
-   "scene": "6",
-   "progressive": "1",
-   "choiceText": {
-   "english": "If you wish to call them, turn to 183."
-   },
-   "nextSceneId": "183"
-   }, {
-   "scene": "6",
-   "progressive": "2",
-   "choiceText": {
-   "english": "If you wish to let them pass and then continue on your way through the forest, turn to 200."
-   },
-   "nextSceneId": "200"
-   }
-   ],
-   "disciplineChoices": [],
-   "itemChoices": [],
-   "location": {
-   "areaName": "Forest",
-   "isMajorLocation": false
-   },
-   "challengeLevel": "BASE",
-   "gameMechanics": []
-   }, {
-   "id": "7",
-   "sceneType": "TRANSITION",
-   "genre": "FANTASY",
-   "narrativeText": {
-   "english": "For what seems an eternity, the rush of the crowd carries you along like a leaf on a fast-flowing stream. You desperately fight to stay on your feet, but you feel weak and dizzy from your ordeal, and your legs are as heavy as lead. Suddenly, you catch a glimpse of a long, narrow stone stairway that leads up to the roof of an inn. Gathering the last reserves of your strength, you dive for the stairs and climb slowly up to the top. From here you can see the magnificent view of the rooftops and spires of Holmgard, with the high stone walls of the citadel gleaming in the sun. The houses and buildings of the capital are built very close to each other, and it is possible to jump from one roof to the next. In fact many of the citizens of Holmgard used to use the ‘Roofways’ (as they are known) when the heavy autumn rains made the unpaved parts of the streets too muddy for walking. But after many accidents, a royal decree forbade their use. After careful thought, you decide to use the ‘Roofways’, as they are your only chance of reaching the King. You have hopped, skipped, and jumped across several streets and you are only one street away from the citadel when you come to the end of a row of rooftops. The jump to the next row is much further than anything you have tried before, and your stomach begins to feel as if it were full of butterflies. Determined to reach the citadel, you turn and take a long run-up to the jump. With blood pounding in your ears, you sprint to the edge of the roof and leap into space, your eyes fixed on the opposite rooftop."
-   },
-   "images": [{
-   "imageUrl": "Illustration I",
-   "caption": ""
-   }
-   ],
-   "choices": [],
-   "disciplineChoices": [],
-   "itemChoices": [],
-   "location": {
-   "areaName": "Holmgard Rooftops",
-   "isMajorLocation": true
-   },
-   "challengeLevel": "BASE",
-   "gameMechanics": [
-   "<randomChoiceTable outcomes=\"[{'range': '0-2', 'nextSceneId': '108'}, {'range': '3-9', 'nextSceneId': '25'}]\" />"
-   ]
-   }, {
-   "id": "8",
-   "sceneType": "TRANSITION",
-   "genre": "FANTASY",
-   "narrativeText": {
-   "english": "Your Kai Sixth Sense warns there is a fierce battle raging in the south. Your common sense tells you that the south is also the quickest route to the capital."
-   },
-   "images": [],
-   "choices": [{
-   "scene": "8",
-   "progressive": "1",
-   "choiceText": {
-   "english": "Turn to 70 and choose your route."
-   },
-   "nextSceneId": "70"
-   }
-   ],
-   "disciplineChoices": [],
-   "itemChoices": [],
-   "location": {
-   "areaName": "Bridge",
-   "isMajorLocation": false
-   },
-   "challengeLevel": "BASE",
-   "gameMechanics": []
-   }, {
-   "id": "9",
-   "sceneType": "TRANSITION",
-   "genre": "FANTASY",
-   "narrativeText": {
-   "english": "You cannot move: you are being held rigid by some powerful force. Your eyes are drawn towards the mouth of the skeleton. From deep in the earth you hear a low humming, like the sound of millions of angry bees. A dull red glow appears in the empty eye sockets of the dead King and the humming increases until your ears are filled with the deafening roar. You are in the presence of an ancient evil, far older and stronger than the Darklords themselves."
-   },
-   "images": [],
-   "choices": [],
-   "disciplineChoices": [],
-   "itemChoices": [{
-   "scene": "9",
-   "item": "Vordak Gem",
-   "requires": true,
-   "choiceText": {
-   "english": "If you possess a Vordak Gem, turn to 236."
-   },
-   "nextSceneId": "236"
-   }, {
-   "scene": "9",
-   "item": "Vordak Gem",
-   "requires": false,
-   "choiceText": {
-   "english": "If you do not, turn to 292."
-   },
-   "nextSceneId": "292"
-   }
-   ],
-   "location": {
-   "areaName": "Sarcophagus Chamber",
-   "isMajorLocation": false
-   },
-   "challengeLevel": "BASE",
-   "gameMechanics": []
-   }, {
-   "id": "10",
-   "sceneType": "TRANSITION",
-   "genre": "FANTASY",
-   "narrativeText": {
-   "english": "You are sweating and your legs ache. In the middle distance you can see a group of cottages."
-   },
-   "images": [],
-   "choices": [{
-   "scene": "10",
-   "progressive": "1",
-   "choiceText": {
-   "english": "If you wish to enter a cottage and rest for a while, turn to 115."
-   },
-   "nextSceneId": "115"
-   }, {
-   "scene": "10",
-   "progressive": "2",
-   "choiceText": {
-   "english": "If you wish to press on, turn to 83."
-   },
-   "nextSceneId": "83"
-   }
-   ],
-   "disciplineChoices": [],
-   "itemChoices": [],
-   "location": {
-   "areaName": "Highway",
-   "isMajorLocation": false
-   },
-   "challengeLevel": "BASE",
-   "gameMechanics": []
-   }, {
-   "id": "11",
-   "sceneType": "TRANSITION",
-   "genre": "FANTASY",
-   "narrativeText": {
-   "english": "You quickly dodge into the doorway of a stable and hide your surgeon’s cloak in the straw, for it would be better to be seen as a Kai Lord than as a charlatan. Without wasting a second, you set off towards the Great Hall on the other side of the courtyard."
-   },
-   "images": [],
-   "choices": [{
-   "scene": "11",
-   "progressive": "1",
-   "choiceText": {
-   "english": "Turn to 139."
-   },
-   "nextSceneId": "139"
-   }
-   ],
-   "disciplineChoices": [],
-   "itemChoices": [],
-   "location": {
-   "areaName": "Citadel Courtyard",
-   "isMajorLocation": true
-   },
-   "challengeLevel": "BASE",
-   "gameMechanics": [
-   "<conditionalAction condition=\"HAS_ITEM\" itemName=\"Surgeon's Cloak\" action=\"<removeItem itemName='Surgeon\\'s Cloak' quantity='1' />\" />"
-   ]
-   }, {
-   "id": "12",
-   "sceneType": "TRANSITION",
-   "genre": "FANTASY",
-   "narrativeText": {
-   "english": "The bodyguard looks at you with great suspicion and then slams the door shut. You can hear the sound of voices inside the caravan. Suddenly the door swings open and the face of a wealthy merchant appears. He demands 10 Gold Crowns as payment for the ride."
-   },
-   "images": [],
-   "choices": [{
-   "scene": "12",
-   "progressive": "1",
-   "choiceText": {
-   "english": "If you have 10 Gold Crowns and wish to pay him, turn to 262."
-   },
-   "nextSceneId": "262",
-   "choiceCondition": {
-   "stat": "GOLD",
-   "operator": "GREATER_THAN_OR_EQUAL",
-   "value": 10
-   },
-   "gameMechanics": [
-   "<statMod statName=\"GOLD\" amount=\"-10\" />"
-   ]
-   }, {
-   "scene": "12",
-   "progressive": "2",
-   "choiceText": {
-   "english": "If you do not have enough Gold Crowns or do not wish to pay him, turn to 247."
-   },
-   "nextSceneId": "247"
-   }
-   ],
-   "disciplineChoices": [],
-   "itemChoices": [],
-   "location": {
-   "areaName": "Highway",
-   "isMajorLocation": false
-   },
-   "challengeLevel": "BASE",
-   "gameMechanics": []
-   }, {
-   "id": "13",
-   "sceneType": "TRANSITION",
-   "genre": "FANTASY",
-   "narrativeText": {
-   "english": "The path soon ends at a large clearing. In the centre of the clearing is a tree much taller and wider than any others you have seen in the forest. Looking up through the massive branches you can see a large treehouse some twenty-five to thirty feet above the ground. There is no ladder, but the gnarled bark of the tree offers many footholds."
-   },
-   "images": [],
-   "choices": [{
-   "scene": "13",
-   "progressive": "1",
-   "choiceText": {
-   "english": "If you wish to climb the tree and search the treehouse, turn to 307."
-   },
-   "nextSceneId": "307"
-   }, {
-   "scene": "13",
-   "progressive": "2",
-   "choiceText": {
-   "english": "If you would rather press on, turn to 213."
-   },
-   "nextSceneId": "213"
-   }
-   ],
-   "disciplineChoices": [],
-   "itemChoices": [],
-   "location": {
-   "areaName": "Forest Clearing",
-   "isMajorLocation": false
-   },
-   "challengeLevel": "BASE",
-   "gameMechanics": []
-   }, {
-   "id": "14",
-   "sceneType": "TRANSITION",
-   "genre": "FANTASY",
-   "narrativeText": {
-   "english": "You reach the top of a small wooded hill on which several large boulders form a rough circle. Suddenly you hear a loud growl from behind a rock to your left."
-   },
-   "images": [],
-   "choices": [{
-   "scene": "14",
-   "progressive": "1",
-   "choiceText": {
-   "english": "If you wish to draw your weapon and prepare to fight, turn to 43."
-   },
-   "nextSceneId": "43"
-   }, {
-   "scene": "14",
-   "progressive": "2",
-   "choiceText": {
-   "english": "If you would rather take evasive action by running as fast as you can over the hill, turn to 106."
-   },
-   "nextSceneId": "106"
-   }
-   ],
-   "disciplineChoices": [],
-   "itemChoices": [],
-   "location": {
-   "areaName": "Wooded Hill",
-   "isMajorLocation": false
-   },
-   "challengeLevel": "BASE",
-   "gameMechanics": []
-   }, {
-   "id": "15",
-   "sceneType": "TRANSITION",
-   "genre": "FANTASY",
-   "narrativeText": {
-   "english": "You pass through a long, dark tunnel of overhanging branches that eventually opens out into a large clearing. On a stone plinth in the centre of the clearing is a Sword, sheathed in a black leather scabbard. A handwritten note has been tied to the hilt, but it is in a language which is foreign to you. There are three exits from the clearing."
-   },
-   "images": [],
-   "choices": [{
-   "scene": "15",
-   "progressive": "1",
-   "choiceText": {
-   "english": "If you decide to go east, turn to 207."
-   },
-   "nextSceneId": "207"
-   }, {
-   "scene": "15",
-   "progressive": "2",
-   "choiceText": {
-   "english": "If you decide to go west, turn to 201."
-   },
-   "nextSceneId": "201"
-   }, {
-   "scene": "15",
-   "progressive": "3",
-   "choiceText": {
-   "english": "If you decide to go south, turn to 35."
-   },
-   "nextSceneId": "35"
-   }
-   ],
-   "disciplineChoices": [],
-   "itemChoices": [],
-   "location": {
-   "areaName": "Forest Clearing",
-   "isMajorLocation": false
-   },
-   "challengeLevel": "BASE",
-   "gameMechanics": [
-   "<addItem itemType=\"WEAPON\" itemName=\"Sword\" quantity=\"1\" />"
-   ]
-   }, {
-   "id": "16",
-   "sceneType": "TRANSITION",
-   "genre": "FANTASY",
-   "narrativeText": {
-   "english": "You manage to free a horse from the straps securing it to the caravan. It is frightened by the scent of the approaching Doomwolves, and the cries of their evil riders—the Giaks. Preparing your weapon, you spur your skittish horse towards the oncoming beasts. They are less than fifty yards away and they are lowering their lances at you as they get nearer and nearer."
-   },
-   "images": [],
-   "choices": [{
-   "scene": "16",
-   "progressive": "1",
-   "choiceText": {
-   "english": "You are charging head-on towards each other. Turn to 192."
-   },
-   "nextSceneId": "192"
-   }
-   ],
-   "disciplineChoices": [],
-   "itemChoices": [],
-   "location": {
-   "areaName": "Highway",
-   "isMajorLocation": false
-   },
-   "challengeLevel": "BASE",
-   "gameMechanics": []
-   }, {
-   "id": "17",
-   "sceneType": "TRANSITION",
-   "genre": "FANTASY",
-   "narrativeText": {
-   "english": "You raise your weapon to strike at the beast as its razor-fanged mouth snaps shut just inches from your head. Buffeted by the beating of its wings you find it difficult to stand. If you kill the creature, you quickly descend the far side of the hill to avoid the Giaks."
-   },
-   "images": [],
-   "choices": [],
-   "disciplineChoices": [],
-   "itemChoices": [],
-   "location": {
-   "areaName": "Hilltop",
-   "isMajorLocation": false
-   },
-   "challengeLevel": "HARD",
-   "gameMechanics": [
-   "<statMod statName=\"COMBAT_SKILL\" amount=\"-1\" />",
-   "<combat enemyName=\"Kraan\" combatSkill=\"16\" endurance=\"24\" />",
-   "<randomChoiceTable outcomes=\"[{'range': '0', 'nextSceneId': '53'}, {'range': '1-2', 'nextSceneId': '274'}, {'range': '3-9', 'nextSceneId': '316'}]\" />"
-   ]
-   }, {
-   "id": "18",
-   "sceneType": "TRANSITION",
-   "genre": "FANTASY",
-   "narrativeText": {
-   "english": "You are awoken by the sound of troops in the distance. Across the lake you see the black-cloaked figures of Drakkarim and a pack of Doomwolves and their riders. A Kraan appears from above the trees and lands on the roof of the small wooden shack. It is ridden by a creature dressed in red. The Kraan takes off and begins to fly across the lake to where you are hidden."
-   },
-   "images": [],
-   "choices": [{
-   "scene": "18",
-   "progressive": "2",
-   "choiceText": {
-   "english": "If you wish to ride deeper in the forest, turn to 239."
-   },
-   "nextSceneId": "239"
-   }, {
-   "scene": "18",
-   "progressive": "3",
-   "choiceText": {
-   "english": "If you wish to fight the creature, turn to 29."
-   },
-   "nextSceneId": "29"
-   }
-   ],
-   "disciplineChoices": [{
-   "scene": "18",
-   "discipline": "Camouflage",
-   "choiceText": {
-   "english": "If you wish to use the Kai Discipline of Camouflage, turn to 114."
-   },
-   "nextSceneId": "114"
-   }
-   ],
-   "itemChoices": [],
-   "location": {
-   "areaName": "Lakeside",
-   "isMajorLocation": false
-   },
-   "challengeLevel": "BASE",
-   "gameMechanics": []
-   }, {
-   "id": "19",
-   "sceneType": "TRANSITION",
-   "genre": "FANTASY",
-   "narrativeText": {
-   "english": "Just ahead through the tall trees you can see clumps of dark-red gallowbrush, a thorny briar with sharp crimson barbs. The common name for this forest weed is ‘Sleeptooth’, for the thorns are very sharp and can make you feel weak and sleepy if they scratch your skin."
-   },
-   "images": [],
-   "choices": [{
-   "scene": "19",
-   "progressive": "2",
-   "choiceText": {
-   "english": "You can avoid the Sleeptooth by returning to the track. Turn to 272."
-   },
-   "nextSceneId": "272"
-   }, {
-   "scene": "19",
-   "progressive": "3",
-   "choiceText": {
-   "english": "Or you can push on through the briars, deeper into the forest, by turning to 119."
-   },
-   "nextSceneId": "119"
-   }
-   ],
-   "disciplineChoices": [{
-   "scene": "19",
-   "discipline": "Tracking",
-   "choiceText": {
-   "english": "If you have the Kai Discipline of Tracking, turn to 69."
-   },
-   "nextSceneId": "69"
-   }
-   ],
-   "itemChoices": [],
-   "location": {
-   "areaName": "Forest",
-   "isMajorLocation": false
-   },
-   "challengeLevel": "BASE",
-   "gameMechanics": []
-   }, {
-   "id": "20",
-   "sceneType": "TRANSITION",
-   "genre": "FANTASY",
-   "narrativeText": {
-   "english": "It seems that whoever lived here left in a great hurry—and they must have left quite recently. A half-eaten meal still remains on the table, and a mug of dark jala is still warm to the touch. Searching a chest and small wardrobe, you find a Backpack, food (enough for two Meals), and a Dagger. You continue your mission."
-   },
-   "images": [],
-   "choices": [{
-   "scene": "20",
-   "progressive": "1",
-   "choiceText": {
-   "english": "Turn to 273."
-   },
-   "nextSceneId": "273"
-   }
-   ],
-   "disciplineChoices": [],
-   "itemChoices": [],
-   "location": {
-   "areaName": "Wrecked River Barge",
-   "isMajorLocation": false
-   },
-   "challengeLevel": "BASE",
-   "gameMechanics": [
-   "<addItem itemType=\"BACKPACK_ITEM\" itemName=\"Backpack\" quantity=\"1\" />",
-   "<addItem itemType=\"BACKPACK_ITEM\" itemName=\"Meal\" quantity=\"2\" />",
-   "<addItem itemType=\"WEAPON\" itemName=\"Dagger\" quantity=\"1\" />"
-   ]
-   }
-   ]
-   }
+  {
+      "adventureName": "Fire on the Water",
+      "disciplineChoices": [
+          {
+              "id": "Camouflage",
+              "name": "Camouflage",
+              "description": {
+                  "english": "This Discipline enables a Kai Lord to blend in with his surroundings. In the countryside, he can hide undetected among trees and rocks and pass close to an enemy without being seen. In a town or city, it enables him to look and sound like a native of that area, and can help him to find shelter or a safe hiding place."
+              },
+              "notes": null
+          },
+          {
+              "id": "Hunting",
+              "name": "Hunting",
+              "description": {
+                  "english": "This skill ensures that a Kai Lord will never starve in the wild. He will always be able to hunt for food for himself except in areas of wasteland and desert. The skill also enables a Kai Lord to be able to move stealthily when stalking his prey."
+              },
+              "notes": "No need for a Meal when instructed to eat."
+          },
+          {
+              "id": "SixthSense",
+              "name": "Sixth Sense",
+              "description": {
+                  "english": "This skill may warn a Kai Lord of imminent danger. It may also reveal the true purpose of a stranger or strange object encountered in your adventure."
+              },
+              "notes": null
+          },
+          {
+              "id": "Tracking",
+              "name": "Tracking",
+              "description": {
+                  "english": "This skill enables a Kai Lord to make the correct choice of a path in the wild, to discover the location of a person or object in a town or city and to read the secrets of footprints or tracks."
+              },
+              "notes": null
+          },
+          {
+              "id": "Healing",
+              "name": "Healing",
+              "description": {
+                  "english": "This Discipline can be used to restore ENDURANCE points lost in combat. If you possess this skill you may restore 1 ENDURANCE point to your total for every numbered section of the book you pass through in which you are not involved in combat. (This is only to be used after your ENDURANCE has fallen below its original level.) Remember that your ENDURANCE cannot rise above its original level."
+              },
+              "notes": "+1 ENDURANCE point for each section without combat."
+          },
+          {
+              "id": "Weaponskill",
+              "name": "Weaponskill",
+              "description": {
+                  "english": "Upon entering the Kai Monastery, each initiate is taught to master one type of weapon. If Weaponskill is to be one of your Kai Disciplines, pick a number in the usual way from the Random Number Table, and then find the corresponding weapon from the list below. This is the weapon in which you have skill. When you enter combat carrying this weapon, you add 2 points to your COMBAT SKILL. The fact that you are skilled with a weapon does not mean you set out on the adventure carrying that particular weapon. However, you will have opportunities to acquire weapons in the course of your adventures. You cannot carry more than 2 weapons."
+              },
+              "notes": "+2 COMBAT SKILL points if this weapon carried."
+          },
+          {
+              "id": "Mindshield",
+              "name": "Mindshield",
+              "description": {
+                  "english": "The Darklords and many of the evil creatures in their command have the ability to attack you using their Mindforce. The Kai Discipline of Mindshield prevents you from losing any ENDURANCE points when subjected to this form of attack."
+              },
+              "notes": "No points lost when attacked by Mindblast."
+          },
+          {
+              "id": "Mindblast",
+              "name": "Mindblast",
+              "description": {
+                  "english": "This enables a Kai Lord to attack an enemy using the force of his mind. It can be used at the same time as normal combat weapons and adds two extra points to your COMBAT SKILL. Not all the creatures encountered on this adventure will be harmed by Mindblast. You will be told if a creature is immune."
+              },
+              "notes": "+2 COMBAT SKILL points."
+          },
+          {
+              "id": "AnimalKinship",
+              "name": "Animal Kinship",
+              "description": {
+                  "english": "This skill enables a Kai Lord to communicate with some animals and to be able to guess the intentions of others."
+              },
+              "notes": null
+          },
+          {
+              "id": "MindOverMatter",
+              "name": "Mind Over Matter",
+              "description": {
+                  "english": "Mastery of this Discipline enables a Kai Lord to move small objects with his powers of concentration."
+              },
+              "notes": null
+          }
+      ],
+      "scenes": [
+          {
+              "id": "1",
+              "sceneType": "START",
+              "genre": "FANTASY",
+              "narrativeText": {
+                  "english": "Captain D’Val and his guards escort you to the citadel gate where a small covered wagon awaits you. As soon as you clamber in, the gates are thrown open and you are hurried away through the crowded streets of Holmgard. After a short but uncomfortable journey, the wagon stops and the driver pulls open the canvas flap. ‘This is the quay, my lord. There is your ship, the Green Sceptre.’ As he speaks the driver points across the quay to a sleek trade caravel anchored near to the harbour wall. ‘The first mate’s name is Ronan. You will find him waiting for you across the square at the Good Cheer Inn.’ Then the driver bids you farewell and quickly disappears into the teeming crowds. You reach the inn to find the front doors locked and the window shutters barred. You are trying to decide what to do next when a hand grabs your arm and you are pulled into the darkness."
+              },
+              "images": [],
+              "choices": [
+                  {
+                      "scene": "1",
+                      "progressive": "1",
+                      "choiceText": {
+                          "english": "If you wish to draw your weapon and attack your unknown assailant, continue."
+                      },
+                      "nextSceneId": "273"
+                  },
+                  {
+                      "scene": "1",
+                      "progressive": "2",
+                      "choiceText": {
+                          "english": "If you wish to try to pull free of his grasp, continue."
+                      },
+                      "nextSceneId": "160"
+                  }
+              ],
+              "disciplineChoices": [],
+              "itemChoices": [],
+              "location": {
+                  "areaName": "Holmgard Quay",
+                  "isMajorLocation": true
+              },
+              "challengeLevel": "BASE",
+              "gameMechanics": []
+          },
+          {
+              "id": "2",
+              "sceneType": "TRANSITION",
+              "genre": "FANTASY",
+              "narrativeText": {
+                  "english": "You are travelling along a narrow section of coast road which follows a dizzy course beneath high, overhanging cliffs. A rockfall has blocked the road ahead and you must stop to clear it. You are helping the driver to lever a large rock from the path of the carriage, when you hear the sound of falling rocks. A boulder crashes down from the overhanging cliff, killing the driver before you can make any attempt to save him. He was standing less than six feet away from you at the time of his death."
+              },
+              "images": [],
+              "choices": [
+                  {
+                      "scene": "2",
+                      "progressive": "2",
+                      "choiceText": {
+                          "english": "If you do not have this skill, continue."
+                      },
+                      "nextSceneId": "168"
+                  }
+              ],
+              "disciplineChoices": [
+                  {
+                      "scene": "2",
+                      "discipline": "Sixth Sense",
+                      "choiceText": {
+                          "english": "If you have the Kai Discipline of Sixth Sense, continue."
+                      },
+                      "nextSceneId": "42"
+                  }
+              ],
+              "itemChoices": [],
+              "location": {
+                  "areaName": "Coast Road",
+                  "isMajorLocation": false
+              },
+              "challengeLevel": "BASE",
+              "gameMechanics": []
+          },
+          {
+              "id": "3",
+              "sceneType": "TRANSITION",
+              "genre": "FANTASY",
+              "narrativeText": {
+                  "english": "You enter a small alleyway behind the shop, at the end of which you can see a horse tethered to a post."
+              },
+              "images": [],
+              "choices": [
+                  {
+                      "scene": "3",
+                      "progressive": "1",
+                      "choiceText": {
+                          "english": "If you wish to take this animal and flee the village, continue."
+                      },
+                      "nextSceneId": "150"
+                  },
+                  {
+                      "scene": "3",
+                      "progressive": "2",
+                      "choiceText": {
+                          "english": "If you do not want to take the horse, leave the alleyway by continue."
+                      },
+                      "nextSceneId": "19"
+                  }
+              ],
+              "disciplineChoices": [],
+              "itemChoices": [],
+              "location": {
+                  "areaName": "Gorn Cove Alleyway",
+                  "isMajorLocation": false
+              },
+              "challengeLevel": "BASE",
+              "gameMechanics": []
+          },
+          {
+              "id": "4",
+              "sceneType": "TRANSITION",
+              "genre": "FANTASY",
+              "narrativeText": {
+                  "english": "The tavern is full of brigands and drunks, the good-for-nothing crews of trading ships moored at the jetty, all singing and drinking while some try their strength at arm-wrestling. All are so engrossed that nobody notices you enter. In a far corner, you see the fishermen that robbed you. They are seated at a round table covered with empty ale tankards. You know that if you are to reach Durenor in time, you must retrieve the Seal of Hammerdal and your gold."
+              },
+              "images": [],
+              "choices": [
+                  {
+                      "scene": "4",
+                      "progressive": "1",
+                      "choiceText": {
+                          "english": "If you wish to confront the fishermen, continue."
+                      },
+                      "nextSceneId": "104"
+                  },
+                  {
+                      "scene": "4",
+                      "progressive": "2",
+                      "choiceText": {
+                          "english": "If you wish to talk to the innkeeper at the bar, continue."
+                      },
+                      "nextSceneId": "342"
+                  },
+                  {
+                      "scene": "4",
+                      "progressive": "3",
+                      "choiceText": {
+                          "english": "If you wish to try to win some Gold Crowns at arm-wrestling, continue."
+                      },
+                      "nextSceneId": "276"
+                  }
+              ],
+              "disciplineChoices": [],
+              "itemChoices": [],
+              "location": {
+                  "areaName": "The North Star Tavern",
+                  "isMajorLocation": true
+              },
+              "challengeLevel": "BASE",
+              "gameMechanics": []
+          },
+          {
+              "id": "5",
+              "sceneType": "TRANSITION",
+              "genre": "FANTASY",
+              "narrativeText": {
+                  "english": "The door bursts open and in rushes a Helghast, its black sword raised. You strike the creature as it enters the hold and open a terrible gash in its chest. It lets out a hideous cry but although badly wounded, it leaps forward to attack you. You must fight this creature to the death."
+              },
+              "images": [],
+              "choices": [],
+              "combatChoices": [
+                  {
+                      "scene": "5",
+                      "enemyName": "Wounded Helghast",
+                      "combatSkill": 22,
+                      "endurance": 20,
+                      "condition": "WIN",
+                      "choiceText": {
+                          "english": "If you kill the creature, you may leave via the open hold door. Continue."
+                      },
+                      "nextSceneId": "166",
+                      "immunity": "Mindblast",
+                      "notes": "It is an undead creature. Double all ENDURANCE points that it loses, due to the power of the Sommerswerd."
+                  }
+              ],
+              "disciplineChoices": [],
+              "itemChoices": [],
+              "location": {
+                  "areaName": "Death-hulk Hold",
+                  "isMajorLocation": false
+              },
+              "challengeLevel": "HARD",
+              "gameMechanics": []
+          },
+          {
+              "id": "6",
+              "sceneType": "TRANSITION",
+              "genre": "FANTASY",
+              "narrativeText": {
+                  "english": "The boy has spotted you following him. Once outside, he turns and runs south. You give chase but he has soon disappeared into the maze of alleyways and warehouses lining the waterfront. You turn east into Oxyoke Way and walk past another entrance to the trading post. A little further on, you notice a sign above the door of a small shop: Meki Majenor—Armourer and Weaponsmith"
+              },
+              "images": [],
+              "choices": [
+                  {
+                      "scene": "6",
+                      "progressive": "1",
+                      "choiceText": {
+                          "english": "If you wish to enter the weaponsmithy, continue."
+                      },
+                      "nextSceneId": "266"
+                  },
+                  {
+                      "scene": "6",
+                      "progressive": "2",
+                      "choiceText": {
+                          "english": "If you wish to continue walking east, continue."
+                      },
+                      "nextSceneId": "310"
+                  }
+              ],
+              "disciplineChoices": [],
+              "itemChoices": [],
+              "location": {
+                  "areaName": "Ragadorn Waterfront",
+                  "isMajorLocation": false
+              },
+              "challengeLevel": "BASE",
+              "gameMechanics": []
+          },
+          {
+              "id": "7",
+              "sceneType": "TRANSITION",
+              "genre": "FANTASY",
+              "narrativeText": {
+                  "english": "Dorier jumps away from the table and draws his sword. In an instant, his brother Ganon is by his side. You must fight them both as one enemy."
+              },
+              "images": [],
+              "choices": [],
+              "combatChoices": [
+                  {
+                      "scene": "7",
+                      "enemyName": "Dorier + Ganon",
+                      "combatSkill": 28,
+                      "endurance": 30,
+                      "condition": "WIN",
+                      "choiceText": {
+                          "english": "If you win this fight, continue."
+                      },
+                      "nextSceneId": "33",
+                      "immunity": "Mindblast",
+                      "notes": "Due to the surprise of your attack, add 2 points to your COMBAT SKILL for the first round of this combat only. Because of their combined strength of will, a skill developed during their training as knights, they are immune to Mindblast."
+                  }
+              ],
+              "disciplineChoices": [],
+              "itemChoices": [],
+              "location": {
+                  "areaName": "Forlorn Hope Inn",
+                  "isMajorLocation": false
+              },
+              "challengeLevel": "HARD",
+              "gameMechanics": []
+          },
+          {
+              "id": "8",
+              "sceneType": "ENDING",
+              "genre": "FANTASY",
+              "narrativeText": {
+                  "english": "Your sleep is deep indeed—and it is a sleep from which you will never awaken. During the night you are bitten by a sand snake. Its deadly venom takes only seconds to work. Your mission and your life end here."
+              },
+              "images": [],
+              "choices": [],
+              "disciplineChoices": [],
+              "itemChoices": [],
+              "location": {
+                  "areaName": "Wildlands",
+                  "isMajorLocation": false
+              },
+              "challengeLevel": "BASE",
+              "gameMechanics": []
+          },
+          {
+              "id": "9",
+              "sceneType": "TRANSITION",
+              "genre": "FANTASY",
+              "narrativeText": {
+                  "english": "It is early morning on the fifteenth day of your quest when you open your eyes to the breathtaking spectacle of Hammerdal, the mountain city. The capital of Durenor, unlike other cities in the Lastlands, does not need man-made fortifications. The encircling peaks of the Hammerdal Range offer a far more secure protection to the people within. The carriage speeds through the lush farmlands surrounding the city with its many towers and wide streets. On a hill in the very centre of Hammerdal stands the King’s Tower, a magnificent structure of glass and stone. As the carriage halts at the tower gates, you suddenly realize for the first time that as a wielder of the Sommerswerd, your destiny is to become part of the oldest legend of the Lastlands."
+              },
+              "images": [
+                  {
+                      "imageUrl": "Illustration I",
+                      "caption": ""
+                  }
+              ],
+              "choices": [
+                  {
+                      "scene": "9",
+                      "progressive": "1",
+                      "choiceText": {
+                          "english": "Continue."
+                      },
+                      "nextSceneId": "196"
+                  }
+              ],
+              "disciplineChoices": [],
+              "itemChoices": [],
+              "location": {
+                  "areaName": "Hammerdal",
+                  "isMajorLocation": true
+              },
+              "challengeLevel": "BASE",
+              "gameMechanics": [
+                  "<setGlobalVar varName=\"DAY_COUNTER\" value=\"15\" operation=\"SET\" />"
+              ]
+          },
+          {
+              "id": "10",
+              "sceneType": "TRANSITION",
+              "genre": "FANTASY",
+              "narrativeText": {
+                  "english": "The man takes you to a coach that is waiting near the east gate of the seaport. It is empty and you take a seat near one of its circular windows. You are relieved to find that the seat is quite comfortable, for the journey to Port Bax will take seven days. Stowing your equipment beneath the seat, you settle back in comfort and doze off. When you awake, there are five other passengers and the journey to Durenor has already begun."
+              },
+              "images": [],
+              "choices": [],
+              "disciplineChoices": [],
+              "itemChoices": [],
+              "location": {
+                  "areaName": "Ragadorn Coach Station",
+                  "isMajorLocation": true
+              },
+              "challengeLevel": "BASE",
+              "gameMechanics": [
+                  "<addItem itemType=\"SPECIAL_ITEM\" itemName=\"Ticket\" quantity=\"1\" />",
+                  "<randomChoiceTable outcomes=\"[{'range': '0-3', 'nextSceneId': '51'}, {'range': '4-6', 'nextSceneId': '195'}, {'range': '7-9', 'nextSceneId': '339'}]\" />"
+              ]
+          },
+          {
+              "id": "11",
+              "sceneType": "ENDING",
+              "genre": "FANTASY",
+              "narrativeText": {
+                  "english": "Covering yourself with your Kai cloak, you hide inside a large wooden barrel. But it is to no avail, for in less than a minute the trapdoor is thrown open and four angry villagers drop to the stone floor, torches and swords held high in their hands. As you are dragged kicking from the cellar, the screams of the crowd drown your pleas for mercy. Your life and your quest end here."
+              },
+              "images": [],
+              "choices": [],
+              "disciplineChoices": [],
+              "itemChoices": [],
+              "location": {
+                  "areaName": "Gorn Cove Shop Cellar",
+                  "isMajorLocation": false
+              },
+              "challengeLevel": "BASE",
+              "gameMechanics": []
+          },
+          {
+              "id": "12",
+              "sceneType": "TRANSITION",
+              "genre": "FANTASY",
+              "narrativeText": {
+                  "english": "Captain Kelman unlocks a display case and removes a Samor board. The beautifully carved playing pieces are already in position when he carefully sets it down upon the table. After somewhat reluctantly agreeing to a wager of 10 Gold Crowns, you begin the game."
+              },
+              "images": [],
+              "choices": [],
+              "disciplineChoices": [],
+              "itemChoices": [],
+              "location": {
+                  "areaName": "Green Sceptre",
+                  "isMajorLocation": false
+              },
+              "challengeLevel": "BASE",
+              "gameMechanics": [
+                  "<statMod statName=\"GOLD\" amount=\"-10\" />",
+                  "<skillCheck checkType=\"RANDOM\" discipline=\"SixthSense\" modifier=\"+2\" outcomes=\"[{'range': '0-3', 'nextSceneId': '58'}, {'range': '4-6', 'nextSceneId': '167'}, {'range': '7-11', 'nextSceneId': '329'}]\" />"
+              ]
+          },
+          {
+              "id": "13",
+              "sceneType": "TRANSITION",
+              "genre": "FANTASY",
+              "narrativeText": {
+                  "english": "Your Kai sense reveals that the left path is the quickest route to Port Bax. You adjust the load of your equipment on your back and set off once more."
+              },
+              "images": [],
+              "choices": [
+                  {
+                      "scene": "13",
+                      "progressive": "1",
+                      "choiceText": {
+                          "english": "Continue."
+                      },
+                      "nextSceneId": "155"
+                  }
+              ],
+              "disciplineChoices": [],
+              "itemChoices": [],
+              "location": {
+                  "areaName": "Durenor Forest",
+                  "isMajorLocation": false
+              },
+              "challengeLevel": "BASE",
+              "gameMechanics": []
+          },
+          {
+              "id": "14",
+              "sceneType": "TRANSITION",
+              "genre": "FANTASY",
+              "narrativeText": {
+                  "english": "As the contest begins, you use your Kai Discipline to weaken your opponent’s concentration. Beads of sweat stand out on his forehead and his eyes gradually close as he withers under your relentless Mindblast. In less than a minute he has collapsed to the floor completely unconscious."
+              },
+              "images": [],
+              "choices": [
+                  {
+                      "scene": "14",
+                      "progressive": "1",
+                      "choiceText": {
+                          "english": "Continue."
+                      },
+                      "nextSceneId": "305"
+                  }
+              ],
+              "disciplineChoices": [],
+              "itemChoices": [],
+              "location": {
+                  "areaName": "Forlorn Hope Inn",
+                  "isMajorLocation": false
+              },
+              "challengeLevel": "BASE",
+              "gameMechanics": []
+          },
+          {
+              "id": "15",
+              "sceneType": "TRANSITION",
+              "genre": "FANTASY",
+              "narrativeText": {
+                  "english": "His look of suspicion changes to one of surprise. ‘I believed you to be a trickster, Kai Lord. I must confess that I had planned to teach you a lesson you would not have forgotten in a lifetime. Please forgive my doubts but your story sounded so grave that I refused to believe it for fear it be true. I am sworn to the defence of the border and I cannot leave this tower, but I offer you any of my possessions if they may aid you on your quest.’ He places the following items on a large oak table and invites you to take your choice: Broadsword, Mace, Quarterstaff, Healing Potion (restores 3 ENDURANCE points), Enough Food for 3 Meals, Backpack, 12 Gold Crowns. As you are about to leave the tower, he points out the direction you should take. ‘When you reach the Rymerift, take the track northwards. You will come to a bridge guarded by the King’s men. When they ask for the password, answer them with the word “sunset”. The road beyond the Rymerift leads to Port Bax. Godspeed, Lone Wolf.’ You thank the brave warrior and leave. You must abandon your horse at the watchtower, for it would be impossible to pass through the dense trees on horseback."
+              },
+              "images": [],
+              "choices": [
+                  {
+                      "scene": "15",
+                      "progressive": "1",
+                      "choiceText": {
+                          "english": "Continue."
+                      },
+                      "nextSceneId": "244"
+                  }
+              ],
+              "disciplineChoices": [],
+              "itemChoices": [],
+              "location": {
+                  "areaName": "Durenor Watchtower",
+                  "isMajorLocation": false
+              },
+              "challengeLevel": "BASE",
+              "gameMechanics": [
+                  "<setFlag flagName=\"PASSWORD_RYMERIFT\" value=\"sunset\" />"
+              ]
+          },
+          {
+              "id": "16",
+              "sceneType": "TRANSITION",
+              "genre": "FANTASY",
+              "narrativeText": {
+                  "english": "You pick up an ale glass and smash it across the edge of the table. The jagged glass is razor-sharp. As you draw it across the back of your left hand, a long cut appears trickling blood. Covering this wound with your right hand, you concentrate and feel the warmth of your power as the wound heals. When you remove your right hand, no trace of the cut or any scar remains. The sailor stares at you in amazement."
+              },
+              "images": [],
+              "choices": [
+                  {
+                      "scene": "16",
+                      "progressive": "1",
+                      "choiceText": {
+                          "english": "Continue."
+                      },
+                      "nextSceneId": "268"
+                  }
+              ],
+              "disciplineChoices": [],
+              "itemChoices": [],
+              "location": {
+                  "areaName": "Good Cheer Inn",
+                  "isMajorLocation": true
+              },
+              "challengeLevel": "BASE",
+              "gameMechanics": []
+          },
+          {
+              "id": "17",
+              "sceneType": "TRANSITION",
+              "genre": "FANTASY",
+              "narrativeText": {
+                  "english": "You have pulled yourself halfway through the deck when the door to the hold below bursts open. A Helghast runs shrieking towards you. You cannot escape in time and it badly wounds you in the legs with its black sword. You drop to the hold. You must fight this creature to the death."
+              },
+              "images": [],
+              "choices": [],
+              "combatChoices": [
+                  {
+                      "scene": "17",
+                      "enemyName": "Helghast",
+                      "combatSkill": 22,
+                      "endurance": 30,
+                      "condition": "WIN",
+                      "choiceText": {
+                          "english": "If you kill the Helghast, you may leave the hold by the open door. Continue."
+                      },
+                      "nextSceneId": "166",
+                      "immunity": "Mindblast",
+                      "notes": "It is an undead creature, so remember to double all ENDURANCE points that it loses in this combat as a result of the power of the Sommerswerd."
+                  }
+              ],
+              "disciplineChoices": [],
+              "itemChoices": [],
+              "location": {
+                  "areaName": "Death-hulk",
+                  "isMajorLocation": false
+              },
+              "challengeLevel": "HARD",
+              "gameMechanics": [
+                  "<statMod statName=\"ENDURANCE\" amount=\"-5\" />"
+              ]
+          },
+          {
+              "id": "18",
+              "sceneType": "TRANSITION",
+              "genre": "FANTASY",
+              "narrativeText": {
+                  "english": "The street ahead is completely blocked by wagons which are being unloaded onto a merchant ship. You follow the street as it turns east into Oxyoke Way. To your left is another entrance to the Ragadorn Trading Post. Beyond that you notice a smaller shop with a sign above the door. Meki Majenor—Armourer and Weaponsmith"
+              },
+              "images": [],
+              "choices": [
+                  {
+                      "scene": "18",
+                      "progressive": "1",
+                      "choiceText": {
+                          "english": "If you wish to enter the trading post, continue."
+                      },
+                      "nextSceneId": "173"
+                  },
+                  {
+                      "scene": "18",
+                      "progressive": "2",
+                      "choiceText": {
+                          "english": "If you would rather investigate the weaponsmithy, continue."
+                      },
+                      "nextSceneId": "266"
+                  },
+                  {
+                      "scene": "18",
+                      "progressive": "3",
+                      "choiceText": {
+                          "english": "If you wish to continue walking east, continue."
+                      },
+                      "nextSceneId": "310"
+                  }
+              ],
+              "disciplineChoices": [],
+              "itemChoices": [],
+              "location": {
+                  "areaName": "Ragadorn",
+                  "isMajorLocation": true
+              },
+              "challengeLevel": "BASE",
+              "gameMechanics": []
+          },
+          {
+              "id": "19",
+              "sceneType": "TRANSITION",
+              "genre": "FANTASY",
+              "narrativeText": {
+                  "english": "Less than twenty yards away, a small search party is marching along the wet cobblestones. You run towards the darkened doorway of a small shop and quickly enter to avoid the mob. With your heart pounding in your chest, you pray that you have not been spotted."
+              },
+              "images": [],
+              "choices": [
+                  {
+                      "scene": "19",
+                      "progressive": "1",
+                      "choiceText": {
+                          "english": "Continue."
+                      },
+                      "nextSceneId": "71"
+                  }
+              ],
+              "disciplineChoices": [],
+              "itemChoices": [],
+              "location": {
+                  "areaName": "Gorn Cove",
+                  "isMajorLocation": false
+              },
+              "challengeLevel": "BASE",
+              "gameMechanics": []
+          },
+          {
+              "id": "20",
+              "sceneType": "TRANSITION",
+              "genre": "FANTASY",
+              "narrativeText": {
+                  "english": "You follow this rat-infested street as it drops steeply to the wharves and jetties of the River Dorn. From the edge of the waterfront, you see the Ragadorn Bridge. It is the only crossing between the east and west sides of this sleazy port. Pushing your way through the crowds of people on the bridge, you enter a rubbish-strewn thoroughfare known as East Trade Lane."
+              },
+              "images": [],
+              "choices": [
+                  {
+                      "scene": "20",
+                      "progressive": "1",
+                      "choiceText": {
+                          "english": "Continue."
+                      },
+                      "nextSceneId": "186"
+                  }
+              ],
+              "disciplineChoices": [],
+              "itemChoices": [],
+              "location": {
+                  "areaName": "Ragadorn",
+                  "isMajorLocation": true
+              },
+              "challengeLevel": "BASE",
+              "gameMechanics": []
+          },
 
 
 ### **9\. Esempio Completo (Few-Shot Learning)**
