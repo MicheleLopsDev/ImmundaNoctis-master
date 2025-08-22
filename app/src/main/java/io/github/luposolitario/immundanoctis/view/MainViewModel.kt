@@ -126,17 +126,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _isHeroDead = MutableStateFlow(false)
     val isHeroDead: StateFlow<Boolean> = _isHeroDead.asStateFlow()
 
-    private val _combatState = MutableStateFlow<CombatState?>(null)
-    val combatState: StateFlow<CombatState?> = _combatState.asStateFlow()
-
-    private val _victoryState = MutableStateFlow<VictoryState?>(null)
-    val victoryState: StateFlow<VictoryState?> = _victoryState.asStateFlow()
-
-    private val _combatOutcomeTextsReadyEvent = MutableSharedFlow<Pair<String, String>>()
-    val combatOutcomeTextsReadyEvent: SharedFlow<Pair<String, String>> = _combatOutcomeTextsReadyEvent.asSharedFlow()
-
-    private val _showCombatChoiceEvent = MutableSharedFlow<Unit>()
-    val showCombatChoiceEvent: SharedFlow<Unit> = _showCombatChoiceEvent.asSharedFlow()
+//    private val _combatState = MutableStateFlow<CombatState?>(null)
+//    val combatState: StateFlow<CombatState?> = _combatState.asStateFlow()
+//
+//    private val _victoryState = MutableStateFlow<VictoryState?>(null)
+//    val victoryState: StateFlow<VictoryState?> = _victoryState.asStateFlow()
+//
+//    private val _combatOutcomeTextsReadyEvent = MutableSharedFlow<Pair<String, String>>()
+//    val combatOutcomeTextsReadyEvent: SharedFlow<Pair<String, String>> = _combatOutcomeTextsReadyEvent.asSharedFlow()
+//
+//    private val _showCombatChoiceEvent = MutableSharedFlow<Unit>()
+//    val showCombatChoiceEvent: SharedFlow<Unit> = _showCombatChoiceEvent.asSharedFlow()
 
     init {
         if (useGemmaForAll) {
@@ -567,106 +567,106 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         return totalRoll
     }
 
-    fun resolveAutomaticCombat() {
-        viewModelScope.launch {
-            val combatState = _combatState.value ?: return@launch
-            var hero = _gameHero.value ?: return@launch
-            val enemy = combatState.enemy
-
-            var playerCurrentEndurance = hero.stats?.resistenza ?: 0
-            var enemyCurrentEndurance = enemy.stats?.resistenza ?: 0
-
-            val combatLog = mutableListOf<String>()
-
-            while (playerCurrentEndurance > 0 && enemyCurrentEndurance > 0) {
-                val roundResult = gameRules.resolveCombatRound(hero, enemy)
-
-                playerCurrentEndurance -= roundResult.playerDamage
-                enemyCurrentEndurance -= roundResult.enemyDamage
-
-                // Per brevità, non aggiungiamo il log dettagliato al popup finale,
-                // ma lo teniamo nel log di debug del ViewModel.
-                log(roundResult.logMessage.italian ?: roundResult.logMessage.english)
-            }
-
-            // --- BLOCCO MODIFICATO ---
-            if (playerCurrentEndurance > 0) {
-                // Vittoria
-                val victoryText = combatState.victoryText ?: "Hai vinto il combattimento!"
-                _combatResultEvent.emit(true to victoryText) // Emittiamo l'evento di vittoria
-
-                // Aggiorna la resistenza dell'eroe
-                val enduranceChange = playerCurrentEndurance - (hero.stats?.resistenza ?: 0)
-                if (enduranceChange != 0) {
-                    val enduranceModifier = StatModifier(
-                        statName = "RESISTENZA",
-                        amount = enduranceChange,
-                        sourceType = ModifierSourceType.EVENT,
-                        sourceId = "combat_result_${combatState.enemy.id}",
-                        duration = ModifierDuration.PERMANENT
-                    )
-                    hero.details?.activeModifiers?.add(enduranceModifier)
-                    gameStateManager.saveSession(gameStateManager.loadSession().copy(hero = hero))
-                    _gameHero.value = hero
-                }
-
-            } else {
-                // Sconfitta
-                val defeatText = combatState.defeatText ?: "Sei stato sconfitto."
-                _combatResultEvent.emit(false to defeatText) // Emittiamo l'evento di sconfitta
-                _isHeroDead.value = true // Prepariamo lo stato di morte
-            }
-            // --- FINE BLOCCO MODIFICATO ---
-
-            // Resetta lo stato del combattimento
-            _combatState.value = null
-        }
-    }
-    private suspend fun generateCombatOutcomeTexts() {
-        val combatState = _combatState.value ?: return
-        val enemyName = combatState.enemy.name
-
-        log("Avvio seconda chiamata LLM per testi vittoria/sconfitta contro: $enemyName")
-
-        val outcomePrompt = """
-    Un combattimento è iniziato contro: "$enemyName".
-    Genera ESCLUSIVAMENTE due testi in italiano per descrivere l'esito dello scontro, usando i seguenti tag XML:
-    <victory_text_it>Testo per quando il giocatore vince.</victory_text_it>
-    <defeat_text_it>Testo per quando il giocatore perde.</defeat_text_it>
-    NON AGGIUNGERE ALTRO TESTO.
-    """.trimIndent()
-
-        try {
-            var rawResponse = ""
-            dmEngine.sendMessage(outcomePrompt).collect { token ->
-                rawResponse += token
-            }
-
-            val (_, outcomeCommands) = stringTagParser.parseAndReplaceWithCommands(rawResponse, CharacterType.DM)
-
-            // ---> BLOCCO MODIFICATO <---
-            if (outcomeCommands.isNotEmpty()) {
-                // Estraiamo i testi prima di processare i comandi
-                val victoryText = outcomeCommands.find { it.commandName == "setVictoryText" }
-                    ?.parameters?.get("text") as? String
-                val defeatText = outcomeCommands.find { it.commandName == "setDefeatText" }
-                    ?.parameters?.get("text") as? String
-
-                // Processiamo i comandi per salvare i testi nello stato
-                processCommands(outcomeCommands)
-                log("Testi di vittoria/sconfitta processati e aggiunti allo stato del combattimento.")
-
-                // Se abbiamo entrambi i testi, emettiamo l'evento per la UI
-                if (victoryText != null && defeatText != null) {
-                    _showCombatChoiceEvent.emit(Unit)
-                }
-            }
-            // ---> FINE BLOCCO MODIFICATO <---
-
-        } catch (e: Exception) {
-            log("Errore durante la generazione dei testi di esito combattimento: ${e.message}")
-        }
-    }
+//    fun resolveAutomaticCombat() {
+//        viewModelScope.launch {
+//            val combatState = _combatState.value ?: return@launch
+//            var hero = _gameHero.value ?: return@launch
+//            val enemy = combatState.enemy
+//
+//            var playerCurrentEndurance = hero.stats?.resistenza ?: 0
+//            var enemyCurrentEndurance = enemy.stats?.resistenza ?: 0
+//
+//            val combatLog = mutableListOf<String>()
+//
+//            while (playerCurrentEndurance > 0 && enemyCurrentEndurance > 0) {
+//                val roundResult = gameRules.resolveCombatRound(hero, enemy)
+//
+//                playerCurrentEndurance -= roundResult.playerDamage
+//                enemyCurrentEndurance -= roundResult.enemyDamage
+//
+//                // Per brevità, non aggiungiamo il log dettagliato al popup finale,
+//                // ma lo teniamo nel log di debug del ViewModel.
+//                log(roundResult.logMessage.italian ?: roundResult.logMessage.english)
+//            }
+//
+//            // --- BLOCCO MODIFICATO ---
+//            if (playerCurrentEndurance > 0) {
+//                // Vittoria
+//                val victoryText = combatState.victoryText ?: "Hai vinto il combattimento!"
+//                _combatResultEvent.emit(true to victoryText) // Emittiamo l'evento di vittoria
+//
+//                // Aggiorna la resistenza dell'eroe
+//                val enduranceChange = playerCurrentEndurance - (hero.stats?.resistenza ?: 0)
+//                if (enduranceChange != 0) {
+//                    val enduranceModifier = StatModifier(
+//                        statName = "RESISTENZA",
+//                        amount = enduranceChange,
+//                        sourceType = ModifierSourceType.EVENT,
+//                        sourceId = "combat_result_${combatState.enemy.id}",
+//                        duration = ModifierDuration.PERMANENT
+//                    )
+//                    hero.details?.activeModifiers?.add(enduranceModifier)
+//                    gameStateManager.saveSession(gameStateManager.loadSession().copy(hero = hero))
+//                    _gameHero.value = hero
+//                }
+//
+//            } else {
+//                // Sconfitta
+//                val defeatText = combatState.defeatText ?: "Sei stato sconfitto."
+//                _combatResultEvent.emit(false to defeatText) // Emittiamo l'evento di sconfitta
+//                _isHeroDead.value = true // Prepariamo lo stato di morte
+//            }
+//            // --- FINE BLOCCO MODIFICATO ---
+//
+//            // Resetta lo stato del combattimento
+//            _combatState.value = null
+//        }
+//    }
+//    private suspend fun generateCombatOutcomeTexts() {
+//        val combatState = _combatState.value ?: return
+//        val enemyName = combatState.enemy.name
+//
+//        log("Avvio seconda chiamata LLM per testi vittoria/sconfitta contro: $enemyName")
+//
+//        val outcomePrompt = """
+//    Un combattimento è iniziato contro: "$enemyName".
+//    Genera ESCLUSIVAMENTE due testi in italiano per descrivere l'esito dello scontro, usando i seguenti tag XML:
+//    <victory_text_it>Testo per quando il giocatore vince.</victory_text_it>
+//    <defeat_text_it>Testo per quando il giocatore perde.</defeat_text_it>
+//    NON AGGIUNGERE ALTRO TESTO.
+//    """.trimIndent()
+//
+//        try {
+//            var rawResponse = ""
+//            dmEngine.sendMessage(outcomePrompt).collect { token ->
+//                rawResponse += token
+//            }
+//
+//            val (_, outcomeCommands) = stringTagParser.parseAndReplaceWithCommands(rawResponse, CharacterType.DM)
+//
+//            // ---> BLOCCO MODIFICATO <---
+//            if (outcomeCommands.isNotEmpty()) {
+//                // Estraiamo i testi prima di processare i comandi
+//                val victoryText = outcomeCommands.find { it.commandName == "setVictoryText" }
+//                    ?.parameters?.get("text") as? String
+//                val defeatText = outcomeCommands.find { it.commandName == "setDefeatText" }
+//                    ?.parameters?.get("text") as? String
+//
+//                // Processiamo i comandi per salvare i testi nello stato
+//                processCommands(outcomeCommands)
+//                log("Testi di vittoria/sconfitta processati e aggiunti allo stato del combattimento.")
+//
+//                // Se abbiamo entrambi i testi, emettiamo l'evento per la UI
+//                if (victoryText != null && defeatText != null) {
+//                    _showCombatChoiceEvent.emit(Unit)
+//                }
+//            }
+//            // ---> FINE BLOCCO MODIFICATO <---
+//
+//        } catch (e: Exception) {
+//            log("Errore durante la generazione dei testi di esito combattimento: ${e.message}")
+//        }
+//    }
 
     private suspend fun processCommands(commands: List<EngineCommand>) {
         if (commands.isEmpty()) {
@@ -1169,59 +1169,59 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
 
-                "setVictoryText" -> {
-                    val text = command.parameters["text"] as? String
-                    _combatState.update { currentState ->
-                        currentState?.copy(victoryText = text)
-                    }
-                }
-                "setDefeatText" -> {
-                    val text = command.parameters["text"] as? String
-                    _combatState.update { currentState ->
-                        currentState?.copy(defeatText = text)
-                    }
-                }
+//                "setVictoryText" -> {
+//                    val text = command.parameters["text"] as? String
+//                    _combatState.update { currentState ->
+//                        currentState?.copy(victoryText = text)
+//                    }
+//                }
+//                "setDefeatText" -> {
+//                    val text = command.parameters["text"] as? String
+//                    _combatState.update { currentState ->
+//                        currentState?.copy(defeatText = text)
+//                    }
+//                }
 
-                "startCombat" -> {
-                    val enemyName = command.parameters["enemyName"] as? String
-                    val combatSkillStr = command.parameters["combatSkill"] as? String
-                    val enduranceStr = command.parameters["endurance"] as? String
-                    val immunity = command.parameters["immunity"] as? String
-                    val evadeSceneId = command.parameters["evadeScene"] as? String
-
-                    if (enemyName != null && combatSkillStr != null && enduranceStr != null) {
-                        val combatSkill = combatSkillStr.toInt()
-                        val endurance = enduranceStr.toInt()
-
-                        val enemy = GameCharacter(
-                            id = "enemy_${UUID.randomUUID()}",
-                            name = enemyName,
-                            type = CharacterType.NPC,
-                            stats = LoneWolfStats(combattivita = combatSkill, resistenza = endurance),
-                            portraitResId = R.drawable.ic_enemy_placeholder,
-                            gender = "NEUTRAL",
-                            language = "it",
-                            details = HeroDetails()
-                        )
-
-                        (command.parameters["bonusCS"] as? String)?.toIntOrNull()?.let { bonus ->
-                            val modifier = StatModifier(
-                                statName = "COMBATTIVITA",
-                                amount = bonus,
-                                sourceType = ModifierSourceType.EVENT,
-                                sourceId = "combat_start_bonus",
-                                duration = ModifierDuration.UNTIL_COMBAT_END
-                            )
-                            hero.details?.activeModifiers?.add(modifier)
-                            log("Applico bonus/malus di combattimento temporaneo: $bonus CS")
-                        }
-
-                        _combatState.value = CombatState(enemy, canEvade = evadeSceneId != null, evadeSceneId = evadeSceneId)
-                        log("⚔️ Combattimento iniziato contro ${enemy.name} (CS: $combatSkill, RES: $endurance)")
-                    } else {
-                        log("❌ ERRORE: Parametri mancanti per il comando startCombat.")
-                    }
-                }
+//                "startCombat" -> {
+//                    val enemyName = command.parameters["enemyName"] as? String
+//                    val combatSkillStr = command.parameters["combatSkill"] as? String
+//                    val enduranceStr = command.parameters["endurance"] as? String
+//                    val immunity = command.parameters["immunity"] as? String
+//                    val evadeSceneId = command.parameters["evadeScene"] as? String
+//
+//                    if (enemyName != null && combatSkillStr != null && enduranceStr != null) {
+//                        val combatSkill = combatSkillStr.toInt()
+//                        val endurance = enduranceStr.toInt()
+//
+//                        val enemy = GameCharacter(
+//                            id = "enemy_${UUID.randomUUID()}",
+//                            name = enemyName,
+//                            type = CharacterType.NPC,
+//                            stats = LoneWolfStats(combattivita = combatSkill, resistenza = endurance),
+//                            portraitResId = R.drawable.ic_unknow,
+//                            gender = "NEUTRAL",
+//                            language = "it",
+//                            details = HeroDetails()
+//                        )
+//
+//                        (command.parameters["bonusCS"] as? String)?.toIntOrNull()?.let { bonus ->
+//                            val modifier = StatModifier(
+//                                statName = "COMBATTIVITA",
+//                                amount = bonus,
+//                                sourceType = ModifierSourceType.EVENT,
+//                                sourceId = "combat_start_bonus",
+//                                duration = ModifierDuration.UNTIL_COMBAT_END
+//                            )
+//                            hero.details?.activeModifiers?.add(modifier)
+//                            log("Applico bonus/malus di combattimento temporaneo: $bonus CS")
+//                        }
+//
+//                        _combatState.value = CombatState(enemy, canEvade = evadeSceneId != null, evadeSceneId = evadeSceneId)
+//                        log("⚔️ Combattimento iniziato contro ${enemy.name} (CS: $combatSkill, RES: $endurance)")
+//                    } else {
+//                        log("❌ ERRORE: Parametri mancanti per il comando startCombat.")
+//                    }
+//                }
 
                 else -> {
                     log("⚠️ Comando sconosciuto o non ancora implementato: ${command.commandName}")
@@ -1359,33 +1359,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 return
             }
 
-            // --- FASE 1: ESECUZIONE IMMEDIATA DELLE MECCANICHE DI GIOCO DAL JSON ---
-            val gameMechanics = scene.gameMechanics
-            if (!gameMechanics.isNullOrEmpty()) {
-                log("Trovate ${gameMechanics.size} meccaniche di gioco predefinite nella scena: $gameMechanics")
-                val commandsToExecute = mutableListOf<EngineCommand>()
-
-                gameMechanics.forEach { mechanicString ->
-                    // Usiamo il parser sulla singola stringa di meccanica
-                    val (_, commands) = stringTagParser.parseAndReplaceWithCommands(
-                        mechanicString,
-                        CharacterType.DM
-                    )
-                    commandsToExecute.addAll(commands)
-                }
-
-                if (commandsToExecute.isNotEmpty()) {
-                    // -->> MODIFICA CRUCIALE: ESEGUIAMO SUBITO I COMANDI <<--
-                    processCommands(commandsToExecute)
-                    log("LOG SPECIALIZZATO: Eseguiti ${commandsToExecute.size} comandi da gameMechanics.")
-                }
-            }
-            // --- FINE FASE 1 ---
-
-            if (_isHeroDead.value) {
-                log("Eroe morto dopo l'esecuzione delle meccaniche. Interrompo l'elaborazione della scena.")
-                return
-            }
 
             prepareChoicesForScene(scene)
 
@@ -1470,11 +1443,40 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
 
-                // ---> INSERISCI QUESTO BLOCCO <---
-                if (_combatState.value != null && _combatState.value?.victoryText == null) {
-                    generateCombatOutcomeTexts()
+
+                // --- FASE 1: ESECUZIONE IMMEDIATA DELLE MECCANICHE DI GIOCO DAL JSON ---
+                val gameMechanics = scene.gameMechanics
+                if (!gameMechanics.isNullOrEmpty()) {
+                    log("Trovate ${gameMechanics.size} meccaniche di gioco predefinite nella scena: $gameMechanics")
+                    val commandsToExecute = mutableListOf<EngineCommand>()
+
+                    gameMechanics.forEach { mechanicString ->
+                        // Usiamo il parser sulla singola stringa di meccanica
+                        val (_, commands) = stringTagParser.parseAndReplaceWithCommands(
+                            mechanicString,
+                            CharacterType.DM
+                        )
+                        commandsToExecute.addAll(commands)
+                    }
+
+                    if (commandsToExecute.isNotEmpty()) {
+                        // -->> MODIFICA CRUCIALE: ESEGUIAMO SUBITO I COMANDI <<--
+                        processCommands(commandsToExecute)
+                        log("LOG SPECIALIZZATO: Eseguiti ${commandsToExecute.size} comandi da gameMechanics.")
+                    }
                 }
-                // ---> FINE BLOCCO DA INSERIRE <---
+                // --- FINE FASE 1 ---
+
+                if (_isHeroDead.value) {
+                    log("Eroe morto dopo l'esecuzione delle meccaniche. Interrompo l'elaborazione della scena.")
+                    return
+                }
+
+//                // ---> INSERISCI QUESTO BLOCCO <---
+//                if (_combatState.value != null && _combatState.value?.victoryText == null) {
+//                    generateCombatOutcomeTexts()
+//                }
+//                // ---> FINE BLOCCO DA INSERIRE <---
 
 
                 _isGenerating.value = false

@@ -123,7 +123,7 @@ Esegui i seguenti passaggi in ordine rigoroso.
 3. **Array choices (Tipo: 'List<NarrativeChoice\>)''**:
     * Usa questo array per tutte le scelte narrative standard **non condizionali**.
     * **Esempio Testo**: "If you want to go right, turn to 10. If you want to go left, turn to 12."
-    * **Struttura Oggetto**: Popola scene, progressive, choiceText, e nextSceneId.
+	* **Struttura Oggetto**: Popola scene, progressive, choiceText, e nextSceneId.
 4. **Array disciplineChoices (Tipo: 'List<DisciplineChoice\>')**:
     * Usa questo array **solo ed esclusivamente** per le scelte che dipendono dal possesso di una specifica disciplina Kai.
     * **Esempio Testo**: "Se hai la disciplina del Sesto Senso, vai al 141."

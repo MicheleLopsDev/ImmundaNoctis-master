@@ -97,33 +97,6 @@
       "replace": true
     },
     {
-      "id": "combat_tag",
-      "type": "gameMechanic",
-      "regex": "<combat\\s+enemyName=\\\"([^\\\"]*)\\\"\\s+combatSkill=\\\"(\\d+)\\\"\\s+endurance=\\\"(\\d+)\\\"(?:\\s+immunity=\\\"([^\\\"]*)\\\")?(?:\\s+bonusCS=\\\"([+-]?\\d+)\\\")?(?:\\s+bonusRounds=\\\"(\\d+)\\\")?(?:\\s+evadeRounds=\\\"(\\d+)\\\")?(?:\\s+evadeSceneId=\\\"(\\d+)\\\")?\\s*\\/>",
-      "parameters": [
-        { "name": "enemyName", "value": "{captured_value_from_regex_1}" },
-        { "name": "combatSkill", "value": "{captured_value_from_regex_2}" },
-        { "name": "endurance", "value": "{captured_value_from_regex_3}" },
-        { "name": "immunity", "value": "{captured_value_from_regex_4}" },
-        { "name": "bonusCS", "value": "{captured_value_from_regex_5}" },
-        { "name": "bonusRounds", "value": "{captured_value_from_regex_6}" },
-        { "name": "evadeRounds", "value": "{captured_value_from_regex_7}" },
-        { "name": "evadeSceneId", "value": "{captured_value_from_regex_8}" }
-      ],
-      "actor": "DM",
-      "command": "startCombat",
-      "replace": true
-    },
-    {
-      "id": "evade_combat_tag",
-      "type": "gameMechanic",
-      "regex": "<evadeCombat\\s*\\/>",
-      "parameters": [],
-      "actor": "DM",
-      "command": "evadeCombat",
-      "replace": true
-    },
-    {
       "id": "require_action_tag",
       "type": "gameMechanic",
       "regex": "<requireAction\\s+action=\\\"([^\\\"]*)\\\"\\s+penaltyStat=\\\"([^\\\"]*)\\\"\\s+penaltyValue=\\\"([+-]?\\d+)\\\"\\s*\\/>",

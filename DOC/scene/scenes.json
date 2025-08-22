@@ -4353,12 +4353,26 @@
           "enemyName": "Giak Guards",
           "combatSkill": 13,
           "endurance": 10,
-          "notes": "You must fight two Giaks in turn. The second Giak has COMBAT SKILL 12 and ENDURANCE 10.",
+          "notes": "",
           "condition": "WIN",
           "choiceText": {
             "english": "If you win, you have a choice to either explore the cave further or leave and descend the hill."
           },
-          "nextSceneId": "33"
+          "nextSceneId": "33",
+          "group": true
+        },
+        {
+          "scene": "112",
+          "enemyName": "Giak Guards",
+          "combatSkill": 12,
+          "endurance": 10,
+          "notes": "",
+          "condition": "WIN",
+          "choiceText": {
+            "english": "If you win, you have a choice to either explore the cave further or leave and descend the hill."
+          },
+          "nextSceneId": "33",
+          "group": true
         }
       ],
       "location": {

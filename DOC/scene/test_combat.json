@@ -1,0 +1,56 @@
+{
+  "adventureName": "Lone Wolf Mock Adventure",
+  "scenes": [
+    {
+      "id": "200",
+      "sceneType": "TRANSITION",
+      "genre": "FANTASY",
+      "narrativeText": {
+        "english": "You turn the corner into a narrow alley, but it's a dead end. The way back is suddenly blocked by a hulking Giak warrior, its cruel spear aimed at your heart. There is no escape; you must fight for your life!"
+      },
+      "images": [
+        {
+          "imageUrl": "Illustration_Giak_Ambush",
+          "caption": "A Giak warrior blocks your escape."
+        }
+      ],
+      "choices": [],
+      "disciplineChoices": [],
+      "itemChoices": [],
+      "combatChoices": [
+        {
+          "scene": "200",
+          "enemyName": "Giak Ambusher",
+          "combatSkill": 14,
+          "endurance": 22,
+          "immunity": null,
+          "notes": "This warrior is desperate and will give no quarter.",
+          "condition": "WIN",
+          "choiceText": {
+            "english": "If you win the combat, continue."
+          },
+          "nextSceneId": "201"
+        },
+        {
+          "scene": "200",
+          "enemyName": "Giak Ambusher",
+          "combatSkill": 14,
+          "endurance": 22,
+          "immunity": null,
+          "notes": null,
+          "condition": "LOSE",
+          "choiceText": {
+            "english": "If you lose the combat, your quest ends here."
+          },
+          "nextSceneId": "DEATH_SCENE_GIAK"
+        }
+      ],
+      "location": {
+        "areaName": "Dead End Alley",
+        "isMajorLocation": false
+      },
+      "challengeLevel": "HARD",
+      "gameMechanics": []
+    }
+  ]
+}

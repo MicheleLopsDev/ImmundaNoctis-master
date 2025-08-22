@@ -1,0 +1,61 @@
+{
+  "adventureName": "Lone Wolf Mock Adventure",
+  "scenes": [
+    {
+      "id": "150",
+      "sceneType": "TRANSITION",
+      "genre": "FANTASY",
+      "narrativeText": {
+        "english": "As you push through the ancient woods, a low growl echoes from the shadows between the trees. A massive Black Bear, with claws as long as daggers, blocks your path. It rises on its hind legs, sniffing the air, its eyes fixed on you. It seems you can either face the beast or try to slip away unnoticed."
+      },
+      "images": [
+        {
+          "imageUrl": "Illustration_Black_Bear",
+          "caption": "A massive Black Bear blocks the path."
+        }
+      ],
+      "choices": [
+        {
+          "scene": "150",
+          "progressive": "1",
+          "choiceText": {
+            "english": "If you wish to stand and fight the Black Bear, continue."
+          },
+          "nextSceneId": ""
+        }
+      ],
+      "disciplineChoices": [
+        {
+          "scene": "150",
+          "discipline": "Camouflage",
+          "choiceText": {
+            "english": "If you wish to use your Kai Discipline of Camouflage to evade the bear, continue."
+          },
+          "nextSceneId": "152"
+        }
+      ],
+      "itemChoices": [],
+      "combatChoices": [
+        {
+          "scene": "150",
+          "enemyName": "Black Bear",
+          "combatSkill": 16,
+          "endurance": 25,
+          "immunity": null,
+          "notes": "A powerful beast of the forest.",
+          "condition": "WIN",
+          "choiceText": {
+            "english": "If you win the combat, continue."
+          },
+          "nextSceneId": "151"
+        }
+      ],
+      "location": {
+        "areaName": "Whispering Woods",
+        "isMajorLocation": false
+      },
+      "challengeLevel": "HARD",
+      "gameMechanics": []
+    }
+  ]
+}
